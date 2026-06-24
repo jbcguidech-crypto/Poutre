@@ -1,7 +1,8 @@
 {
   "name": "Progression",
   "short_name": "Progression",
-  "start_url": "progression.html",
+  "id": "progression",
+  "start_url": ".",
   "scope": ".",
   "display": "standalone",
   "orientation": "portrait",
