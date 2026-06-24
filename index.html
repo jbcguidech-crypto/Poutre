@@ -123,14 +123,46 @@ header{padding:22px 0 6px}
 #installBtn{background:#fff;color:#3E6E55}
 #installClose{background:transparent;color:#fff;padding:8px 6px;font-size:16px}
 </style>
+<style>
+/* Onglets + pages */
+body{padding-bottom:86px}
+.page{display:none}
+.page.on{display:block}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:80;display:flex;gap:4px;background:var(--card);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -2px 14px rgba(29,28,24,.06)}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px;border-radius:11px;color:var(--ink-soft);font-size:10.5px;font-weight:600;letter-spacing:.02em}
+.tabbar button .ti{font-size:18px;line-height:1}
+.tabbar button.on{color:var(--accent);background:var(--accent-soft)}
+.overlay{z-index:100}
+/* Journal endurance */
+.seg{display:flex;gap:8px;margin-top:8px}
+.seg button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--card2);font-size:13px;font-weight:600;color:var(--ink-soft)}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.seg button.dur.on{background:var(--warn);border-color:var(--warn)}
+.en-log{display:flex;gap:8px;margin-top:14px}
+.en-log input{flex:1;min-width:0;font-size:14px;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink)}
+.en-log button{padding:0 18px;border-radius:9px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;flex:none}
+.en-row{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 13px;margin-bottom:9px;box-shadow:var(--shadow)}
+.en-row .dot{width:5px;align-self:stretch;border-radius:4px;flex:none;background:var(--accent)}
+.en-row .dot.dur{background:var(--warn)}
+.en-row .eb{flex:1;min-width:0}
+.en-row .ed{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;color:var(--ink-soft)}
+.en-row .enm{font-size:15px;font-weight:600;margin-top:1px}
+.en-row .em{font-size:12.5px;color:var(--ink-soft);margin-top:1px;overflow:hidden;text-overflow:ellipsis}
+.en-row .del{flex:none;font-size:22px;line-height:1;color:var(--ink-soft);padding:2px 4px}
+.en-tag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;flex:none}
+.en-tag.fac{background:var(--accent-soft);color:var(--accent)}
+.en-tag.dur{background:rgba(181,96,79,.16);color:var(--warn)}
+</style>
 </head>
 <body>
 <div id="installBar"><b id="installTxt">Installer l'app sur ton écran d'accueil</b><button id="installBtn">Installer</button><button id="installClose" aria-label="Fermer">✕</button></div>
 <div class="wrap">
   <header>
     <div class="logo">Progression<small>monter en niveau, mouvement par mouvement</small></div>
-    <p class="intro">Tu choisis ton matériel, l'app te place au bon échelon et te fait progresser quand tu remplis le critère.</p>
   </header>
+
+  <div class="page on" id="page-workout">
+  <p class="intro">Tu choisis ton matériel, l'app te place au bon échelon et te fait progresser quand tu remplis le critère.</p>
 
   <div class="sect">Matériel dispo</div>
   <div class="mini">
@@ -172,7 +204,33 @@ header{padding:22px 0 6px}
     <button class="allbtn" style="display:block;width:100%;padding:11px;border-radius:10px" onclick="document.getElementById('importFile').click()">⬆ Importer une sauvegarde</button>
     <input type="file" id="importFile" accept="application/json,.json" style="display:none" onchange="importData(this)">
   </div>
+  </div>
+
+  <div class="page" id="page-endurance">
+    <p class="intro">Journalise tes sorties d'endurance — nage, course, rando, vélo, ski-rando, corde. Peu importe la source : tu déclares juste si c'était facile ou dur.</p>
+
+    <div class="sect">Nouvelle séance</div>
+    <div class="mini">
+      <div class="cap">Discipline</div>
+      <div class="chips" id="enDisc"></div>
+      <div class="cap" style="margin-top:15px">Intensité</div>
+      <div class="seg" id="enInt"></div>
+      <div class="en-log">
+        <input id="enNote" type="text" placeholder="Durée, distance, ressenti… (ex. 45 min Z2)" maxlength="60">
+        <button onclick="logEndurance()">Ajouter</button>
+      </div>
+    </div>
+
+    <div class="sect">Historique</div>
+    <div id="enOut"></div>
+    <p class="note">L'intensité « dur » comptera plus tard dans ton budget hebdo — une seule séance intense par semaine, poumons d'abord.</p>
+  </div>
 </div>
+
+<nav class="tabbar">
+  <button data-tab="workout" class="on" onclick="showPage('workout')"><span class="ti">▲</span>Workout</button>
+  <button data-tab="endurance" onclick="showPage('endurance')"><span class="ti">≈</span>Endurance</button>
+</nav>
 
 <div class="overlay" id="overlay" onclick="if(event.target===this)closeSheet()">
   <div class="sheet" id="sheet">
@@ -485,6 +543,49 @@ function renderSheet(){
 }
 
 renderChips();renderTimeChips();renderFocusChips();renderTracks();applyTheme();renderThemeUI();
+</script>
+<script>
+// ---- Navigation par onglets ----
+function showPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.toggle('on',el.id==='page-'+p));
+  document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===p));
+  window.scrollTo(0,0);
+}
+
+// ---- Endurance (journal simple) ----
+const DISCIPLINES=[['nage','Nage'],['course','Course'],['rando','Rando rapide'],['velo','Vélo'],['skirando','Ski de rando'],['corde','Corde à sauter']];
+let enDisc='course',enInt='facile';
+function discLabel(k){const d=DISCIPLINES.find(x=>x[0]===k);return d?d[1]:k;}
+function enList(){if(!STORE.endurance)STORE.endurance=[];return STORE.endurance;}
+function setEnDisc(k){enDisc=k;renderEnForm();}
+function setEnInt(v){enInt=v;renderEnForm();}
+function renderEnForm(){
+  document.getElementById('enDisc').innerHTML=DISCIPLINES.map(([k,l])=>`<button class="chip ${enDisc===k?'on':''}" onclick="setEnDisc('${k}')">${l}</button>`).join('');
+  document.getElementById('enInt').innerHTML=
+    `<button class="${enInt==='facile'?'on':''}" onclick="setEnInt('facile')">Facile · Z2</button>`+
+    `<button class="dur ${enInt==='dur'?'on':''}" onclick="setEnInt('dur')">Dur · intense</button>`;
+}
+function logEndurance(){
+  const inp=document.getElementById('enNote');const v=inp.value.trim();
+  enList().unshift({iso:new Date().toISOString(),disc:enDisc,int:enInt,note:v});
+  save();inp.value='';renderEnList();
+}
+function delEndurance(iso){STORE.endurance=enList().filter(e=>e.iso!==iso);save();renderEnList();}
+function renderEnList(){
+  const l=enList();const el=document.getElementById('enOut');
+  if(!l.length){el.innerHTML='<div class="gen-empty">Aucune séance notée. Journalise ta première sortie ci-dessus.</div>';return;}
+  el.innerHTML=l.slice(0,40).map(e=>{
+    const d=new Date(e.iso).toLocaleDateString('fr-CH',{weekday:'short',day:'numeric',month:'short'});
+    const dur=e.int==='dur';
+    return `<div class="en-row"><div class="dot ${dur?'dur':''}"></div>
+      <div class="eb"><div class="ed">${d}</div><div class="enm">${escapeHtml(discLabel(e.disc))}</div>
+      ${e.note?`<div class="em">${escapeHtml(e.note)}</div>`:''}</div>
+      <span class="en-tag ${dur?'dur':'fac'}">${dur?'Dur':'Facile'}</span>
+      <button class="del" onclick="delEndurance('${e.iso}')" aria-label="Supprimer">×</button></div>`;
+  }).join('');
+}
+document.getElementById('enNote').addEventListener('keydown',e=>{if(e.key==='Enter')logEndurance();});
+renderEnForm();renderEnList();
 </script>
 <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}</script>
 <script>
