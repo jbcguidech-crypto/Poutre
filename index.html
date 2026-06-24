@@ -136,7 +136,10 @@ header{padding:22px 0 6px}
   <div class="mini">
     <div class="cap">Temps disponible</div>
     <div class="chips" id="progTime"></div>
-    <div class="cap" style="margin-top:15px">Zone à travailler</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:15px">
+      <span class="cap" style="margin:0">Groupes à travailler</span>
+      <button class="allbtn" id="muscleAllBtn" onclick="toggleAllMuscles()">Tout décocher</button>
+    </div>
     <div class="chips" id="progFocus"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:15px">
       <span class="cap" style="margin:0">Matériel <span style="text-transform:none;letter-spacing:0;font-weight:400">(poids du corps inclus)</span></span>
@@ -269,15 +272,19 @@ const TRACKS=[
 
 let equip=new Set(['barre','trx','anneaux','box','kb','gilet','mb','slider']);
 const TIMES=[10,15,20,30,45];let timeCfg=20;
-const FOCUS_LABEL={full:'Full body',haut:'Haut du corps',bas:'Bas du corps'};
-const FOCUS_CATS={full:['Jambes','Poussée','Tirage','Ischios','Tronc','Explosivité','Skill'],haut:['Poussée','Tirage'],bas:['Jambes','Ischios','Explosivité']};
-let focusCfg='full';
+const MUSCLES=[['Jambes','Jambes'],['Poussée','Pecs / poussée'],['Tirage','Dos / tirage'],['Ischios','Ischios'],['Tronc','Tronc'],['Explosivité','Explosivité'],['Skill','Équilibre']];
+let focusParts=new Set(MUSCLES.map(m=>m[0]));
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function countForTime(t){return {10:2,15:3,20:4,30:5,45:6}[t]||4;}
 function renderTimeChips(){document.getElementById('progTime').innerHTML=TIMES.map(t=>`<button class="chip ${timeCfg===t?'on':''}" onclick="setTime(${t})">${t} min</button>`).join('');}
 function setTime(t){timeCfg=t;renderTimeChips();}
-function renderFocusChips(){document.getElementById('progFocus').innerHTML=Object.keys(FOCUS_LABEL).map(f=>`<button class="chip ${focusCfg===f?'on':''}" onclick="setFocus('${f}')">${FOCUS_LABEL[f]}</button>`).join('');}
-function setFocus(f){focusCfg=f;renderFocusChips();}
+function muscleLabel(k){const m=MUSCLES.find(x=>x[0]===k);return m?m[1]:k;}
+function renderFocusChips(){
+  document.getElementById('progFocus').innerHTML=MUSCLES.map(([k,l])=>`<button class="chip ${focusParts.has(k)?'on':''}" onclick="toggleMuscle('${k}')">${l}</button>`).join('');
+  const ab=document.getElementById('muscleAllBtn');if(ab)ab.textContent=focusParts.size>0?'Tout décocher':'Tout cocher';
+}
+function toggleMuscle(k){if(focusParts.has(k))focusParts.delete(k);else focusParts.add(k);renderFocusChips();}
+function toggleAllMuscles(){if(focusParts.size>0)focusParts.clear();else MUSCLES.forEach(([k])=>focusParts.add(k));renderFocusChips();}
 let STORE=load();
 function load(){try{const r=localStorage.getItem('progression_v1');return r?JSON.parse(r):fresh();}catch(e){return fresh();}}
 function fresh(){return {level:{},hist:{}};}
@@ -346,7 +353,8 @@ function renderTracks(){
 
 function generateSession(){
   const count=countForTime(timeCfg);
-  const cats=FOCUS_CATS[focusCfg]||FOCUS_CATS.full;
+  const order=['Jambes','Poussée','Tirage','Ischios','Tronc','Explosivité','Skill'];
+  let cats=order.filter(c=>focusParts.has(c));if(!cats.length)cats=order;
   const byCat={};cats.forEach(c=>{byCat[c]=shuffle(TRACKS.filter(t=>t.part===c&&trackAvailable(t)));});
   const out=[];let guard=0;
   while(out.length<count&&guard<50){
@@ -354,9 +362,10 @@ function generateSession(){
     for(const c of cats){if(out.length>=count)break;const arr=byCat[c];if(arr&&arr.length){out.push(arr.pop());added=true;}}
     guard++;if(!added)break;
   }
+  const lbl=(cats.length===MUSCLES.length)?'Full body':(cats.length===1?muscleLabel(cats[0]):'Ciblé · '+cats.length+' groupes');
   const el=document.getElementById('genOut');
-  if(!out.length){el.innerHTML='<div class="gen-card"><div class="gen-empty">Ajoute du matériel pour générer une séance.</div></div>';return;}
-  el.innerHTML='<div class="gen-card"><div class="gen-head">'+FOCUS_LABEL[focusCfg]+' · '+timeCfg+' min · '+out.length+' mouvements</div>'+out.map(t=>{
+  if(!out.length){el.innerHTML='<div class="gen-card"><div class="gen-empty">Sélectionne au moins un groupe et du matériel.</div></div>';return;}
+  el.innerHTML='<div class="gen-card"><div class="gen-head">'+lbl+' · '+timeCfg+' min · '+out.length+' mouvements</div>'+out.map(t=>{
     const lv=lvlOf(t.id);const cur=t.levels[lv];const feas=levelFeasible(cur);
     return `<div class="gen-row" onclick="openSheet('${t.id}')"><div class="pt ${PARTCLASS[t.part]}"></div>
       <div class="gi"><div class="part">${t.part} · niv. ${lv+1}</div><div class="nm">${escapeHtml(cur.n)}</div>
