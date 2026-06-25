@@ -98,6 +98,17 @@ header{padding:22px 0 6px}
 .log-row button{padding:0 16px;border-radius:9px;background:var(--accent);color:#fff;font-size:13px;font-weight:600}
 .lvl-btns{display:flex;gap:8px;margin-top:12px}
 .lvl-btns button{flex:1;padding:11px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid var(--line)}
+.sets-lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:15px 0 9px}
+.sets-row{display:flex;gap:7px;flex-wrap:wrap}
+.set-in{position:relative;flex:1;min-width:50px}
+.set-in input{width:100%;text-align:center;font-size:17px;font-weight:700;padding:12px 4px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink)}
+.set-in .si{position:absolute;top:-7px;left:6px;font-size:9px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:0 5px;border-radius:6px}
+.val-btn{width:100%;margin-top:12px;padding:12px;border-radius:10px;background:var(--accent);color:#fff;font-size:14px;font-weight:600}
+.verdict{margin-top:13px;padding:13px;border-radius:11px;font-size:13.5px;line-height:1.45}
+.verdict.up{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.verdict.down{background:rgba(181,96,79,.14);color:var(--warn);font-weight:600}
+.verdict.stay{background:var(--card2);color:var(--ink-soft)}
+.verdict .undo{display:inline-block;margin-top:9px;padding:7px 13px;border-radius:8px;font-size:12.5px;font-weight:700;border:1px solid var(--line);background:transparent;color:var(--ink-soft)}
 .lvl-up{background:var(--accent);color:#fff;border-color:var(--accent)}
 .lvl-dn{background:var(--card);color:var(--ink-soft)}
 .ladder{margin-top:6px}
@@ -625,7 +636,7 @@ function toggleMuscle(k){if(focusParts.has(k))focusParts.delete(k);else focusPar
 function toggleAllMuscles(){if(focusParts.size>0)focusParts.clear();else MUSCLES.forEach(([k])=>focusParts.add(k));renderFocusChips();}
 let STORE=load();
 function load(){try{const r=localStorage.getItem('progression_v1');return r?JSON.parse(r):fresh();}catch(e){return fresh();}}
-function fresh(){return {level:{},hist:{}};}
+function fresh(){return {level:{},hist:{},perf:{}};}
 function save(){try{localStorage.setItem('progression_v1',JSON.stringify(STORE));}catch(e){}}
 function applyTheme(){
   let t=STORE.theme||'auto',eff=t;
@@ -714,39 +725,125 @@ function generateSession(){
 }
 
 let curTrack=null;
-function openSheet(id){curTrack=id;renderSheet();document.getElementById('overlay').classList.add('open');}
+var lastLevelChange=null,pendingVerdict=null;
+function openSheet(id){curTrack=id;pendingVerdict=null;lastLevelChange=null;renderSheet();document.getElementById('overlay').classList.add('open');}
 function closeSheet(){document.getElementById('overlay').classList.remove('open');}
 function changeLevel(d){
   const t=TRACKS.find(x=>x.id===curTrack);const lv=lvlOf(t.id)+d;
   if(lv<0||lv>=t.levels.length)return;
+  pendingVerdict=null;lastLevelChange=null;
   STORE.level[t.id]=lv;save();renderSheet();renderTracks();
 }
-function logPerf(){
-  const inp=document.getElementById('perfInput');const v=inp.value.trim();if(!v)return;
-  const lv=lvlOf(curTrack);const t=TRACKS.find(x=>x.id===curTrack);
-  const d=new Date().toLocaleDateString('fr-CH',{day:'numeric',month:'short'});
-  histOf(curTrack).unshift({d,niv:lv+1,perf:v});save();inp.value='';renderSheet();
+function perfOf(id){if(!STORE.perf)STORE.perf={};if(!STORE.perf[id])STORE.perf[id]=[];return STORE.perf[id];}
+function parseTarget(str){
+  var o={sets:4,lo:null,hi:null,unit:'reps',perSide:false,load:false,ok:false};
+  if(!str)return o;
+  o.perSide=/c[oô]t[eé]|\/bras|\/jambe/i.test(str);
+  o.load=/charge/i.test(str);
+  var sm=str.match(/^\s*(\d+)\s*[×x]/);if(sm)o.sets=+sm[1];
+  var parts=str.split(/[×x]/);
+  if(parts[1]){
+    var tm=parts[1].match(/\s*(\d+)(?:\s*[-–]\s*(\d+))?\s*(s|m)?/);
+    if(tm){o.lo=+tm[1];o.hi=tm[2]?+tm[2]:+tm[1];if(tm[3]==='s')o.unit='sec';else if(tm[3]==='m')o.unit='dist';o.ok=true;}
+  }
+  return o;
+}
+function gradeSets(arr,lo,hi){if(!arr.length)return 'stay';var avg=arr.reduce(function(a,b){return a+b;},0)/arr.length;if(avg>=hi)return 'up';if(avg<lo)return 'down';return 'stay';}
+function levelStreak(id,lvl){
+  var arr=perfOf(id).filter(function(p){return p.level===lvl;});
+  if(!arr.length)return {dir:null,n:0};
+  var dir=arr[0].grade;if(dir==='stay')return {dir:'stay',n:1};
+  var n=0;for(var i=0;i<arr.length;i++){if(arr[i].grade===dir)n++;else break;}
+  return {dir:dir,n:n};
+}
+function validateSets(){
+  var t=TRACKS.find(function(x){return x.id===curTrack;});var lv=lvlOf(t.id);var cur=t.levels[lv];
+  var tg=parseTarget(cur.s);
+  var sets=[];
+  document.querySelectorAll('#setInputs input').forEach(function(inp){var v=parseInt(inp.value,10);if(!isNaN(v)&&v>=0)sets.push(v);});
+  if(!sets.length)return;
+  var grade=gradeSets(sets,tg.lo,tg.hi);
+  perfOf(t.id).unshift({iso:new Date().toISOString(),level:lv,sets:sets,grade:grade,unit:tg.unit});
+  save();
+  lastLevelChange=null;
+  if(!tg.load){
+    var st=levelStreak(t.id,lv);
+    if(st.dir==='up'&&st.n>=2&&lv<t.levels.length-1){STORE.level[t.id]=lv+1;lastLevelChange={id:t.id,from:lv,to:lv+1};save();}
+    else if(st.dir==='down'&&st.n>=2&&lv>0){STORE.level[t.id]=lv-1;lastLevelChange={id:t.id,from:lv,to:lv-1};save();}
+  }
+  pendingVerdict={grade:grade,load:tg.load,lvBefore:lv,maxed:lv>=t.levels.length-1,base:lv<=0};
+  renderSheet();renderTracks();
+}
+function noteFree(){
+  var inp=document.getElementById('freeNote');if(!inp)return;var v=inp.value.trim();if(!v)return;
+  var t=TRACKS.find(function(x){return x.id===curTrack;});var lv=lvlOf(t.id);
+  perfOf(t.id).unshift({iso:new Date().toISOString(),level:lv,note:v,grade:'stay',unit:'free'});
+  save();inp.value='';pendingVerdict=null;renderSheet();
+}
+function undoLevel(){if(!lastLevelChange)return;STORE.level[lastLevelChange.id]=lastLevelChange.from;save();lastLevelChange=null;pendingVerdict=null;renderSheet();renderTracks();}
+function verdictHTML(){
+  if(!pendingVerdict)return '';
+  var v=pendingVerdict;
+  if(lastLevelChange){
+    if(lastLevelChange.to>lastLevelChange.from)
+      return '<div class="verdict up">Tu maîtrises ce niveau — passage au niveau suivant.<br><button class="undo" onclick="undoLevel()">Annuler</button></div>';
+    return '<div class="verdict down">On redescend d\'un cran pour consolider proprement.<br><button class="undo" onclick="undoLevel()">Annuler</button></div>';
+  }
+  if(v.load){
+    if(v.grade==='up')return '<div class="verdict up">Cible atteinte — la prochaine fois, monte la charge.</div>';
+    if(v.grade==='down')return '<div class="verdict down">En dessous de la cible — réduis un peu la charge.</div>';
+    return '<div class="verdict stay">Dans la cible — garde cette charge et vise le haut de la fourchette.</div>';
+  }
+  if(v.grade==='up'){
+    if(v.maxed)return '<div class="verdict up">Niveau max atteint et maîtrisé. Bravo.</div>';
+    return '<div class="verdict up">Belle séance ! Encore une comme ça et l\'app te fait monter.</div>';
+  }
+  if(v.grade==='down'){
+    if(v.base)return '<div class="verdict down">Niveau de base — persévère, ça va venir.</div>';
+    return '<div class="verdict down">Séance difficile. Si ça se répète, l\'app te redescendra d\'un cran.</div>';
+  }
+  return '<div class="verdict stay">Dans la cible — niveau maintenu. C\'est ta zone de travail.</div>';
 }
 function renderSheet(){
   const t=TRACKS.find(x=>x.id===curTrack);const lv=lvlOf(t.id);const cur=t.levels[lv];const feas=levelFeasible(cur);
   document.getElementById('sPart').textContent=t.part;
   document.getElementById('sTitle').textContent=t.name;
   document.getElementById('sProgress').textContent='Niveau '+(lv+1)+' sur '+t.levels.length;
-  document.getElementById('sPresc').innerHTML=`<div class="presc">
-    <div class="pl">Prescription du jour</div>
-    <div class="pn">${escapeHtml(cur.n)}</div>
-    <div class="ps">${escapeHtml(cur.s)}</div>
-    <div class="pa">▸ Passe au niveau suivant : ${escapeHtml(cur.a)}</div>
-    ${feas?'':'<div class="lock">⚠️ Ce niveau nécessite du matériel non sélectionné.</div>'}
-    <div class="log-row"><input id="perfInput" type="text" placeholder="Note ta perf (reps, charge, temps…)" maxlength="40"><button onclick="logPerf()">Valider</button></div>
-  </div>`;
+  var tg=parseTarget(cur.s);
+  var unitTxt=tg.unit==='sec'?'secondes':(tg.unit==='dist'?'mètres':'reps');
+  if(tg.perSide)unitTxt+=' / côté';
+  var entry;
+  if(tg.ok){
+    var nF=Math.min(tg.sets||4,6),fields='';
+    for(var i=0;i<nF;i++)fields+='<div class="set-in"><span class="si">S'+(i+1)+'</span><input type="number" inputmode="numeric" min="0" placeholder="'+(tg.hi||'')+'"></div>';
+    entry='<div class="sets-lbl">Tes séries réalisées ('+unitTxt+')</div>'
+      +'<div class="sets-row" id="setInputs">'+fields+'</div>'
+      +(tg.load?'<div class="pa" style="margin-top:8px">La progression se fait en charge, pas en variante.</div>':'')
+      +'<button class="val-btn" onclick="validateSets()">Valider la séance</button>';
+  } else {
+    entry='<div class="sets-lbl">Note ta séance</div><div class="log-row"><input id="freeNote" type="text" placeholder="reps, temps, ressenti…" maxlength="40"><button onclick="noteFree()">Valider</button></div>';
+  }
+  document.getElementById('sPresc').innerHTML='<div class="presc">'
+    +'<div class="pl">Prescription du jour</div>'
+    +'<div class="pn">'+escapeHtml(cur.n)+'</div>'
+    +'<div class="ps">'+escapeHtml(cur.s)+'</div>'
+    +'<div class="pa">▸ Pour monter : '+escapeHtml(cur.a)+'</div>'
+    +(feas?'':'<div class="lock">⚠️ Ce niveau nécessite du matériel non sélectionné.</div>')
+    +entry
+    +verdictHTML()
+    +'</div>';
   document.getElementById('sLadder').innerHTML=t.levels.map((l,i)=>{
     const cls=i<lv?'done':(i===lv?'cur':'');
     return `<div class="lad ${cls}"><span class="ln">${i<lv?'✓':(i+1)}</span><div class="lt"><b>${escapeHtml(l.n)}</b><span>${escapeHtml(l.s)}</span></div></div>`;
   }).join('');
-  const h=histOf(t.id);
-  document.getElementById('sHist').innerHTML=h.length?h.slice(0,8).map(e=>`<div class="he"><span>${e.d} · niv. ${e.niv}</span><span>${escapeHtml(e.perf)}</span></div>`).join(''):'<div class="gen-empty">Aucune perf notée pour l\'instant.</div>';
-  document.getElementById('perfInput').addEventListener('keydown',e=>{if(e.key==='Enter')logPerf();});
+  var h=perfOf(t.id);
+  document.getElementById('sHist').innerHTML=h.length?h.slice(0,10).map(function(e){
+    var d=new Date(e.iso).toLocaleDateString('fr-CH',{day:'numeric',month:'short'});
+    var u=e.unit==='sec'?' s':(e.unit==='dist'?' m':'');
+    var val=e.note?escapeHtml(e.note):(e.sets?e.sets.join('/')+u:'');
+    var arrow=e.grade==='up'?' ↑':(e.grade==='down'?' ↓':'');
+    return '<div class="he"><span>'+d+' · niv. '+(e.level+1)+'</span><span>'+val+arrow+'</span></div>';
+  }).join(''):'<div class="gen-empty">Aucune séance notée pour l\'instant.</div>';
 }
 
 renderChips();renderTimeChips();renderFocusChips();renderTracks();applyTheme();renderThemeUI();
