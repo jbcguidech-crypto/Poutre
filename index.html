@@ -74,6 +74,13 @@ header{padding:22px 0 6px}
 .bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
 .trk .go{font-size:18px;color:var(--ink-soft);flex:none}
 .locked{opacity:.5}
+.cat-h{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:9px;box-shadow:var(--shadow)}
+.cat-h:active{transform:scale(.992)}
+.cat-h .cn{flex:1;font-size:15px;font-weight:700}
+.cat-h .cc{font-size:12.5px;color:var(--ink-soft);font-weight:600}
+.cat-h .cv{font-size:17px;color:var(--ink-soft);transition:transform .2s;line-height:1}
+.cat-h.open .cv{transform:rotate(90deg)}
+.cat-body{margin:0 0 9px;padding-left:4px}
 
 .p-tirage{background:var(--tirage)}.p-poussee{background:var(--poussee)}.p-jambes{background:var(--jambes)}
 .p-tronc{background:var(--tronc)}.p-charge{background:var(--charge)}.p-skill{background:var(--skill)}
@@ -217,7 +224,7 @@ body{padding-bottom:86px}
 
   <div class="sect">Mes progressions</div>
   <div id="trackList"></div>
-  <p class="note">Touche un mouvement pour voir l'échelle, la prescription du jour, journaliser et changer de niveau.</p>
+  <p class="note">Touche une catégorie pour la déplier, puis un mouvement pour voir l'échelle, journaliser tes séries et progresser.</p>
 
   <div class="sect">Thème</div>
   <div class="mini">
@@ -615,6 +622,15 @@ const MUSCLES=[
   ['dos','Dorsaux / trapèzes',['tractions','rows','scapula','face_pull','front_lever','pull_power']],
 ];
 let focusParts=new Set(MUSCLES.map(m=>m[0]));
+const CATS=[
+  ['tirer','Tirer · dos, biceps, grip',['Tirage','Biceps','Avant-bras']],
+  ['pousser','Pousser · pecs, épaules',['Poussée','Épaules']],
+  ['jambes','Jambes · quadri, ischios, fessiers, mollets',['Jambes','Ischios','Fessiers','Mollets','Charge','Explosivité']],
+  ['tronc','Tronc · gainage, abdos',['Tronc']],
+  ['skill','Skills · équilibre',['Skill']],
+];
+let openCats=new Set();
+function toggleCat(k){if(openCats.has(k))openCats.delete(k);else openCats.add(k);renderTracks();}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function countForTime(t){return {10:2,15:3,20:4,30:5,45:6,60:8,75:10,90:12,120:15}[t]||4;}
 function timeLabel(t){if(t<60)return t+' min';var h=Math.floor(t/60),m=t%60;return h+'h'+(m?String(m).padStart(2,'0'):'');}
@@ -685,18 +701,34 @@ function renderChips(){
 function toggleEquip(c){if(equip.has(c))equip.delete(c);else equip.add(c);renderChips();renderTracks();}
 function toggleAllEquip(){if(equip.size>0)equip.clear();else EQUIPS.forEach(([c])=>equip.add(c));renderChips();renderTracks();}
 
+function renderTrackRow(t){
+  const av=trackAvailable(t);const lv=lvlOf(t.id);const cur=t.levels[lv];
+  const el=document.createElement('button');el.className='trk'+(av?'':' locked');
+  el.onclick=()=>av?openSheet(t.id):null;
+  el.innerHTML=`<div class="pt ${PARTCLASS[t.part]}"></div>
+    <div class="tb"><div class="part">${t.part}</div><div class="nm">${t.name}</div>
+      <div class="lvl">Niv. ${lv+1}/${t.levels.length} · ${escapeHtml(cur.n)}</div>
+      <div class="bar"><i style="width:${Math.round((lv+1)/t.levels.length*100)}%"></i></div></div>
+    <div class="go">${av?'›':'🔒'}</div>`;
+  return el;
+}
 function renderTracks(){
   const list=document.getElementById('trackList');list.innerHTML='';
-  TRACKS.forEach(t=>{
-    const av=trackAvailable(t);const lv=lvlOf(t.id);const cur=t.levels[lv];
-    const el=document.createElement('button');el.className='trk'+(av?'':' locked');
-    el.onclick=()=>av?openSheet(t.id):null;
-    el.innerHTML=`<div class="pt ${PARTCLASS[t.part]}"></div>
-      <div class="tb"><div class="part">${t.part}</div><div class="nm">${t.name}</div>
-        <div class="lvl">Niv. ${lv+1}/${t.levels.length} · ${escapeHtml(cur.n)}</div>
-        <div class="bar"><i style="width:${Math.round((lv+1)/t.levels.length*100)}%"></i></div></div>
-      <div class="go">${av?'›':'🔒'}</div>`;
-    list.appendChild(el);
+  CATS.forEach(function(cat){
+    const key=cat[0],label=cat[1],parts=cat[2];
+    const tracks=TRACKS.filter(function(t){return parts.indexOf(t.part)>=0;});
+    if(!tracks.length)return;
+    const open=openCats.has(key);
+    const head=document.createElement('button');
+    head.className='cat-h'+(open?' open':'');
+    head.onclick=function(){toggleCat(key);};
+    head.innerHTML='<div class="cn">'+label+'</div><div class="cc">'+tracks.length+'</div><div class="cv">›</div>';
+    list.appendChild(head);
+    if(open){
+      const body=document.createElement('div');body.className='cat-body';
+      tracks.forEach(function(t){body.appendChild(renderTrackRow(t));});
+      list.appendChild(body);
+    }
   });
 }
 
