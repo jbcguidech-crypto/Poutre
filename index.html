@@ -427,7 +427,7 @@ const TRACKS=[
 ];
 
 let equip=new Set(['barre','trx','anneaux','box','kb','gilet','mb','slider']);
-const TIMES=[10,15,20,30,45];let timeCfg=20;
+const TIMES=[10,15,20,30,45,60,75,90,120];let timeCfg=20;
 const MUSCLES=[
   ['quads','Quadriceps',['pistol','lunges','pliometrie','kb_force']],
   ['ischios','Ischios',['ischios','kb_force']],
@@ -441,8 +441,9 @@ const MUSCLES=[
 ];
 let focusParts=new Set(MUSCLES.map(m=>m[0]));
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-function countForTime(t){return {10:2,15:3,20:4,30:5,45:6}[t]||4;}
-function renderTimeChips(){document.getElementById('progTime').innerHTML=TIMES.map(t=>`<button class="chip ${timeCfg===t?'on':''}" onclick="setTime(${t})">${t} min</button>`).join('');}
+function countForTime(t){return {10:2,15:3,20:4,30:5,45:6,60:8,75:10,90:12,120:15}[t]||4;}
+function timeLabel(t){if(t<60)return t+' min';var h=Math.floor(t/60),m=t%60;return h+'h'+(m?String(m).padStart(2,'0'):'');}
+function renderTimeChips(){document.getElementById('progTime').innerHTML=TIMES.map(t=>`<button class="chip ${timeCfg===t?'on':''}" onclick="setTime(${t})">${timeLabel(t)}</button>`).join('');}
 function setTime(t){timeCfg=t;renderTimeChips();}
 function muscleLabel(k){const m=MUSCLES.find(x=>x[0]===k);return m?m[1]:k;}
 function renderFocusChips(){
@@ -539,7 +540,7 @@ function generateSession(){
   const el=document.getElementById('genOut');
   if(!out.length){el.innerHTML='<div class="gen-card"><div class="gen-empty">Sélectionne au moins un muscle et le matériel nécessaire.</div></div>';return;}
   lastGenSession={label:lbl,n:out.length};
-  el.innerHTML='<div class="gen-card"><div class="gen-head">'+lbl+' · '+timeCfg+' min · '+out.length+' mouvements</div>'+out.map(t=>{
+  el.innerHTML='<div class="gen-card"><div class="gen-head">'+lbl+' · '+timeLabel(timeCfg)+' · '+out.length+' mouvements</div>'+out.map(t=>{
     const lv=lvlOf(t.id);const cur=t.levels[lv];const feas=levelFeasible(cur);
     return `<div class="gen-row" onclick="openSheet('${t.id}')"><div class="pt ${PARTCLASS[t.part]}"></div>
       <div class="gi"><div class="part">${t.part} · niv. ${lv+1}</div><div class="nm">${escapeHtml(cur.n)}</div>
