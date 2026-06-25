@@ -293,7 +293,7 @@ body{padding-bottom:86px}
 
 <script>
 const EQUIPS=[['barre','Barre'],['trx','TRX'],['anneaux','Anneaux'],['box','Box'],['kb','Kettlebell'],['gilet','Gilet lesté'],['mb','Med ball'],['slider','Plaquettes']];
-const PARTCLASS={Tirage:'p-tirage',Poussée:'p-poussee',Jambes:'p-jambes',Tronc:'p-tronc',Charge:'p-charge',Skill:'p-skill',Ischios:'p-ischio',Explosivité:'p-explo',Mollets:'p-jambes',Biceps:'p-tirage','Avant-bras':'p-charge','Épaules':'p-poussee'};
+const PARTCLASS={Tirage:'p-tirage',Poussée:'p-poussee',Jambes:'p-jambes',Tronc:'p-tronc',Charge:'p-charge',Skill:'p-skill',Ischios:'p-ischio',Explosivité:'p-explo',Mollets:'p-jambes',Biceps:'p-tirage','Avant-bras':'p-charge','Épaules':'p-poussee',Fessiers:'p-jambes'};
 
 const TRACKS=[
  {id:'tractions',name:'Tractions',part:'Tirage',need:['barre','anneaux','trx'],levels:[
@@ -424,20 +424,184 @@ const TRACKS=[
    {n:'Toes-to-bar / L-sit',s:'4 × 6-10',a:'Amplitude complète',need:['barre','anneaux']},
    {n:'Dragon flag (négatif)',s:'4 × 4-6',a:'Le sommet'},
  ]},
+ {id:'scapula',name:'Contrôle scapulaire',part:'Tirage',need:['barre','anneaux','trx'],levels:[
+   {n:'Décollés d\'omoplates en suspension (scap pulls)',s:'4 × 8-10',a:'Quand le mouvement vient des omoplates, bras tendus',need:['barre','anneaux']},
+   {n:'Suspension active scapulaire tenue',s:'4 × 15-20 s',a:'Quand 20 s contrôlées',need:['barre','anneaux']},
+   {n:'Rowing scapulaire (TRX/anneaux, bras tendus)',s:'4 × 10-12',a:'Rétraction franche, bras tendus',need:['trx','anneaux']},
+   {n:'Scap pulls lestés',s:'4 × 6-8 (gilet)',a:'Augmente la charge',need:['barre','gilet']},
+   {n:'Amplitude scapulaire + traction',s:'4 × 5-8',a:'Enchaîne contrôle et tirage',need:['barre','anneaux']},
+ ]},
+ {id:'face_pull',name:'Tirage visage / arrière d\'épaule',part:'Tirage',need:['trx','anneaux'],levels:[
+   {n:'Face pull TRX/anneaux (corps incliné)',s:'4 × 12-15',a:'Quand 4×15, coudes hauts',need:['trx','anneaux']},
+   {n:'Face pull corps plus horizontal',s:'4 × 10-12',a:'Descends le buste pour durcir',need:['trx','anneaux']},
+   {n:'Face pull + rotation externe (en T)',s:'4 × 10',a:'Quand la rotation est propre',need:['trx','anneaux']},
+   {n:'Écarté inversé (reverse fly)',s:'4 × 12',a:'Isole l\'arrière d\'épaule',need:['trx','anneaux']},
+   {n:'Face pull lesté',s:'4 × 10 (gilet)',a:'Augmente la charge',need:['trx','gilet']},
+ ]},
+ {id:'front_lever',name:'Front lever',part:'Tirage',need:['barre','anneaux'],levels:[
+   {n:'Tuck front lever (genoux serrés)',s:'5 × 10-15 s',a:'Quand 5×15 s dos plat',need:['barre','anneaux']},
+   {n:'Advanced tuck (hanches ouvertes)',s:'5 × 8-12 s',a:'Ouvre les hanches peu à peu',need:['barre','anneaux']},
+   {n:'Une jambe tendue',s:'4 × 8-10 s/côté',a:'Quand stable des deux côtés',need:['barre','anneaux']},
+   {n:'Straddle front lever (jambes écartées)',s:'4 × 6-10 s',a:'Resserre les jambes peu à peu',need:['barre','anneaux']},
+   {n:'Front lever complet',s:'4 × 3-6 s',a:'Le palier final',need:['barre','anneaux']},
+ ]},
+ {id:'pull_power',name:'Tractions explosives → muscle-up',part:'Tirage',need:['barre','kb'],levels:[
+   {n:'Tractions tempo (montée rapide)',s:'5 × 3-5',a:'Quand la montée est vive et nette',need:['barre']},
+   {n:'High pull kettlebell',s:'5 × 6-8 · explosif',a:'Hanches + tirage vif',need:['kb']},
+   {n:'Tractions hautes (poitrine à la barre)',s:'5 × 3-5',a:'Quand tu touches la poitrine',need:['barre']},
+   {n:'Tractions avec décollage des mains',s:'5 × 3',a:'Vers le muscle-up',need:['barre']},
+   {n:'Muscle-up négatif (descente lente)',s:'4 × 2-3',a:'Contrôle toute la transition',need:['barre','anneaux']},
+   {n:'Muscle-up',s:'4 × 1-3',a:'Le palier final',need:['barre','anneaux']},
+ ]},
+ {id:'oapu',name:'Vers la pompe à une main',part:'Poussée',levels:[
+   {n:'Pompes archer',s:'4 × 4-6/côté',a:'Quand 4×6 propres'},
+   {n:'Pompes inégales (une main sur box)',s:'4 × 5-8/côté',a:'Descends la surélévation',need:['box']},
+   {n:'Pompe une main sur box (inclinée)',s:'4 × 3-5/côté',a:'Descends la box',need:['box']},
+   {n:'Pompe une main négative',s:'4 × 3/côté · descente lente',a:'Contrôle toute la descente'},
+   {n:'Pompe une main (pieds larges)',s:'4 × 2-4/côté',a:'Resserre les pieds'},
+   {n:'Pompe une main stricte',s:'4 × 1-3/côté',a:'Le palier final'},
+ ]},
+ {id:'pompes_plyo',name:'Pompes explosives',part:'Poussée',levels:[
+   {n:'Pompes avec poussée (mains décollées)',s:'4 × 5',a:'Quand le décollage est net'},
+   {n:'Pompes claquées',s:'4 × 4-5',a:'Quand 4×5 propres'},
+   {n:'Pompes claquées poitrine',s:'4 × 3-4',a:'Plus d\'amplitude de vol'},
+   {n:'Depth push-up (sur box)',s:'4 × 4',a:'Réactivité maximale',need:['box']},
+   {n:'Pompes superman',s:'4 × 2-3',a:'Le sommet explosif'},
+ ]},
+ {id:'fly_anneaux',name:'Écarté poitrine (anneaux/TRX)',part:'Poussée',need:['anneaux','trx'],levels:[
+   {n:'Écarté incliné (corps haut)',s:'4 × 10-12',a:'Quand 4×12 contrôlés',need:['anneaux','trx']},
+   {n:'Écarté corps plus horizontal',s:'4 × 8-10',a:'Descends le buste',need:['anneaux','trx']},
+   {n:'Écarté + pompe (fly-press)',s:'4 × 6-8',a:'Combine amplitude et force',need:['anneaux','trx']},
+   {n:'Écarté pieds surélevés',s:'4 × 6-8',a:'Quand 4×8',need:['anneaux','box']},
+   {n:'Écarté lesté',s:'4 × 6 (gilet)',a:'Augmente la charge',need:['anneaux','gilet']},
+ ]},
+ {id:'pseudo_planche',name:'Pompes pseudo-planche',part:'Poussée',levels:[
+   {n:'Pseudo-planche légère (mains au nombril)',s:'4 × 6-10',a:'Penche-toi plus en avant'},
+   {n:'Pseudo-planche prononcée',s:'4 × 5-8',a:'Épaules devant les mains'},
+   {n:'Pseudo-planche pieds surélevés',s:'4 × 5-6',a:'Augmente l\'inclinaison',need:['box']},
+   {n:'Planche lean (maintien)',s:'4 × 10-15 s',a:'Tiens l\'inclinaison max'},
+   {n:'Tuck planche (maintien)',s:'4 × 8-12 s',a:'Vers la planche'},
+ ]},
+ {id:'bottoms_up',name:'Développé bottoms-up (KB)',part:'Épaules',need:['kb'],levels:[
+   {n:'Maintien bottoms-up au rack',s:'4 × 20-30 s/bras',a:'Quand la cloche reste stable',need:['kb']},
+   {n:'Développé bottoms-up à genoux',s:'4 × 5/bras',a:'Anti-bascule du tronc',need:['kb']},
+   {n:'Développé bottoms-up debout',s:'4 × 5-6/bras',a:'Quand 4×6 sans trembler',need:['kb']},
+   {n:'Marche bottoms-up (overhead carry)',s:'4 × 20 m/bras',a:'Stabilité en déplacement',need:['kb']},
+   {n:'Cloche plus lourde',s:'4 × 4-6/bras',a:'Monte la cloche',need:['kb']},
+ ]},
+ {id:'scap_pushup',name:'Gainage scapulaire / serratus',part:'Épaules',levels:[
+   {n:'Pompes scapulaires (push-up plus)',s:'4 × 10-12',a:'Protraction franche en haut'},
+   {n:'Maintien serratus en planche',s:'4 × 12-15 s',a:'Serratus engagé'},
+   {n:'Pompes scapulaires pieds surélevés',s:'4 × 8-10',a:'Plus de charge sur l\'épaule',need:['box']},
+   {n:'Protraction aux anneaux/TRX',s:'4 × 8',a:'Contrôle complet',need:['anneaux','trx']},
+   {n:'Pompes scapulaires lestées',s:'4 × 10 (gilet)',a:'Augmente la charge',need:['gilet']},
+ ]},
+ {id:'shrimp',name:'Shrimp squat',part:'Jambes',levels:[
+   {n:'Squat fendu arrière (genou au sol contrôlé)',s:'4 × 6-8/côté',a:'Quand la descente est maîtrisée'},
+   {n:'Shrimp assisté (TRX)',s:'4 × 5/côté',a:'Réduis l\'assistance',need:['trx']},
+   {n:'Shrimp débutant (pied tenu)',s:'4 × 4-5/côté',a:'Quand l\'équilibre tient'},
+   {n:'Shrimp complet',s:'4 × 3-5/côté',a:'Quand propre des deux côtés'},
+   {n:'Shrimp lesté',s:'4 × 3/côté (gilet/KB)',a:'Augmente la charge',need:['gilet','kb']},
+ ]},
+ {id:'wallsit',name:'Chaise (iso quadriceps)',part:'Jambes',levels:[
+   {n:'Chaise au mur',s:'4 × 30-45 s',a:'Quand 4×45 s faciles'},
+   {n:'Chaise 60 s',s:'3 × 60 s',a:'Quand 3×60 s tenus'},
+   {n:'Chaise une jambe',s:'4 × 20-30 s/côté',a:'Quand stable'},
+   {n:'Chaise lestée',s:'4 × 40-60 s (gilet/KB)',a:'Augmente la charge',need:['gilet','kb']},
+   {n:'Chaise + montées de talons',s:'4 × 30 s',a:'Endurance mollets + quadris'},
+ ]},
+ {id:'stepup',name:'Montées de marche (step-ups)',part:'Jambes',need:['box'],levels:[
+   {n:'Montées de box au poids du corps',s:'4 × 10/côté',a:'Quand 4×10 stables',need:['box']},
+   {n:'Montées de box hautes',s:'4 × 8/côté',a:'Monte la hauteur',need:['box']},
+   {n:'Montées lestées (KB/gilet)',s:'4 × 8/côté',a:'Augmente la charge',need:['box','kb','gilet']},
+   {n:'Montées sans élan (départ jambe haute)',s:'4 × 6/côté',a:'Sans aide de la jambe basse',need:['box']},
+   {n:'Montées explosives',s:'4 × 6/côté',a:'Puissance + équilibre',need:['box']},
+ ]},
+ {id:'front_squat',name:'Squat frontal kettlebell',part:'Jambes',need:['kb'],levels:[
+   {n:'Goblet squat tempo (3 s descente)',s:'4 × 8',a:'Quand 4×8 contrôlés',need:['kb']},
+   {n:'Front squat 1 kettlebell (rack)',s:'4 × 6-8/côté',a:'Buste droit, coude haut',need:['kb']},
+   {n:'Front squat 2 kettlebells',s:'5 × 5',a:'Quand 5×5 propres',need:['kb']},
+   {n:'Front squat 2 KB lourd',s:'5 × 3-5',a:'Monte la charge',need:['kb']},
+   {n:'Squat overhead 1 KB',s:'4 × 5/côté',a:'Mobilité + gainage',need:['kb']},
+ ]},
+ {id:'rdl',name:'Soulevé roumain (hinge ischios)',part:'Ischios',levels:[
+   {n:'Charnière de hanche au poids du corps',s:'4 × 10-12',a:'Quand le dos reste neutre'},
+   {n:'Soulevé roumain kettlebell',s:'4 × 8-10',a:'Étire les ischios, dos plat',need:['kb']},
+   {n:'Good morning kettlebell',s:'4 × 8',a:'Quand 4×8 contrôlés',need:['kb']},
+   {n:'Soulevé roumain une jambe',s:'4 × 8/côté',a:'Quand l\'équilibre tient'},
+   {n:'Soulevé roumain une jambe lesté',s:'4 × 6-8/côté (KB)',a:'Augmente la charge',need:['kb']},
+ ]},
+ {id:'hipthrust',name:'Hip thrust / pont fessier',part:'Fessiers',levels:[
+   {n:'Pont fessier 2 jambes',s:'4 × 12-15 · serre en haut',a:'Quand 4×15 faciles'},
+   {n:'Hip thrust (épaules sur box)',s:'4 × 12',a:'Quand 4×12',need:['box']},
+   {n:'Hip thrust une jambe',s:'4 × 8-10/côté',a:'Quand stable des deux côtés',need:['box']},
+   {n:'Hip thrust lesté (KB sur les hanches)',s:'4 × 8-10',a:'Augmente la charge',need:['box','kb']},
+   {n:'Hip thrust une jambe lesté',s:'4 × 6-8/côté',a:'Le palier final',need:['box','kb','gilet']},
+ ]},
+ {id:'antirot',name:'Anti-rotation (tronc)',part:'Tronc',levels:[
+   {n:'Dead bug lent',s:'4 × 8/côté',a:'Bas du dos collé au sol'},
+   {n:'Bird dog',s:'4 × 10/côté',a:'Sans bascule du bassin'},
+   {n:'Pallof press (TRX/anneaux)',s:'4 × 10/côté',a:'Quand tu résistes sans tourner',need:['trx','anneaux']},
+   {n:'Renegade row (KB)',s:'4 × 10-12',a:'Bassin immobile',need:['kb']},
+   {n:'Marche valise (suitcase carry KB)',s:'4 × 30 m/côté',a:'Tronc droit, charge lourde',need:['kb']},
+ ]},
+ {id:'antilat',name:'Anti-flexion latérale (obliques)',part:'Tronc',levels:[
+   {n:'Planche latérale sur genoux',s:'4 × 20-30 s/côté',a:'Quand 4×30 s stables'},
+   {n:'Planche latérale complète',s:'4 × 30-40 s/côté',a:'Quand 4×40 s'},
+   {n:'Planche latérale + levée de hanche',s:'4 × 10-12/côté',a:'Contrôle de la hanche'},
+   {n:'Planche latérale + jambe levée',s:'4 × 20-30 s/côté',a:'Stabilité accrue'},
+   {n:'Suitcase hold lourd (KB un côté)',s:'4 × 30-40 s/côté',a:'Augmente la charge',need:['kb']},
+ ]},
+ {id:'hollow',name:'Hollow body',part:'Tronc',levels:[
+   {n:'Hollow hold genoux pliés',s:'4 × 20-30 s',a:'Bas du dos collé au sol'},
+   {n:'Hollow hold jambes tendues',s:'4 × 20-30 s',a:'Quand 4×30 s'},
+   {n:'Hollow rock',s:'4 × 12-15',a:'Reste gainé, balance régulière'},
+   {n:'Hollow bras tendus derrière',s:'4 × 20-30 s',a:'Levier complet'},
+   {n:'Suspension hollow (creux en barre)',s:'4 × 15-20 s',a:'Transfert vers les leviers',need:['barre','anneaux']},
+ ]},
+ {id:'lsit',name:'L-sit',part:'Tronc',levels:[
+   {n:'Tuck sit sur box (genoux pliés)',s:'5 × 10-15 s',a:'Quand 5×15 s décollé',need:['box']},
+   {n:'L-sit une jambe tendue',s:'5 × 8-12 s/côté',a:'Quand stable',need:['box']},
+   {n:'L-sit jambes tendues (sur box)',s:'5 × 5-10 s',a:'Quand 5×10 s',need:['box']},
+   {n:'L-sit au sol',s:'5 × 5-8 s',a:'Sans surélévation'},
+   {n:'L-sit aux anneaux',s:'4 × 5-8 s',a:'Stabilité accrue',need:['anneaux']},
+ ]},
+ {id:'rollout',name:'Rollout (plaquettes / med ball)',part:'Tronc',need:['slider','mb'],levels:[
+   {n:'Rollout à genoux (amplitude courte)',s:'4 × 8-10',a:'Sans cambrer le bas du dos',need:['slider','mb']},
+   {n:'Rollout à genoux complet',s:'4 × 6-8',a:'Quand l\'amplitude est totale',need:['slider','mb']},
+   {n:'Body saw (planche qui glisse)',s:'4 × 10-12',a:'Anti-extension dynamique',need:['slider']},
+   {n:'Rollout incliné sur box',s:'4 × 5-6',a:'Vers le rollout debout',need:['slider','box']},
+   {n:'Rollout debout',s:'4 × 3-5',a:'Le sommet anti-extension',need:['slider']},
+ ]},
+ {id:'grip_climb',name:'Grip d\'escalade (suspensions)',part:'Avant-bras',need:['barre','anneaux'],levels:[
+   {n:'Suspension serviette 2 mains',s:'4 × 15-25 s',a:'Quand 25 s tenues',need:['barre','anneaux']},
+   {n:'Suspension prise pince / réglette',s:'4 × 12-20 s',a:'Quand 20 s',need:['barre']},
+   {n:'Suspension serviette une main (assistée)',s:'4 × 8-12 s/côté',a:'Réduis l\'aide',need:['barre','anneaux']},
+   {n:'Tractions sur serviette',s:'4 × 4-6',a:'Grip + tirage',need:['barre']},
+   {n:'Suspension une main',s:'4 × 8-15 s/côté',a:'Le palier final',need:['barre']},
+ ]},
+ {id:'curl_anneaux',name:'Curl aux anneaux / TRX',part:'Biceps',need:['anneaux','trx'],levels:[
+   {n:'Curl anneaux (corps peu incliné)',s:'4 × 10-12',a:'Quand 4×12 contrôlés',need:['anneaux','trx']},
+   {n:'Curl anneaux corps plus horizontal',s:'4 × 8-10',a:'Descends le buste',need:['anneaux','trx']},
+   {n:'Curl anneaux pieds surélevés',s:'4 × 8',a:'Quand 4×8',need:['anneaux','box']},
+   {n:'Curl anneaux une main (assisté)',s:'4 × 6-8/côté',a:'Vers l\'unilatéral',need:['anneaux','trx']},
+   {n:'Curl anneaux lesté',s:'4 × 8 (gilet)',a:'Augmente la charge',need:['anneaux','gilet']},
+ ]},
 ];
 
 let equip=new Set(['barre','trx','anneaux','box','kb','gilet','mb','slider']);
 const TIMES=[10,15,20,30,45,60,75,90,120];let timeCfg=20;
 const MUSCLES=[
-  ['quads','Quadriceps',['pistol','lunges','pliometrie','kb_force']],
-  ['ischios','Ischios',['ischios','kb_force']],
-  ['epaules','Épaules',['hspu','shoulders_kb','handstand','kb_force']],
-  ['pecs','Pectoraux',['pompes','dips','pecs_kb']],
-  ['biceps','Biceps',['biceps']],
-  ['avantbras','Avant-bras',['avantbras']],
+  ['quads','Quadriceps',['pistol','lunges','pliometrie','kb_force','shrimp','wallsit','stepup','front_squat']],
+  ['ischios','Ischios',['ischios','kb_force','rdl']],
+  ['fessiers','Fessiers',['hipthrust','kb_force','lunges','rdl','ischios','pistol','stepup']],
+  ['epaules','Épaules',['hspu','shoulders_kb','handstand','kb_force','bottoms_up','scap_pushup','pseudo_planche','face_pull']],
+  ['pecs','Pectoraux',['pompes','dips','pecs_kb','oapu','pompes_plyo','fly_anneaux','pseudo_planche']],
+  ['biceps','Biceps',['biceps','curl_anneaux']],
+  ['avantbras','Avant-bras',['avantbras','grip_climb']],
   ['mollets','Mollets',['mollets','pliometrie']],
-  ['abdos','Abdos',['gainage','abs_dyn']],
-  ['dos','Dorsaux / trapèzes',['tractions','rows']],
+  ['abdos','Abdos',['gainage','abs_dyn','antirot','antilat','hollow','lsit','rollout']],
+  ['dos','Dorsaux / trapèzes',['tractions','rows','scapula','face_pull','front_lever','pull_power']],
 ];
 let focusParts=new Set(MUSCLES.map(m=>m[0]));
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -451,7 +615,7 @@ function renderFocusChips(){
   const ab=document.getElementById('muscleAllBtn');if(ab)ab.textContent=focusParts.size>0?'Tout décocher':'Tout cocher';
   renderShortcuts();
 }
-const PRESETS={push:['pecs','epaules'],pull:['dos','biceps','avantbras'],legs:['quads','ischios','mollets'],full:MUSCLES.map(m=>m[0])};
+const PRESETS={push:['pecs','epaules'],pull:['dos','biceps','avantbras'],legs:['quads','ischios','fessiers','mollets'],full:MUSCLES.map(m=>m[0])};
 const PRESET_LABEL={push:'Push',pull:'Pull',legs:'Legs',full:'Full'};
 function eqSet(arr){return arr.length===focusParts.size&&arr.every(x=>focusParts.has(x));}
 function matchPreset(){return Object.keys(PRESETS).find(p=>eqSet(PRESETS[p]))||null;}
