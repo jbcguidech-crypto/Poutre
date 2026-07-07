@@ -616,21 +616,56 @@ const TRACKS=[
    {n:'Curl anneaux une main (assisté)',s:'4 × 6-8/côté',a:'Vers l\'unilatéral',need:['anneaux','trx']},
    {n:'Curl anneaux lesté',s:'4 × 8 (gilet)',a:'Augmente la charge',need:['anneaux','gilet']},
  ]},
+ {id:'coiffe',name:'Coiffe des rotateurs (prehab nage)',part:'Épaules',levels:[
+   {n:'Rotation externe allongé (KB légère)',s:'4 × 12/côté · lent',a:'Quand 4×12 sans compenser',need:['kb']},
+   {n:'Y-T-W au sol (pouces vers le ciel)',s:'3 × 8 par lettre',a:'Omoplates actives, sans élan'},
+   {n:'Rotation externe TRX/anneaux (corps incliné)',s:'4 × 10/côté',a:'Descends le buste pour durcir',need:['trx','anneaux']},
+   {n:'Y-T-W aux anneaux/TRX',s:'3 × 6 par lettre',a:'Contrôle complet en suspension',need:['trx','anneaux']},
+   {n:'Rotation externe + développé (bottoms-up léger)',s:'4 × 8/côté',a:'La coiffe travaille sous charge',need:['kb']},
+ ]},
+ {id:'pullover',name:'Pull-over kettlebell (dorsaux nage)',part:'Tirage',need:['kb'],levels:[
+   {n:'Pull-over 2 mains (amplitude courte)',s:'4 × 10 · coudes souples',a:'Quand le dos reste plaqué au sol'},
+   {n:'Pull-over 2 mains amplitude complète',s:'4 × 8-10',a:'Quand 4×10 contrôlés — étirement du grand dorsal'},
+   {n:'Pull-over sur box (bras au-delà de la tête)',s:'4 × 8',a:'Amplitude maximale — le geste du crawl',need:['box']},
+   {n:'Pull-over 1 bras',s:'4 × 6-8/côté',a:'Anti-rotation + dorsal unilatéral'},
+   {n:'Pull-over lourd',s:'4 × 6',a:'Monte la cloche'},
+ ]},
+ {id:'tibialis',name:'Tibialis & pieds (descentes)',part:'Mollets',levels:[
+   {n:'Relevés de pointes dos au mur (tibialis)',s:'4 × 15',a:'Quand 4×15 faciles'},
+   {n:'Marche sur talons',s:'4 × 20 m',a:'Pointes hautes tout du long'},
+   {n:'Relevés tibialis lestés (KB posée sur le pied)',s:'4 × 12',a:'Augmente la charge',need:['kb']},
+   {n:'Équilibre 1 jambe yeux fermés',s:'4 × 30 s/côté',a:'Proprioception cheville'},
+   {n:'Descentes de marche contrôlées (3 s)',s:'4 × 10/côté',a:'Freinage excentrique — le geste des descentes',need:['box']},
+ ]},
+ {id:'soleus',name:'Soléaire (mollet genou plié)',part:'Mollets',levels:[
+   {n:'Mollets genoux fléchis 2 jambes',s:'4 × 15-20',a:'Quand 4×20 faciles'},
+   {n:'Mollets genou fléchi 1 jambe',s:'4 × 12/côté',a:'Quand 4×12'},
+   {n:'Mollets genou fléchi lestés (KB sur le genou)',s:'4 × 10/côté',a:'Augmente la charge',need:['kb']},
+   {n:'Iso soléaire (squat tenu talons décollés)',s:'4 × 20-30 s',a:'Endurance tendineuse'},
+   {n:'Sauts genoux souples (soléaire réactif)',s:'4 × 15',a:'Rebond court, genou fléchi'},
+ ]},
+ {id:'pont_marche',name:'Pont ischio & curls glissés',part:'Ischios',levels:[
+   {n:'Pont fessier talons éloignés (levier long)',s:'4 × 12',a:'Quand 4×12 sans crampe'},
+   {n:'Marche des talons en pont (walkouts)',s:'4 × 6 allers-retours',a:'Hanches hautes tout du long'},
+   {n:'Curl glissé 2 jambes (plaquettes)',s:'4 × 8',a:'Aller-retour complet contrôlé',need:['slider']},
+   {n:'Curl glissé 1 jambe (excentrique)',s:'4 × 5/côté',a:'Freine toute la descente',need:['slider']},
+   {n:'Razor curl (nordic hanches fléchies)',s:'4 × 5',a:'Vers le nordic complet'},
+ ]},
 ];
 
 let equip=new Set(['barre','trx','anneaux','box','kb','gilet','mb','slider']);
 const TIMES=[10,15,20,30,45,60,75,90,120];let timeCfg=20;
 const MUSCLES=[
   ['quads','Quadriceps',['pistol','lunges','pliometrie','kb_force','shrimp','wallsit','stepup','front_squat']],
-  ['ischios','Ischios',['ischios','kb_force','rdl']],
+  ['ischios','Ischios',['ischios','kb_force','rdl','pont_marche']],
   ['fessiers','Fessiers',['hipthrust','kb_force','lunges','rdl','ischios','pistol','stepup']],
-  ['epaules','Épaules',['hspu','shoulders_kb','handstand','kb_force','bottoms_up','scap_pushup','pseudo_planche','face_pull']],
+  ['epaules','Épaules',['hspu','shoulders_kb','handstand','kb_force','bottoms_up','scap_pushup','pseudo_planche','face_pull','coiffe']],
   ['pecs','Pectoraux',['pompes','dips','pecs_kb','oapu','pompes_plyo','fly_anneaux','pseudo_planche']],
   ['biceps','Biceps',['biceps','curl_anneaux']],
   ['avantbras','Avant-bras',['avantbras','grip_climb']],
-  ['mollets','Mollets',['mollets','pliometrie']],
+  ['mollets','Mollets',['mollets','pliometrie','tibialis','soleus']],
   ['abdos','Abdos',['gainage','abs_dyn','antirot','antilat','hollow','lsit','rollout']],
-  ['dos','Dorsaux / trapèzes',['tractions','rows','scapula','face_pull','front_lever','pull_power']],
+  ['dos','Dorsaux / trapèzes',['tractions','rows','scapula','face_pull','front_lever','pull_power','pullover']],
 ];
 let focusParts=new Set(MUSCLES.map(m=>m[0]));
 const CATS=[
