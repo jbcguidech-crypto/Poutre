@@ -256,6 +256,8 @@ body{padding-bottom:86px}
       <div class="chips" id="enDisc"></div>
       <div class="cap" style="margin-top:15px">Intensité</div>
       <div class="seg" id="enInt"></div>
+      <div id="enBrickWrap" style="display:none"><div class="cap" style="margin-top:15px">Type de brick</div>
+      <div class="seg" id="enBrick"></div></div>
       <div class="cap" style="margin-top:15px">Durée</div>
       <div class="chips" id="enTime"></div>
       <button class="gen-btn" onclick="generateEndurance()">Générer une séance d'endurance</button>
@@ -908,8 +910,9 @@ function showPage(p){
 }
 
 // ---- Endurance (journal simple) ----
-const DISCIPLINES=[['nage','Nage'],['course','Course'],['ht','Home trainer'],['rando','Rando rapide'],['velo','Vélo route'],['skirando','Ski de rando'],['corde','Corde à sauter']];
-let enDisc='course',enInt='facile';
+const DISCIPLINES=[['nage','Nage'],['course','Course'],['ht','Home trainer'],['brick','Brick swimrun'],['rando','Rando rapide'],['velo','Vélo route'],['skirando','Ski de rando'],['corde','Corde à sauter']];
+let enDisc='course',enInt='facile',enBrickMode='nage';
+function setEnBrickMode(v){enBrickMode=v;renderEnForm();}
 function discLabel(k){const d=DISCIPLINES.find(x=>x[0]===k);return d?d[1]:k;}
 function enList(){if(!STORE.endurance)STORE.endurance=[];return STORE.endurance;}
 function setEnDisc(k){enDisc=k;renderEnForm();}
@@ -919,6 +922,11 @@ function renderEnForm(){
   document.getElementById('enInt').innerHTML=
     `<button class="${enInt==='facile'?'on':''}" onclick="setEnInt('facile')">Facile · Z2</button>`+
     `<button class="dur ${enInt==='dur'?'on':''}" onclick="setEnInt('dur')">Dur · intense</button>`;
+  var bw=document.getElementById('enBrickWrap');
+  if(bw){bw.style.display=(enDisc==='brick')?'':'none';
+    if(enDisc==='brick')document.getElementById('enBrick').innerHTML=
+      `<button class="${enBrickMode==='nage'?'on':''}" onclick="setEnBrickMode('nage')">Nage + course</button>`+
+      `<button class="${enBrickMode==='indoor'?'on':''}" onclick="setEnBrickMode('indoor')">Indoor · HT + course</button>`;}
 }
 function logEndurance(){
   const inp=document.getElementById('enNote');const v=inp.value.trim();
@@ -950,6 +958,37 @@ function setFtp(v){var n=parseInt(v,10);STORE.ftp=(n>0?n:null);save();}
 function pw(lo,hi){if(!STORE.ftp)return '';var a=Math.round(STORE.ftp*lo/100),b=Math.round(STORE.ftp*hi/100);return ' ('+(lo===hi?a:a+'-'+b)+' W)';}
 function buildEndurance(disc,intn,mins){
   const name=discLabel(disc);
+  if(disc==='brick'){
+    if(enBrickMode==='indoor'){
+      var run=Math.min(20,Math.round(mins*0.35)),ht=Math.max(15,mins-run-4);
+      if(intn==='facile')return {title:'Brick indoor · HT + course',sub:mins+' min · Z2',blocks:[
+        'Home trainer Z2 '+ht+' min à 65-75 % FTP'+pw(65,75)+' · ERG activé',
+        'Transition < 2 min — chaussures prêtes à côté du vélo',
+        'Course facile '+run+' min — cadence haute, laisse les jambes revenir',
+        'C\'est l\'enchaînement qui compte, pas l\'allure']};
+      return {title:'Brick indoor · HT + course',sub:mins+' min · dur',blocks:[
+        'Échauffement HT 10 min progressif',
+        Math.max(2,Math.round((ht-10)/12))+' × 8 min à 88-92 % FTP'+pw(88,92)+' / 3 min souple · ERG activé',
+        'Transition < 2 min',
+        'Course tempo '+Math.min(15,run)+' min — allure soutenue sur jambes lourdes',
+        'Retour au calme 5 min marche/trot']};
+    }
+    if(intn==='facile'){
+      var r1=Math.round(mins*0.35),sw=Math.round(mins*0.25),r2=Math.max(10,mins-r1-sw-4);
+      return {title:'Brick swimrun · nage + course',sub:mins+' min · Z2 + transitions',blocks:[
+        'Course facile '+r1+' min en tenue de swimrun',
+        'Transition rapide — pull-buoy, lunettes, entre dans l\'eau sans traîner',
+        'Nage continue '+sw+' min allure régulière (chaussures aux pieds si tu testes le matos)',
+        'Transition — repars en courant immédiatement, jambes lourdes',
+        'Course facile '+r2+' min, retrouve ta foulée']};
+    }
+    var reps=Math.max(2,Math.round((mins-15)/13));
+    return {title:'Brick swimrun · nage + course',sub:mins+' min · effort course',blocks:[
+      'Échauffement 10 min course facile + mobilité épaules',
+      reps+' × (course 8 min soutenue → transition chrono → nage 4 min vive)',
+      'Transitions chronométrées : chaque seconde compte le jour J',
+      'Retour au calme 5 min trot + nage souple']};
+  }
   if(disc==='ht'){
     if(intn==='facile'){
       return {title:'Home trainer · Z2',sub:mins+' min · 65-75 % FTP'+pw(65,75),blocks:[
