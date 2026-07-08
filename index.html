@@ -287,6 +287,8 @@ body{padding-bottom:86px}
   <div class="page" id="page-semaine">
     <p class="intro">Ton cadre de la semaine. L'app compte tes séances faites et te dit quoi générer pour équilibrer.</p>
     <div class="wk-range" id="weekRange">—</div>
+    <button class="gen-btn" style="margin:14px 0 0" onclick="generateToday()">⚡ Ma séance du jour</button>
+    <div id="todayOut"></div>
 
     <div class="sect">Mode</div>
     <div class="seg" id="weekMode" style="margin-bottom:4px"></div>
@@ -1137,6 +1139,40 @@ function renderWeek(){
   el.innerHTML=top+force+endu+inten;
 }
 renderWeek();
+
+// ---- Ma séance du jour : l'app tranche ----
+function yesterdayHard(){
+  var y=new Date();y.setDate(y.getDate()-1);var yk=y.toDateString();
+  return (STORE.endurance||[]).some(function(e){return new Date(e.iso).toDateString()===yk&&e.int==='dur';});
+}
+function lastDisc(){
+  var l=(STORE.endurance||[])[0];
+  if(l&&DISCIPLINES.some(function(d){return d[0]===l.disc;}))return l.disc;
+  return 'course';
+}
+function generateToday(){
+  var out=document.getElementById('todayOut');if(out)out.innerHTML='';
+  var c=weekCounts(),g=goals(),mode=effectiveWeekMode();
+  var gF=mode==='deload'?Math.max(1,Math.ceil(g.force/2)):(mode==='exam'?1:g.force);
+  var gE=mode==='deload'?Math.max(1,Math.ceil(g.endu/2)):(mode==='exam'?2:g.endu);
+  var cap=(mode==='exam'||mode==='deload')?0:1;
+  var fRem=Math.max(0,gF-c.force),eRem=Math.max(0,gE-c.endu);
+  if(!fRem&&!eRem){
+    if(out)out.innerHTML='<div class="wk-hint ok" style="margin:10px 2px 0">✓ Semaine remplie. Repos mérité — ou une Z2 bonus si tu veux bouger.</div>';
+    return;
+  }
+  if(eRem>=fRem){
+    enDisc=lastDisc();
+    enInt=(cap>0&&c.enduDur<cap&&c.enduFac>0&&!yesterdayHard())?'dur':'facile';
+    renderEnForm();
+    showPage('endurance');
+    generateEndurance();
+  } else {
+    showPage('workout');
+    generateSession();
+    var go=document.getElementById('genOut');if(go)go.scrollIntoView({behavior:'smooth'});
+  }
+}
 </script>
 <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}</script>
 <script>
