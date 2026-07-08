@@ -38,7 +38,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--paper);color:var(
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 .wrap{max-width:560px;margin:0 auto;padding:0 18px}
 .cap{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
-header{padding:22px 0 6px}
+header{padding:22px 0 6px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.ver{font-size:10px;font-weight:600;letter-spacing:.05em;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 9px;white-space:nowrap;margin-top:4px}
 .logo{font-size:23px;font-weight:700;letter-spacing:-.02em}
 .logo small{display:block;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-top:3px}
 .intro{font-size:13px;color:var(--ink-soft);margin:8px 2px 0}
@@ -200,12 +201,20 @@ body{padding-bottom:86px}
 <div class="wrap">
   <header>
     <div class="logo">Progression<small>monter en niveau, mouvement par mouvement</small></div>
+    <span class="ver" id="appVer">—</span>
   </header>
 
-  <div class="page on" id="page-workout">
+  <div class="page" id="page-workout">
   <p class="intro">Tu choisis ton matériel, l'app te place au bon échelon et te fait progresser quand tu remplis le critère.</p>
 
-  <div class="sect">Matériel dispo</div>
+  <div class="sect">Séance</div>
+  <button class="gen-btn" style="margin-top:0" onclick="generateSession()">Générer une séance de progression</button>
+  <div id="genOut" style="margin-top:12px"></div>
+
+  <button class="cat-h" id="cfgHead" onclick="toggleCfg()" style="margin-top:12px">
+    <div class="cn">Réglages de séance</div><div class="cc" id="cfgSum">—</div><div class="cv">›</div>
+  </button>
+  <div id="cfgBody" style="display:none">
   <div class="mini">
     <div class="cap">Temps disponible</div>
     <div class="chips" id="progTime"></div>
@@ -221,9 +230,8 @@ body{padding-bottom:86px}
       <button class="allbtn" id="equipAllBtn" onclick="toggleAllEquip()">Tout décocher</button>
     </div>
     <div class="chips" id="equipChips"></div>
-    <button class="gen-btn" onclick="generateSession()">Générer une séance de progression</button>
   </div>
-  <div id="genOut"></div>
+  </div>
 
   <div class="sect">Mes progressions</div>
   <div id="trackList"></div>
@@ -284,7 +292,7 @@ body{padding-bottom:86px}
     <p class="note">L'intensité « dur » comptera plus tard dans ton budget hebdo.</p>
   </div>
 
-  <div class="page" id="page-semaine">
+  <div class="page on" id="page-semaine">
     <p class="intro">Ton cadre de la semaine. L'app compte tes séances faites et te dit quoi générer pour équilibrer.</p>
     <div class="wk-range" id="weekRange">—</div>
     <button class="gen-btn" style="margin:14px 0 0" onclick="generateToday()">⚡ Ma séance du jour</button>
@@ -299,8 +307,8 @@ body{padding-bottom:86px}
 </div>
 
 <nav class="tabbar">
-  <button data-tab="workout" class="on" onclick="showPage('workout')"><span class="ti">▲</span>Workout</button>
-  <button data-tab="semaine" onclick="showPage('semaine')"><span class="ti">▦</span>Semaine</button>
+  <button data-tab="workout" onclick="showPage('workout')"><span class="ti">▲</span>Workout</button>
+  <button data-tab="semaine" class="on" onclick="showPage('semaine')"><span class="ti">▦</span>Semaine</button>
   <button data-tab="endurance" onclick="showPage('endurance')"><span class="ti">≈</span>Endurance</button>
 </nav>
 
@@ -323,6 +331,8 @@ body{padding-bottom:86px}
 </div>
 
 <script>
+const APP_VERSION='v1.2.0';
+document.getElementById('appVer').textContent=APP_VERSION;
 const EQUIPS=[['pdc','Poids du corps'],['barre','Barre'],['trx','TRX'],['anneaux','Anneaux'],['box','Box'],['kb','Kettlebell'],['gilet','Gilet lesté'],['mb','Med ball'],['slider','Plaquettes']];
 const PARTCLASS={Tirage:'p-tirage',Poussée:'p-poussee',Jambes:'p-jambes',Tronc:'p-tronc',Charge:'p-charge',Skill:'p-skill',Ischios:'p-ischio',Explosivité:'p-explo',Mollets:'p-jambes',Biceps:'p-tirage','Avant-bras':'p-charge','Épaules':'p-poussee',Fessiers:'p-jambes'};
 
@@ -683,12 +693,20 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random
 function countForTime(t){return {10:2,15:3,20:4,30:5,45:6,60:8,75:10,90:12,120:15}[t]||4;}
 function timeLabel(t){if(t<60)return t+' min';var h=Math.floor(t/60),m=t%60;return h+'h'+(m?String(m).padStart(2,'0'):'');}
 function renderTimeChips(){document.getElementById('progTime').innerHTML=TIMES.map(t=>`<button class="chip ${timeCfg===t?'on':''}" onclick="setTime(${t})">${timeLabel(t)}</button>`).join('');}
-function setTime(t){timeCfg=t;renderTimeChips();}
+function setTime(t){timeCfg=t;renderTimeChips();updateCfgSum();}
+var cfgOpen=false;
+function toggleCfg(){cfgOpen=!cfgOpen;var b=document.getElementById('cfgBody'),hd=document.getElementById('cfgHead');if(b)b.style.display=cfgOpen?'':'none';if(hd)hd.classList.toggle('open',cfgOpen);}
+function updateCfgSum(){
+  var el=document.getElementById('cfgSum');if(!el)return;
+  var p=matchPreset();
+  var who=p?PRESET_LABEL[p]:(focusParts.size?focusParts.size+' groupes':'aucun groupe');
+  el.textContent=timeLabel(timeCfg)+' · '+who;
+}
 function muscleLabel(k){const m=MUSCLES.find(x=>x[0]===k);return m?m[1]:k;}
 function renderFocusChips(){
   document.getElementById('progFocus').innerHTML=MUSCLES.map(([k,l])=>`<button class="chip ${focusParts.has(k)?'on':''}" onclick="toggleMuscle('${k}')">${l}</button>`).join('');
   const ab=document.getElementById('muscleAllBtn');if(ab)ab.textContent=focusParts.size>0?'Tout décocher':'Tout cocher';
-  renderShortcuts();
+  renderShortcuts();updateCfgSum();
 }
 const PRESETS={push:['pecs','epaules'],pull:['dos','biceps','avantbras'],legs:['quads','ischios','fessiers','mollets'],core:['abdos'],full:MUSCLES.map(m=>m[0])};
 const PRESET_LABEL={push:'Push',pull:'Pull',legs:'Legs',core:'Abdos & Gainage',full:'Full'};
@@ -887,6 +905,19 @@ function verdictHTML(){
   }
   return '<div class="verdict stay">Dans la cible — niveau maintenu. C\'est ta zone de travail.</div>';
 }
+function wireSetInputs(){
+  var ins=[].slice.call(document.querySelectorAll('#setInputs input'));
+  ins.forEach(function(inp,idx){
+    inp.addEventListener('input',function(){
+      inp.dataset.auto='';
+      for(var j=idx+1;j<ins.length;j++){
+        var o=ins[j];
+        if(o.value!==''&&o.dataset.auto!=='1')break;
+        o.value=inp.value;o.dataset.auto=inp.value===''?'':'1';
+      }
+    });
+  });
+}
 function renderSheet(){
   const t=TRACKS.find(x=>x.id===curTrack);const lv=lvlOf(t.id);const cur=t.levels[lv];const feas=levelFeasible(cur,t);
   document.getElementById('sPart').textContent=t.part;
@@ -920,6 +951,7 @@ function renderSheet(){
     +entry
     +verdictHTML()
     +'</div>';
+  wireSetInputs();
   document.getElementById('sLadder').innerHTML=t.levels.map((l,i)=>{
     const cls=i<lv?'done':(i===lv?'cur':'');
     return `<div class="lad ${cls}"><span class="ln">${i<lv?'✓':(i+1)}</span><div class="lt"><b>${escapeHtml(l.n)}</b><span>${escapeHtml(l.s)}</span></div></div>`;
