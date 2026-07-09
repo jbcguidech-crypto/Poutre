@@ -95,6 +95,8 @@ header{padding:22px 0 6px;display:flex;justify-content:space-between;align-items
 .s-part{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);text-align:center;font-weight:700}
 .s-title{font-size:23px;font-weight:700;text-align:center;margin:2px 0 0}
 .s-progress{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:4px}
+.s-desc{font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin:12px 2px 0;padding:11px 13px;background:var(--card2);border:1px solid var(--line);border-radius:11px}
+.s-desc b{color:var(--ink)}
 .presc{background:var(--accent-soft);border:1px solid #d4e3da;border-radius:12px;padding:14px;margin:14px 0}
 .presc .pl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:700}
 .presc .pn{font-size:17px;font-weight:700;margin-top:4px}
@@ -318,6 +320,7 @@ body{padding-bottom:86px}
     <div class="s-part" id="sPart">—</div>
     <div class="s-title" id="sTitle">—</div>
     <div class="s-progress" id="sProgress">—</div>
+    <p class="s-desc" id="sDesc"></p>
     <div id="sPresc"></div>
     <div class="lvl-btns">
       <button class="lvl-dn" onclick="changeLevel(-1)">◂ Niveau précédent</button>
@@ -331,7 +334,7 @@ body{padding-bottom:86px}
 </div>
 
 <script>
-const APP_VERSION='v1.2.0';
+const APP_VERSION='v1.3.0';
 document.getElementById('appVer').textContent=APP_VERSION;
 const EQUIPS=[['pdc','Poids du corps'],['barre','Barre'],['trx','TRX'],['anneaux','Anneaux'],['box','Box'],['kb','Kettlebell'],['gilet','Gilet lesté'],['mb','Med ball'],['slider','Plaquettes']];
 const PARTCLASS={Tirage:'p-tirage',Poussée:'p-poussee',Jambes:'p-jambes',Tronc:'p-tronc',Charge:'p-charge',Skill:'p-skill',Ischios:'p-ischio',Explosivité:'p-explo',Mollets:'p-jambes',Biceps:'p-tirage','Avant-bras':'p-charge','Épaules':'p-poussee',Fessiers:'p-jambes'};
@@ -664,6 +667,54 @@ const TRACKS=[
    {n:'Razor curl (nordic hanches fléchies)',s:'4 × 5',a:'Vers le nordic complet'},
  ]},
 ];
+const TRACK_INFO={
+ tractions:"Le tirage vertical roi : dos, biceps, grip. Transfert direct vers la nage (traction dans l'eau) et tout ce qui se grimpe. Clé : démarre chaque rep par les omoplates (tire-les vers le bas) avant de plier les bras, et monte la poitrine vers la barre plutôt que le menton.",
+ pompes:"La poussée horizontale de référence : pectoraux, triceps, épaules — et un test de gainage déguisé. Clé : le corps bouge d'une seule pièce, rigide de la tête aux talons ; coudes à ~45° du buste (pas en T), poitrine au sol, verrouille chaque rep en haut.",
+ dips:"Poussée verticale basse très complète : pecs bas, triceps, épaules. Utile pour les sorties d'eau en swimrun (pousser sur les rochers/pontons). Clé : épaules basses et loin des oreilles, buste légèrement penché en avant, descends jusqu'à ce que l'épaule passe sous le coude — sans rebondir.",
+ hspu:"La poussée verticale ultime au poids du corps : épaules, triceps, trapèzes. Construit des épaules qui encaissent. Clé : gaine comme une planche inversée (côtes rentrées, fessiers serrés) — si le dos cambre, la variante est trop dure. Descente contrôlée, jamais en chute.",
+ pistol:"Force unilatérale complète : quadriceps, fessiers, équilibre et mobilité de cheville. C'est la jambe qui tient les descentes et les terrains irréguliers. Clé : talon au sol du début à la fin, genou qui suit l'axe du pied ; le bras tendu devant sert de contrepoids.",
+ gainage:"L'anti-extension de base : apprendre au tronc à ne pas s'effondrer. Le socle de tous les autres mouvements. Clé : fessiers serrés, côtes rentrées vers le bassin, tête alignée — une planche qui tremble un peu vaut mieux qu'une planche longue et cambrée.",
+ kb_force:"Les patterns chargés fondamentaux : squat, hinge, presse, swing. C'est ici que se construit la force générale qui protège tout le reste. Clé : sur les hinges, les hanches reculent (ferme une portière avec les fesses) et le dos reste neutre ; charge collée au corps.",
+ ischios:"L'excentrique ischio (nordic) est l'assurance anti-claquage la mieux documentée qui existe — vital pour la course. Clé : freine la descente avec les ischios en gardant hanches tendues et corps aligné genoux-épaules ; c'est la lenteur de la descente qui compte, pas l'amplitude.",
+ pliometrie:"Réactivité tendineuse et économie de course : tes tendons apprennent à restituer l'énergie au lieu de la dissiper. Clé : la qualité d'atterrissage prime sur la hauteur — réception silencieuse, genoux souples alignés, contact au sol bref. Toujours frais, jamais en fin de séance épuisé.",
+ handstand:"L'équilibre sur les mains : proprioception, poignets, épaules verrouillées en ouverture. Un skill qui se cultive frais et souvent. Clé : pousse le sol loin de toi (épaules hautes), gaine côtes rentrées, regarde le sol entre les mains — le corps aligné comme une planche verticale.",
+ mollets:"Le complexe mollet-tendon d'Achille encaisse plusieurs fois ton poids à chaque foulée. Clé : amplitude complète (étirement bas, extension haute) et tempo contrôlé — surtout la descente. Le volume progressif ici prévient les tendinopathies du coureur.",
+ biceps:"La flexion de coude en supination : biceps et avant-bras. Complète le tirage et protège le coude des volumes de traction. Clé : coude fixe le long du corps, pas d'élan du buste — c'est le bras qui travaille, pas les hanches.",
+ avantbras:"Le grip et la suspension : avant-bras, coiffe, décompression des épaules. Clé : en suspension active, épaules engagées tirées loin des oreilles (jamais complètement relâchées longtemps sous charge) ; la prise se travaille frais, arrête avant que les mains lâchent.",
+ pecs_kb:"La poussée horizontale chargée au sol : pectoraux et triceps sous tension contrôlée, épaules protégées par l'amplitude limitée. Clé : omoplates plaquées au sol et serrées, poignets neutres au-dessus des coudes, redescends lentement.",
+ rows:"Le tirage horizontal : rhomboïdes, dorsaux, arrière d'épaule. L'antidote aux épaules enroulées et le complément obligatoire des pompes. Clé : corps rigide comme une planche, tire les omoplates l'une vers l'autre avant les bras, poitrine vers les mains.",
+ lunges:"La fente : force unilatérale, stabilité de hanche, équilibre — le pattern de la marche chargée en montagne et des relances en course. Clé : le genou avant suit l'axe du pied, le buste reste grand ; pousse dans le talon avant pour remonter.",
+ shoulders_kb:"La presse verticale chargée : épaules, triceps, gainage sous charge. Clé : côtes rentrées avant de presser (pas de cambrure compensatoire), trajet proche du visage, verrouille bras tendu biceps près de l'oreille. Le gainage fait la moitié du travail.",
+ abs_dyn:"La flexion dynamique du tronc : abdos qui produisent du mouvement, pas seulement qui résistent. Clé : enroule vertèbre par vertèbre sans tirer sur la nuque ; sur les relevés de jambes, c'est le bas du dos qui reste collé (ou le bassin qui s'enroule), pas les hanches qui balancent.",
+ scapula:"Le contrôle scapulaire : apprendre à bouger et verrouiller les omoplates, la fondation de tout tirage sain. Ce travail invisible protège tes épaules de tout le volume du haut du corps. Clé : bras tendus, tout le mouvement vient des omoplates — lent et précis.",
+ face_pull:"Le tirage vers le visage : arrière d'épaule et rotateurs externes, les muscles posturaux que la nage et les pompes négligent. L'équilibrateur d'épaule par excellence. Clé : coudes hauts au niveau des oreilles, termine en double biceps — la rotation externe est le but du geste.",
+ front_lever:"Le levier avant : dorsaux et tronc en co-contraction maximale, la force de tirage statique pure. Clé : bras tendus verrouillés, bassin rétroversé (bas du dos plat), tire les omoplates vers les poches — le corps monte comme une planche, pas comme un ballant.",
+ pull_power:"Le tirage explosif vers le muscle-up : produire de la vitesse sur une base de force. Clé : chaque rep démarre par une impulsion franche des omoplates puis des hanches ; la transition du muscle-up se gagne en tirant la barre vers les hanches, pas vers le menton.",
+ oapu:"La route vers la pompe à une main : poussée asymétrique et anti-rotation extrêmes. Clé : pieds plus larges que d'habitude, tout le corps vissé (fessiers et tronc serrés) pour empêcher les hanches de tourner ; la lenteur contrôlée avant la fierté de l'amplitude.",
+ pompes_plyo:"La poussée explosive : puissance du haut du corps et raideur réactive utile aux sorties d'eau. Clé : intention maximale à chaque rep (pousse le sol pour décoller), réception coudes souples ; arrête dès que la hauteur chute — c'est de la qualité, pas du cardio.",
+ fly_anneaux:"L'écarté : pectoraux en grande amplitude sous instabilité. Clé : coudes légèrement fléchis mais figés (l'angle ne change pas pendant la rep), épaules basses ; c'est l'écartement des bras qui bouge, pas la flexion des coudes. Va-y progressivement, le levier est traître.",
+ pseudo_planche:"La pompe penchée en avant : épaules chargées comme en planche, le pont entre la pompe et les skills de poussée. Clé : plus les épaules avancent devant les mains, plus c'est dur — avance-les graduellement ; côtes rentrées, corps tendu, poignets échauffés.",
+ bottoms_up:"La kettlebell à l'envers : rien ne triche, seule une épaule stable et un grip franc tiennent la cloche. Excellent diagnostic et correcteur d'épaule. Clé : écrase la poignée, avant-bras vertical en permanence, tout le corps sous tension — si ça vacille, c'est l'information que tu cherchais.",
+ scap_pushup:"Le serratus : le muscle qui plaque l'omoplate sur les côtes et permet aux bras de pousser au-dessus de la tête sans conflit. Clé : bras tendus verrouillés, seul le dos bouge — repousse le sol au maximum (dos rond entre les omoplates) puis laisse redescendre lentement.",
+ shrimp:"Le shrimp : squat unilatéral genou dominant, plus exigeant en mobilité de quadriceps que le pistol. Clé : buste grand, le genou arrière descend contrôlé vers le sol juste derrière le pied d'appui ; attrape la cheville arrière seulement quand l'équilibre est acquis.",
+ wallsit:"L'isométrie de quadriceps : endurance de position, exactement ce que les descentes longues et le ski réclament. Clé : cuisses parallèles au sol, dos entièrement plaqué au mur, poids dans les talons — respire calmement, ne bloque pas.",
+ stepup:"La montée de marche : le geste de la montagne, chargeable à volonté. Clé : tout le pied sur la box, pousse dans le talon de la jambe haute — la jambe basse ne donne pas d'élan (c'est elle qui triche en premier). Contrôle aussi la descente.",
+ front_squat:"Le squat frontal KB : quadriceps et gainage thoracique — la charge devant oblige le buste à rester droit. Clé : coudes hauts, prends l'air dans le ventre avant de descendre, genoux qui s'écartent dans l'axe des pieds, talons vissés au sol.",
+ rdl:"Le hinge : LE pattern de la chaîne postérieure — ischios, fessiers, dos. C'est lui qui protège ton dos partout ailleurs. Clé : hanches qui reculent loin (ferme une portière avec les fesses), genoux à peine fléchis, dos neutre ; arrête la descente où le bas du dos veut s'arrondir, pas plus bas.",
+ hipthrust:"L'extension de hanche pure : fessiers en isolation, le moteur de la foulée et des montées. Clé : menton rentré et regard devant (pas au plafond), pousse dans les talons, verrouille en haut en rétroversion — fessiers serrés, sans cambrer le dos pour aller plus haut.",
+ antirot:"L'anti-rotation : le tronc qui refuse de tourner sous une force asymétrique. C'est le gainage de la nage (roulis) et de la course (bras opposés). Clé : bassin et épaules restent face à l'avant, immobiles — si ça tourne, réduis le levier ou la charge.",
+ antilat:"L'anti-flexion latérale : obliques et carré des lombes, la stabilité du bassin à chaque appui unilatéral de course. Clé : corps en ligne parfaite vu de face ET de profil, hanche haute — ne laisse pas le bassin plonger vers le sol.",
+ hollow:"Le hollow body : LA position gymnique de base, le tronc verrouillé qui transfère la force entre bras et jambes (nage comprise). Clé : bas du dos écrasé au sol en permanence — c'est le critère unique ; si le dos décolle, raccourcis le levier (genoux pliés, bras devant).",
+ lsit:"Le L-sit : compression brutale — abdos, psoas, triceps, épaules basses. Clé : pousse le sol pour t'éloigner des épaules (coudes verrouillés), jambes tendues serrées ; la difficulté vient de la compression, pas de la durée — mieux vaut 5 s propres que 15 s affaissées.",
+ rollout:"L'anti-extension dynamique : le tronc qui résiste pendant que les bras s'éloignent — l'un des exercices d'abdos les plus exigeants qui soient. Clé : bassin rétroversé avant de partir, et n'avance que tant que le bas du dos ne cambre pas d'un millimètre. L'amplitude se gagne sur des semaines.",
+ grip_climb:"Le grip spécifique : suspensions sur prises dégradées (serviette, pince), l'assurance des mains en terrain vertical et du matériel mouillé en swimrun. Clé : épaules actives même quand la prise brûle ; arrête la série avant la perte de contrôle — le grip se construit sous le seuil de l'échec.",
+ curl_anneaux:"Le curl au poids du corps : biceps sous tension continue avec le gainage en prime. Clé : corps rigide de la tête aux pieds, coudes hauts et fixes — amène le front aux mains en pliant seulement les coudes ; recule les pieds pour durcir.",
+ coiffe:"La coiffe des rotateurs : les petits muscles qui centrent l'épaule. C'est l'assurance-vie du nageur — le volume de paddle sans coiffe solide finit en conflit sous-acromial. Clé : charges légères, gestes lents et amples ; tu dois sentir l'arrière de l'épaule travailler, jamais forcer.",
+ pullover:"Le pull-over : le grand dorsal en amplitude complète — exactement le trajet du bras dans le crawl. Clé : côtes rentrées (ne laisse pas le dos cambrer quand les bras passent derrière la tête), coudes légèrement fléchis figés, descends lentement jusqu'à l'étirement franc.",
+ tibialis:"Le tibial antérieur et le pied : les freins des descentes et les stabilisateurs de la cheville. Négligés chez tous les coureurs, jusqu'à la périostite. Clé : amplitude complète pointe de pied vers le tibia, descente lente ; sur l'équilibre, le pied travaille activement (gros orteil au sol).",
+ soleus:"Le soléaire : le mollet profond, genou plié — il encaisse jusqu'à 6-8 fois ton poids en course, plus que tout autre muscle de la jambe. Clé : genou fléchi à ~90° obligatoire (sinon c'est le jumeau qui prend tout), montée complète, descente en 2-3 s.",
+ pont_marche:"Le pont ischio et les curls glissés : les ischios en double fonction (étendre la hanche + plier le genou), complément parfait du nordic. Clé : hanches hautes verrouillées pendant tout le mouvement — si le bassin tombe pendant le curl, l'exercice est perdu ; fessiers et ischios co-contractés.",
+};
 
 let equip=new Set(['pdc','barre','trx','anneaux','box','kb','gilet','mb','slider']);
 const TIMES=[10,15,20,30,45,60,75,90,120];let timeCfg=20;
@@ -923,6 +974,7 @@ function renderSheet(){
   document.getElementById('sPart').textContent=t.part;
   document.getElementById('sTitle').textContent=t.name;
   document.getElementById('sProgress').textContent='Niveau '+(lv+1)+' sur '+t.levels.length;
+  var sd=document.getElementById('sDesc');if(sd){sd.textContent=TRACK_INFO[t.id]||'';sd.style.display=TRACK_INFO[t.id]?'':'none';}
   var tg=parseTarget(cur.s);
   var unitTxt=tg.unit==='sec'?'secondes':(tg.unit==='dist'?'mètres':'reps');
   if(tg.perSide)unitTxt+=' / côté';
