@@ -258,60 +258,40 @@ body{padding-bottom:86px}
   </div>
 
   <div class="page" id="page-endurance">
-    <p class="intro">Choisis ta discipline, l'intensité et le temps : l'app te propose une trame. Ou journalise directement ce que tu as fait.</p>
+    <p class="intro">Metcons type CrossFit : le mix force-endurance qui remplace la montagne les semaines chargées. Génère, fais, journalise.</p>
 
-    <div class="sect">Générer une séance</div>
+    <div class="sect">Générer un WOD</div>
     <div class="mini">
-      <div class="cap">Discipline</div>
-      <div class="chips" id="enDisc"></div>
-      <div class="cap" style="margin-top:15px">Intensité</div>
-      <div class="seg" id="enInt"></div>
-      <div id="enBrickWrap" style="display:none"><div class="cap" style="margin-top:15px">Type de brick</div>
-      <div class="seg" id="enBrick"></div></div>
-      <div class="cap" style="margin-top:15px">Durée</div>
-      <div class="chips" id="enTime"></div>
-      <button class="gen-btn" onclick="generateEndurance()">Générer une séance d'endurance</button>
+      <div class="cap">Durée du metcon</div>
+      <div class="chips" id="wodTimeChips"></div>
+      <div class="cap" style="margin-top:15px">Allure</div>
+      <div class="seg" id="wodIntSeg"></div>
+      <button class="gen-btn" onclick="generateWod()">Générer un WOD</button>
     </div>
-    <div id="enGenOut"></div>
+    <div id="wodOut"></div>
 
-    <div class="mini" style="display:flex;align-items:center;gap:12px">
-      <div style="flex:1"><span class="cap">FTP (watts)</span>
-        <p style="margin:4px 0 0;font-size:12px;color:var(--ink-soft)">Test : 20 min à fond × 0,95. Renseigné, les séances home trainer s'affichent en watts réels.</p></div>
-      <input id="ftpIn" type="number" inputmode="numeric" min="50" max="500" placeholder="—" style="width:76px;text-align:center;font-size:17px;font-weight:700;padding:11px 4px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink)" onchange="setFtp(this.value)">
-    </div>
+    <div class="sect">Benchmarks & Hero WODs</div>
+    <div id="benchList"></div>
 
     <div class="sect">Journaliser directement</div>
     <div class="mini">
       <div class="en-log">
-        <input id="enNote" type="text" placeholder="Ce que tu as fait (ex. 45 min Z2)" maxlength="60">
-        <button onclick="logEndurance()">Ajouter</button>
+        <input id="wodNote" type="text" placeholder="Ce que tu as fait (ex. Cindy — 17 tours)" maxlength="60">
+        <button onclick="logWodDirect()">Ajouter</button>
       </div>
-      <p style="margin:9px 0 0;font-size:12px;color:var(--ink-soft)">Reprend la discipline et l'intensité choisies ci-dessus.</p>
+      <p style="margin:9px 0 0;font-size:12px;color:var(--ink-soft)">Reprend l'allure choisie ci-dessus. Compte dans ta semaine.</p>
     </div>
 
     <div class="sect">Historique</div>
     <div id="enOut"></div>
-    <p class="note">L'intensité « dur » comptera plus tard dans ton budget hebdo.</p>
-  </div>
-
-  <div class="page on" id="page-semaine">
-    <p class="intro">Ton cadre de la semaine. L'app compte tes séances faites et te dit quoi générer pour équilibrer.</p>
-    <div class="wk-range" id="weekRange">—</div>
-    <button class="gen-btn" style="margin:14px 0 0" onclick="generateToday()">⚡ Ma séance du jour</button>
-    <div id="todayOut"></div>
-
-    <div class="sect">Mode</div>
-    <div class="seg" id="weekMode" style="margin-bottom:4px"></div>
-
-    <div class="sect">Objectifs</div>
-    <div id="weekBody"></div>
+    <p class="note">Un WOD « à fond » consomme ton budget d'intensité hebdo (1/semaine).</p>
   </div>
 </div>
 
 <nav class="tabbar">
   <button data-tab="workout" onclick="showPage('workout')"><span class="ti">▲</span>Workout</button>
   <button data-tab="semaine" class="on" onclick="showPage('semaine')"><span class="ti">▦</span>Semaine</button>
-  <button data-tab="endurance" onclick="showPage('endurance')"><span class="ti">≈</span>Endurance</button>
+  <button data-tab="endurance" onclick="showPage('endurance')"><span class="ti">◆</span>WOD</button>
 </nav>
 
 <div class="overlay" id="overlay" onclick="if(event.target===this)closeSheet()">
@@ -334,7 +314,7 @@ body{padding-bottom:86px}
 </div>
 
 <script>
-const APP_VERSION='v1.3.0';
+const APP_VERSION='v1.4.0';
 document.getElementById('appVer').textContent=APP_VERSION;
 const EQUIPS=[['pdc','Poids du corps'],['barre','Barre'],['trx','TRX'],['anneaux','Anneaux'],['box','Box'],['kb','Kettlebell'],['gilet','Gilet lesté'],['mb','Med ball'],['slider','Plaquettes']];
 const PARTCLASS={Tirage:'p-tirage',Poussée:'p-poussee',Jambes:'p-jambes',Tronc:'p-tronc',Charge:'p-charge',Skill:'p-skill',Ischios:'p-ischio',Explosivité:'p-explo',Mollets:'p-jambes',Biceps:'p-tirage','Avant-bras':'p-charge','Épaules':'p-poussee',Fessiers:'p-jambes'};
@@ -1030,134 +1010,122 @@ function showPage(p){
   window.scrollTo(0,0);
 }
 
-// ---- Endurance (journal simple) ----
-const DISCIPLINES=[['nage','Nage'],['course','Course'],['ht','Home trainer'],['brick','Brick swimrun'],['rando','Rando rapide'],['velo','Vélo route'],['skirando','Ski de rando'],['corde','Corde à sauter']];
-let enDisc='course',enInt='facile',enBrickMode='nage';
-function setEnBrickMode(v){enBrickMode=v;renderEnForm();}
-function discLabel(k){const d=DISCIPLINES.find(x=>x[0]===k);return d?d[1]:k;}
-function enList(){if(!STORE.endurance)STORE.endurance=[];return STORE.endurance;}
-function setEnDisc(k){enDisc=k;renderEnForm();}
-function setEnInt(v){enInt=v;renderEnForm();}
-function renderEnForm(){
-  document.getElementById('enDisc').innerHTML=DISCIPLINES.map(([k,l])=>`<button class="chip ${enDisc===k?'on':''}" onclick="setEnDisc('${k}')">${l}</button>`).join('');
-  document.getElementById('enInt').innerHTML=
-    `<button class="${enInt==='facile'?'on':''}" onclick="setEnInt('facile')">Facile · Z2</button>`+
-    `<button class="dur ${enInt==='dur'?'on':''}" onclick="setEnInt('dur')">Dur · intense</button>`;
-  var bw=document.getElementById('enBrickWrap');
-  if(bw){bw.style.display=(enDisc==='brick')?'':'none';
-    if(enDisc==='brick')document.getElementById('enBrick').innerHTML=
-      `<button class="${enBrickMode==='nage'?'on':''}" onclick="setEnBrickMode('nage')">Nage + course</button>`+
-      `<button class="${enBrickMode==='indoor'?'on':''}" onclick="setEnBrickMode('indoor')">Indoor · HT + course</button>`;}
+// ---- WOD (metcons force-endurance) ----
+const DISC_LABELS={nage:'Nage',course:'Course',ht:'Home trainer',brick:'Brick swimrun',rando:'Rando rapide',velo:'Vélo route',skirando:'Ski de rando',corde:'Corde à sauter',wod:'WOD'};
+function discLabel(k){return DISC_LABELS[k]||k;}
+const WODLIB=[
+ {n:'Burpees',t:'cardio',r:10},
+ {n:'Corde à sauter',t:'cardio',r:'50 sauts'},
+ {n:'Mountain climbers',t:'cardio',r:20},
+ {n:'Sauts sur box',t:'cardio',e:['box'],r:12},
+ {n:'KB swings',t:'cardio',e:['kb'],w:'16-24 kg',r:15},
+ {n:'Med ball slams',t:'cardio',e:['mb'],r:15},
+ {n:'Tractions',t:'pull',e:['barre'],r:6},
+ {n:'Rowing anneaux/TRX',t:'pull',e:['anneaux','trx'],r:10},
+ {n:'Pompes',t:'push',r:12},
+ {n:'Dips sur box',t:'push',e:['box'],r:10},
+ {n:'Push press KB',t:'push',e:['kb'],w:'2×12-16 kg',r:8},
+ {n:'Squats au poids du corps',t:'legs',r:15},
+ {n:'Goblet squats',t:'legs',e:['kb'],w:'16-24 kg',r:12},
+ {n:'Fentes sautées',t:'legs',r:12},
+ {n:'Step-ups',t:'legs',e:['box'],r:14},
+ {n:'Sit-ups',t:'core',r:15},
+ {n:'Relevés de jambes suspendu',t:'core',e:['barre'],r:10},
+ {n:'Thrusters KB',t:'full',e:['kb'],w:'2×12-16 kg',r:9},
+ {n:'Clean KB',t:'full',e:['kb'],w:'16-20 kg',r:10},
+ {n:'Snatch KB',t:'full',e:['kb'],w:'12-16 kg',r:8},
+ {n:'Renegade rows',t:'full',e:['kb'],w:'2×12-16 kg',r:8},
+ {n:'Farmer carry',t:'full',e:['kb'],w:'2×20-24 kg',r:'40 m'},
+ {n:'Wall walks',t:'full',r:3},
+];
+function wodAvail(x){return x.e?x.e.some(function(e){return equip.has(e);}):equip.has('pdc');}
+const WOD_TIMES=[10,15,20,30,40];
+let wodTime=20,wodInt='facile';
+function setWodTime(t){wodTime=t;renderWodForm();}
+function setWodInt(v){wodInt=v;renderWodForm();}
+function renderWodForm(){
+  document.getElementById('wodTimeChips').innerHTML=WOD_TIMES.map(function(t){return '<button class="chip '+(wodTime===t?'on':'')+'" onclick="setWodTime('+t+')">'+t+' min</button>';}).join('');
+  document.getElementById('wodIntSeg').innerHTML=
+    '<button class="'+(wodInt==='facile'?'on':'')+'" onclick="setWodInt(\'facile\')">Soutenu · gérable</button>'+
+    '<button class="dur '+(wodInt==='dur'?'on':'')+'" onclick="setWodInt(\'dur\')">À fond · intense</button>';
 }
-function logEndurance(){
-  const inp=document.getElementById('enNote');const v=inp.value.trim();
-  enList().unshift({iso:new Date().toISOString(),disc:enDisc,int:enInt,note:v});
-  save();inp.value='';renderEnList();
+function pickWodExos(n){
+  var pool=shuffle(WODLIB.filter(wodAvail)),out=[],used=new Set();
+  pool.forEach(function(x){if(out.length<n&&!used.has(x.t)){out.push(x);used.add(x.t);}});
+  pool.forEach(function(x){if(out.length<n&&out.indexOf(x)<0)out.push(x);});
+  return out;
 }
-function delEndurance(iso){STORE.endurance=enList().filter(e=>e.iso!==iso);save();renderEnList();}
-function renderEnList(){
-  const l=enList();const el=document.getElementById('enOut');
-  if(!l.length){el.innerHTML='<div class="gen-empty">Aucune séance notée. Journalise ta première sortie ci-dessus.</div>';return;}
-  el.innerHTML=l.slice(0,40).map(e=>{
-    const d=new Date(e.iso).toLocaleDateString('fr-CH',{weekday:'short',day:'numeric',month:'short'});
-    const dur=e.int==='dur';
-    return `<div class="en-row"><div class="dot ${dur?'dur':''}"></div>
-      <div class="eb"><div class="ed">${d}</div><div class="enm">${escapeHtml(discLabel(e.disc))}</div>
-      ${e.note?`<div class="em">${escapeHtml(e.note)}</div>`:''}</div>
-      <span class="en-tag ${dur?'dur':'fac'}">${dur?'Dur':'Facile'}</span>
-      <button class="del" onclick="delEndurance('${e.iso}')" aria-label="Supprimer">×</button></div>`;
+function exoLine(x){return x.r+' '+x.n+(x.w?' ('+x.w+')':'');}
+var lastWodGen=null;
+function buildWodCard(title,blocks,note){
+  lastWodGen={int:wodInt,note:note};
+  return '<div class="gen-card"><div class="gen-head">'+escapeHtml(title)+'</div>'
+    +blocks.map(function(b,i){return '<div class="en-blk"><span class="bn">'+(i+1)+'</span><span>'+escapeHtml(b)+'</span></div>';}).join('')
+    +'<button class="gen-btn" style="margin-top:14px" onclick="logWodFromGen()">C\'est fait — journaliser</button></div>';
+}
+function generateWod(){
+  var ex=pickWodExos(3);
+  var el=document.getElementById('wodOut');
+  if(ex.length<2){el.innerHTML='<div class="gen-card"><div class="gen-empty">Pas assez de mouvements — coche plus de matériel dans Workout.</div></div>';return;}
+  var fmts=['amrap','fortime','emom'];var fmt=fmts[Math.floor(Math.random()*fmts.length)];
+  var title,main;
+  if(fmt==='amrap'){title='AMRAP '+wodTime+' min';main='Enchaîne un max de tours de : '+ex.map(exoLine).join(' → ');}
+  else if(fmt==='emom'){title='EMOM '+wodTime+' min';main='Chaque minute, dans l\'ordre (~40 s de travail max, le reste = repos) : '+ex.map(function(x,i){return 'min '+(i+1)+' → '+exoLine(x);}).join(' · ')+' — répète le cycle';}
+  else {var rounds=Math.max(3,Math.round(wodTime/4));title=rounds+' rounds for time · cap '+wodTime+' min';main=rounds+' tours de : '+ex.map(exoLine).join(' → ')+' — note ton temps';}
+  var blocks=['Échauffement progressif 8-10 min : mobilité + 1 mini-tour à vide',main,
+    wodInt==='dur'?'Allure : pousse. C\'est la séance dure de ta semaine — vide le réservoir':'Allure : soutenue mais gérable, technique propre du premier au dernier tour',
+    'Retour au calme 5 min marche + respiration nasale'];
+  el.innerHTML=buildWodCard(title,blocks,title);
+}
+const BENCH=[
+ {id:'cindy',name:'Cindy',sub:'AMRAP 20 min',need:['barre'],blocks:['Échauffement 8-10 min','AMRAP 20 min : 5 tractions → 10 pompes → 15 squats','Note ton nombre de tours (référence : 12-15 tours = solide)','Retour au calme 5 min']},
+ {id:'annie',name:'Annie',sub:'50-40-30-20-10 · for time',blocks:['Échauffement 8 min + corde progressive','50-40-30-20-10 : double-unders (ou 2× sauts simples) + sit-ups','Note ton temps (référence : 8-12 min)','Retour au calme 5 min']},
+ {id:'helen',name:'Helen',sub:'3 rounds for time',need:['kb','barre'],blocks:['Échauffement 10 min avec accélérations','3 tours : 400 m course → 21 KB swings (16-24 kg) → 12 tractions','Note ton temps (référence : 10-14 min)','Retour au calme 5 min trot']},
+ {id:'halfmurph',name:'Half Murph',sub:'Hero WOD · for time',need:['barre'],blocks:['Échauffement 10 min','800 m course → 50 tractions + 100 pompes + 150 squats (partitionne : 10 tours de 5/10/15) → 800 m course','Gilet lesté optionnel pour la version fidèle','Note ton temps (référence : 22-30 min)']},
+ {id:'jackie',name:'Jackie (adaptée)',sub:'For time',need:['kb','barre'],blocks:['Échauffement 10 min','1000 m course → 50 thrusters KB léger (2×8-12 kg) → 30 tractions','Note ton temps (référence : 12-16 min)','Retour au calme 5 min']},
+ {id:'jt',name:'J.T.',sub:'Hero WOD · 21-15-9',need:['anneaux','box'],blocks:['Échauffement épaules complet 10 min','21-15-9 : pompes piquées (ou HSPU) → dips → pompes','Épaules exigeantes : réduis à 15-12-9 si besoin','Note ton temps']},
+];
+function renderBench(){
+  document.getElementById('benchList').innerHTML=BENCH.map(function(b){
+    var av=!b.need||b.need.some(function(e){return equip.has(e);});
+    return '<div class="gen-card" style="padding:0 16px"><div class="gen-row" onclick="showBench(\''+b.id+'\')"><div class="pt p-explo"></div>'
+      +'<div class="gi"><div class="part">'+(av?'Benchmark':'Matériel manquant')+'</div><div class="nm">'+b.name+'</div><div class="sc">'+b.sub+'</div></div><div class="go">›</div></div></div>';
   }).join('');
 }
-document.getElementById('enNote').addEventListener('keydown',e=>{if(e.key==='Enter')logEndurance();});
-
-// ---- Durée + générateur de séance d'endurance ----
-const EN_TIMES=[20,30,45,60,75,90];
-let enTime=45;
-function renderEnTime(){document.getElementById('enTime').innerHTML=EN_TIMES.map(t=>`<button class="chip ${enTime===t?'on':''}" onclick="setEnTime(${t})">${t} min</button>`).join('');}
-function setEnTime(t){enTime=t;renderEnTime();}
-function setFtp(v){var n=parseInt(v,10);STORE.ftp=(n>0?n:null);save();}
-function pw(lo,hi){if(!STORE.ftp)return '';var a=Math.round(STORE.ftp*lo/100),b=Math.round(STORE.ftp*hi/100);return ' ('+(lo===hi?a:a+'-'+b)+' W)';}
-function buildEndurance(disc,intn,mins){
-  const name=discLabel(disc);
-  if(disc==='brick'){
-    if(enBrickMode==='indoor'){
-      var run=Math.min(20,Math.round(mins*0.35)),ht=Math.max(15,mins-run-4);
-      if(intn==='facile')return {title:'Brick indoor · HT + course',sub:mins+' min · Z2',blocks:[
-        'Home trainer Z2 '+ht+' min à 65-75 % FTP'+pw(65,75)+' · ERG activé',
-        'Transition < 2 min — chaussures prêtes à côté du vélo',
-        'Course facile '+run+' min — cadence haute, laisse les jambes revenir',
-        'C\'est l\'enchaînement qui compte, pas l\'allure']};
-      return {title:'Brick indoor · HT + course',sub:mins+' min · dur',blocks:[
-        'Échauffement HT 10 min progressif',
-        Math.max(2,Math.round((ht-10)/12))+' × 8 min à 88-92 % FTP'+pw(88,92)+' / 3 min souple · ERG activé',
-        'Transition < 2 min',
-        'Course tempo '+Math.min(15,run)+' min — allure soutenue sur jambes lourdes',
-        'Retour au calme 5 min marche/trot']};
-    }
-    if(intn==='facile'){
-      var r1=Math.round(mins*0.35),sw=Math.round(mins*0.25),r2=Math.max(10,mins-r1-sw-4);
-      return {title:'Brick swimrun · nage + course',sub:mins+' min · Z2 + transitions',blocks:[
-        'Course facile '+r1+' min en tenue de swimrun',
-        'Transition rapide — pull-buoy, lunettes, entre dans l\'eau sans traîner',
-        'Nage continue '+sw+' min allure régulière (chaussures aux pieds si tu testes le matos)',
-        'Transition — repars en courant immédiatement, jambes lourdes',
-        'Course facile '+r2+' min, retrouve ta foulée']};
-    }
-    var reps=Math.max(2,Math.round((mins-15)/13));
-    return {title:'Brick swimrun · nage + course',sub:mins+' min · effort course',blocks:[
-      'Échauffement 10 min course facile + mobilité épaules',
-      reps+' × (course 8 min soutenue → transition chrono → nage 4 min vive)',
-      'Transitions chronométrées : chaque seconde compte le jour J',
-      'Retour au calme 5 min trot + nage souple']};
-  }
-  if(disc==='ht'){
-    if(intn==='facile'){
-      return {title:'Home trainer · Z2',sub:mins+' min · 65-75 % FTP'+pw(65,75),blocks:[
-        'Mise en route 8-10 min en montant doucement vers Z2',
-        'Z2 continu ~'+Math.max(15,mins-15)+' min à 65-75 % FTP'+pw(65,75)+' · cadence ~90 tr/min · ERG activé',
-        'Reste vraiment facile — tu dois pouvoir parler. Un film/podcast aide',
-        'Retour au calme 5 min souple']};}
-    var w,f;
-    if(mins>=75){w=12;f='3 × 15 min à 88-92 % FTP'+pw(88,92)+' (sweet spot) / 5 min souple entre les blocs · ERG activé';}
-    else if(mins>=60){w=12;f='2 × 20 min à ~90 % FTP'+pw(90,90)+' (sweet spot) / 5-8 min souple entre les blocs · ERG activé';}
-    else if(mins>=45){w=10;f='3 × 10 min à 90-94 % FTP'+pw(90,94)+' / 5 min souple · ERG activé';}
-    else {w=12;f='2-3 blocs de 10 × (30 s fort / 15 s souple) · 5 min entre blocs · ERG coupé, réponds naturellement';}
-    return {title:'Home trainer · dur',sub:mins+' min · '+(mins>=45?'sweet spot':'30/15 VO2max'),blocks:[
-      'Échauffement progressif '+w+' min avec 2-3 accélérations courtes',f,'Retour au calme 8 min souple']};
-  }
-  if(intn==='facile'){
-    let b;
-    if(disc==='nage') b=['Échauffement souple 200-300 m','Nage continue facile ~'+Math.max(10,mins-10)+' min, allure conversationnelle','Quelques éducatifs si tu veux (battements, rattrapé)','Retour au calme 100-200 m'];
-    else if(disc==='corde'){const r=Math.max(3,Math.round(mins/4));b=[r+' × 2 min sauts souples / 1 min repos','Rebonds bas, rythme régulier'];}
-    else b=['Mise en route progressive 5-8 min',name+' facile en continu, allure conversationnelle (~'+Math.max(10,mins-8)+' min)','Tu finis en te sentant capable de continuer'];
-    return {title:name+' · facile',sub:mins+' min · Z2 continu',blocks:b};
-  }
-  const warm=12,cool=8,work=Math.max(8,mins-warm-cool);let fmt;
-  if(disc==='nage') fmt=Math.max(4,Math.round(work/2.5))+' × 100 m vif / 30 s repos';
-  else if(disc==='corde') fmt=Math.max(5,Math.round(work/1.5))+' × 45 s rapide / 45 s repos';
-  else if(disc==='velo') fmt=Math.max(4,Math.round(work/6))+' × 3 min fort / 3 min souple';
-  else if(disc==='skirando') fmt=Math.max(3,Math.round(work/8))+' × 4 min soutenu / récup en descente ou pause';
-  else if(disc==='rando') fmt=Math.max(4,Math.round(work/6))+' × 3 min en côte soutenu / redescente récup';
-  else fmt=Math.max(4,Math.round(work/4))+' × 2 min soutenu / 2 min récup';
-  return {title:name+' · dur',sub:mins+' min · intervalles',blocks:['Échauffement progressif '+warm+' min',fmt,'Retour au calme '+cool+' min']};
+function showBench(id){
+  var b=BENCH.find(function(x){return x.id===id;});if(!b)return;
+  document.getElementById('wodOut').innerHTML=buildWodCard(b.name+' · '+b.sub,b.blocks,b.name);
+  document.getElementById('wodOut').scrollIntoView({behavior:'smooth'});
 }
-let lastEnGen=null;
-function generateEndurance(){
-  const s=buildEndurance(enDisc,enInt,enTime);
-  lastEnGen={disc:enDisc,int:enInt,note:s.sub};
-  document.getElementById('enGenOut').innerHTML='<div class="gen-card"><div class="gen-head">'+escapeHtml(s.title)+' · '+escapeHtml(s.sub)+'</div>'
-    +s.blocks.map((b,i)=>`<div class="en-blk"><span class="bn">${i+1}</span><span>${escapeHtml(b)}</span></div>`).join('')
-    +'<button class="gen-btn" style="margin-top:14px" onclick="logEnduranceFromGen()">C\'est fait — journaliser</button></div>';
-}
-function logEnduranceFromGen(){
-  if(!lastEnGen)return;
-  enList().unshift({iso:new Date().toISOString(),disc:lastEnGen.disc,int:lastEnGen.int,note:lastEnGen.note});
+function enList(){if(!STORE.endurance)STORE.endurance=[];return STORE.endurance;}
+function logWodFromGen(){
+  if(!lastWodGen)return;
+  enList().unshift({iso:new Date().toISOString(),disc:'wod',int:lastWodGen.int,note:lastWodGen.note});
   save();renderEnList();
-  document.getElementById('enGenOut').innerHTML='<div class="gen-card"><div class="gen-empty">✓ Séance journalisée.</div></div>';
-  lastEnGen=null;
+  document.getElementById('wodOut').innerHTML='<div class="gen-card"><div class="gen-empty">✓ WOD journalisé.</div></div>';
+  lastWodGen=null;
 }
-renderEnForm();renderEnTime();renderEnList();
-(function(){var fi=document.getElementById('ftpIn');if(fi&&STORE.ftp)fi.value=STORE.ftp;})();
+function logWodDirect(){
+  var inp=document.getElementById('wodNote');var v=inp.value.trim();
+  enList().unshift({iso:new Date().toISOString(),disc:'wod',int:wodInt,note:v});
+  save();inp.value='';renderEnList();
+}
+function delEndurance(iso){STORE.endurance=enList().filter(function(e){return e.iso!==iso;});save();renderEnList();}
+function renderEnList(){
+  var l=enList();var el=document.getElementById('enOut');
+  if(!l.length){el.innerHTML='<div class="gen-empty">Aucune séance notée. Génère ton premier WOD ci-dessus.</div>';return;}
+  el.innerHTML=l.slice(0,40).map(function(e){
+    var d=new Date(e.iso).toLocaleDateString('fr-CH',{weekday:'short',day:'numeric',month:'short'});
+    var dur=e.int==='dur';
+    return '<div class="en-row"><div class="dot '+(dur?'dur':'')+'"></div>'
+      +'<div class="eb"><div class="ed">'+d+'</div><div class="enm">'+escapeHtml(discLabel(e.disc))+'</div>'
+      +(e.note?'<div class="em">'+escapeHtml(e.note)+'</div>':'')+'</div>'
+      +'<span class="en-tag '+(dur?'dur':'fac')+'">'+(dur?'Dur':'Facile')+'</span>'
+      +'<button class="del" onclick="delEndurance(\''+e.iso+'\')" aria-label="Supprimer">×</button></div>';
+  }).join('');
+}
+document.getElementById('wodNote').addEventListener('keydown',function(e){if(e.key==='Enter')logWodDirect();});
+renderWodForm();renderBench();renderEnList();
 
 // ---- Vue Semaine ----
 var lastGenSession=null;
@@ -1210,13 +1178,13 @@ function renderWeek(){
     '<button class="wk-gen" onclick="goGenerate(\'force\')">Générer ›</button></div>'+
     '<div class="wk-hint '+(fDone?'ok':'')+'">'+(fDone?'✓ Objectif force atteint.':'Il te reste '+fRem+' séance'+(fRem>1?'s':'')+' force cette semaine.')+'</div></div>';
   var eDone=c.endu>=gEndu, eRem=Math.max(0,gEndu-c.endu);
-  var endu='<div class="wk-card"><div class="wk-top"><div class="wk-name">Endurance</div><div class="wk-count '+(eDone?'done':'')+'">'+c.endu+'/'+gEndu+(eDone?' ✓':'')+'</div></div>'+axisBar(c.endu,gEndu)+
+  var endu='<div class="wk-card"><div class="wk-top"><div class="wk-name">WOD · mixte</div><div class="wk-count '+(eDone?'done':'')+'">'+c.endu+'/'+gEndu+(eDone?' ✓':'')+'</div></div>'+axisBar(c.endu,gEndu)+
     '<div class="wk-actions"><div class="wk-step">Objectif <button onclick="setGoal(\'endu\',-1)">−</button><b>'+g.endu+'</b><button onclick="setGoal(\'endu\',1)">+</button></div>'+
     '<button class="wk-gen" onclick="goGenerate(\'endu\')">Générer ›</button></div>'+
-    '<div class="wk-hint '+(eDone?'ok':'')+'">'+(eDone?'✓ Objectif endurance atteint.':'Il te reste '+eRem+' séance'+(eRem>1?'s':'')+'.')+(c.enduDur?' · dont '+c.enduDur+' dur'+(c.enduDur>1?'s':''):'')+'</div></div>';
+    '<div class="wk-hint '+(eDone?'ok':'')+'">'+(eDone?'✓ Objectif WOD atteint.':'Il te reste '+eRem+' WOD'+(eRem>1?'s':'')+' cette semaine.')+(c.enduDur?' · dont '+c.enduDur+' à fond':'')+'</div></div>';
   var locked=intCap===0, over=c.enduDur>intCap;
   var ipct=intCap>0?Math.min(100,Math.round(c.enduDur/intCap*100)):(c.enduDur>0?100:0);
-  var intHint=locked?(deload?'Semaine allégée : on met l\'intensité de côté.':'Mode exam : pas de séance intense cette semaine.'):(over?'⚠️ Tu as dépassé ton budget intense (1/sem).':'Budget hebdo — une séance « dur » suffit.');
+  var intHint=locked?(deload?'Semaine allégée : on met l\'intensité de côté.':'Mode exam : pas de séance intense cette semaine.'):(over?'⚠️ Tu as dépassé ton budget intense (1/sem).':'Budget hebdo — un WOD « à fond » par semaine suffit, les autres en allure gérable.');
   var inten='<div class="wk-card'+(locked?' lock':'')+'"><div class="wk-top"><div class="wk-name">Intensité dure</div><div class="wk-count">'+c.enduDur+'/'+intCap+'</div></div>'+
     '<div class="bar"><i class="warn" style="width:'+ipct+'%"></i></div>'+
     '<div class="wk-hint">'+intHint+'</div></div>';
@@ -1229,11 +1197,6 @@ function yesterdayHard(){
   var y=new Date();y.setDate(y.getDate()-1);var yk=y.toDateString();
   return (STORE.endurance||[]).some(function(e){return new Date(e.iso).toDateString()===yk&&e.int==='dur';});
 }
-function lastDisc(){
-  var l=(STORE.endurance||[])[0];
-  if(l&&DISCIPLINES.some(function(d){return d[0]===l.disc;}))return l.disc;
-  return 'course';
-}
 function generateToday(){
   var out=document.getElementById('todayOut');if(out)out.innerHTML='';
   var c=weekCounts(),g=goals(),mode=effectiveWeekMode();
@@ -1242,15 +1205,14 @@ function generateToday(){
   var cap=(mode==='exam'||mode==='deload')?0:1;
   var fRem=Math.max(0,gF-c.force),eRem=Math.max(0,gE-c.endu);
   if(!fRem&&!eRem){
-    if(out)out.innerHTML='<div class="wk-hint ok" style="margin:10px 2px 0">✓ Semaine remplie. Repos mérité — ou une Z2 bonus si tu veux bouger.</div>';
+    if(out)out.innerHTML='<div class="wk-hint ok" style="margin:10px 2px 0">✓ Semaine remplie. Repos mérité — ou bouge léger si tu en as envie.</div>';
     return;
   }
   if(eRem>=fRem){
-    enDisc=lastDisc();
-    enInt=(cap>0&&c.enduDur<cap&&c.enduFac>0&&!yesterdayHard())?'dur':'facile';
-    renderEnForm();
+    wodInt=(cap>0&&c.enduDur<cap&&c.enduFac>0&&!yesterdayHard())?'dur':'facile';
+    renderWodForm();
     showPage('endurance');
-    generateEndurance();
+    generateWod();
   } else {
     showPage('workout');
     generateSession();
