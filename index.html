@@ -215,7 +215,6 @@ body{padding-bottom:86px}
   </header>
 
   <div class="page" id="page-workout">
-  <p class="intro">Tu choisis ton matériel, l'app te place au bon échelon et te fait progresser quand tu remplis le critère.</p>
 
   <div class="sect">Séance</div>
   <button class="gen-btn" style="margin-top:0" onclick="generateSession()">Générer une séance de progression</button>
@@ -265,8 +264,19 @@ body{padding-bottom:86px}
   </div>
   </div>
 
+  <div class="page on" id="page-semaine">
+    <div class="wk-range" id="weekRange">—</div>
+    <button class="gen-btn" style="margin:14px 0 0" onclick="generateToday()">⚡ Ma séance du jour</button>
+    <div id="todayOut"></div>
+
+    <div class="sect">Mode</div>
+    <div class="seg" id="weekMode" style="margin-bottom:4px"></div>
+
+    <div class="sect">Objectifs</div>
+    <div id="weekBody"></div>
+  </div>
+
   <div class="page" id="page-endurance">
-    <p class="intro">Metcons type CrossFit : le mix force-endurance qui remplace la montagne les semaines chargées. Génère, fais, journalise.</p>
 
     <button class="gen-btn" style="margin-top:2px" onclick="spinWod()">🎲 WOD surprise — tirage au sort</button>
 
@@ -327,7 +337,7 @@ body{padding-bottom:86px}
 </div>
 
 <script>
-const APP_VERSION='v1.11.0';
+const APP_VERSION='v1.12.0';
 document.getElementById('appVer').textContent=APP_VERSION;
 const EQUIPS=[['pdc','Poids du corps'],['barre','Barre'],['trx','TRX'],['anneaux','Anneaux'],['box','Box'],['kb','Kettlebell'],['gilet','Gilet lesté'],['mb','Med ball'],['slider','Plaquettes']];
 const PARTCLASS={Tirage:'p-tirage',Poussée:'p-poussee',Jambes:'p-jambes',Tronc:'p-tronc',Charge:'p-charge',Skill:'p-skill',Ischios:'p-ischio',Explosivité:'p-explo',Mollets:'p-jambes',Biceps:'p-tirage','Avant-bras':'p-charge','Épaules':'p-poussee',Fessiers:'p-jambes'};
