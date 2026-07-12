@@ -349,7 +349,8 @@ body{padding-bottom:86px}
 </div>
 
 <script>
-const APP_VERSION='v1.14.0';
+const APP_VERSION='v1.15.0';
+function buzz(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
 document.getElementById('appVer').textContent=APP_VERSION;
 const EQUIPS=[['pdc','Poids du corps'],['barre','Barre'],['trx','TRX'],['anneaux','Anneaux'],['box','Box'],['kb','Kettlebell'],['gilet','Gilet lesté'],['mb','Med ball'],['slider','Plaquettes']];
 const PARTCLASS={Tirage:'p-tirage',Poussée:'p-poussee',Jambes:'p-jambes',Tronc:'p-tronc',Charge:'p-charge',Skill:'p-skill',Ischios:'p-ischio',Explosivité:'p-explo',Mollets:'p-jambes',Biceps:'p-tirage','Avant-bras':'p-charge','Épaules':'p-poussee',Fessiers:'p-jambes'};
@@ -969,6 +970,7 @@ function validateSets(){
     else if(st.dir==='down'&&st.n>=2&&lv>0){STORE.level[t.id]=lv-1;lastLevelChange={id:t.id,from:lv,to:lv-1};save();}
   }
   pendingVerdict={grade:grade,load:tg.load,deload:dl,lvBefore:lv,maxed:lv>=t.levels.length-1,base:lv<=0};
+  buzz(lastLevelChange&&lastLevelChange.to>lastLevelChange.from?[35,60,35,60,35]:25);
   renderSheet();renderTracks();
 }
 function noteFree(){
@@ -1250,12 +1252,12 @@ function benchMatches(b){
 }
 function renderBench(){
   var list=BENCH.filter(benchMatches);
-  document.getElementById('benchList').innerHTML=(list.length?list.map(function(b){
+  document.getElementById('benchList').innerHTML=(list.length?'<div class="gen-card" style="padding:0 16px">'+list.map(function(b){
     var av=!b.need||b.need.some(function(e){return equip.has(e);});
     var pr=benchPR(b.id);
-    return '<div class="gen-card" style="padding:0 16px"><div class="gen-row" onclick="showBench(\''+b.id+'\')"><div class="pt p-explo"></div>'
-      +'<div class="gi"><div class="part">'+(av?(b.hero?'Hero WOD':'Benchmark'):'Matériel manquant')+'</div><div class="nm">'+b.name+'</div><div class="sc">'+b.sub+(pr?' · <b>🏆 '+escapeHtml(pr.score)+'</b>':'')+'</div></div><div class="go">›</div></div></div>';
-  }).join(''):'<div class="gen-card"><div class="gen-empty">Aucun WOD ne correspond à ce filtre.</div></div>');
+    return '<div class="gen-row" onclick="showBench(\''+b.id+'\')"><div class="pt p-explo"></div>'
+      +'<div class="gi"><div class="part">'+(av?(b.hero?'Hero WOD':'Benchmark'):'Matériel manquant')+'</div><div class="nm">'+b.name+'</div><div class="sc">'+b.sub+(pr?' · <b>🏆 '+escapeHtml(pr.score)+'</b>':'')+'</div></div><div class="go">›</div></div>';
+  }).join('')+'</div>':'<div class="gen-card"><div class="gen-empty">Aucun WOD ne correspond à ce filtre.</div></div>');
 }
 const BENCH_SCORE=new Set(['cindy','chelsea','mary','nicole','lynne','tabata','fgb','chief','deathby','nate','mcghee']);
 var curBenchId=null;
@@ -1296,6 +1298,7 @@ function logBenchDone(){
   enList().unshift({iso:new Date().toISOString(),disc:'wod',int:wodInt,note:b.name+(raw?' · '+raw:'')});
   save();renderEnList();renderBench();
   var newPR=raw&&val!=null&&(!prevPR||(isScore?val>prevPR.val:val<prevPR.val));
+  buzz(newPR?[40,70,40,70,40]:25);
   document.getElementById('wodOut').innerHTML='<div class="gen-card"><div class="gen-empty">'+(newPR?'🏆 Nouveau record personnel : '+escapeHtml(raw)+' !':'✓ WOD journalisé'+(raw?' · '+escapeHtml(raw):'')+'.')+'<br>'+weekAxisMsg('endu')+'.</div></div>';
 }
 // ---- Roulette WOD ----
@@ -1319,6 +1322,7 @@ function spinWod(){
       setTimeout(tick,delays[step]);step++;
     } else {
       spinning=false;
+      buzz(20);
       showBench(pick.id);
     }
   }
@@ -1329,14 +1333,14 @@ function enList(){if(!STORE.endurance)STORE.endurance=[];return STORE.endurance;
 function logWodFromGen(){
   if(!lastWodGen)return;
   enList().unshift({iso:new Date().toISOString(),disc:'wod',int:lastWodGen.int,note:lastWodGen.note});
-  save();renderEnList();
+  save();renderEnList();buzz(25);
   document.getElementById('wodOut').innerHTML='<div class="gen-card"><div class="gen-empty">✓ WOD journalisé · '+weekAxisMsg('endu')+'.</div></div>';
   lastWodGen=null;
 }
 function logWodDirect(){
   var inp=document.getElementById('wodNote');var v=inp.value.trim();
   enList().unshift({iso:new Date().toISOString(),disc:'wod',int:wodInt,note:v});
-  save();inp.value='';renderEnList();
+  save();inp.value='';renderEnList();buzz(25);
   var msg=document.getElementById('wodDirectMsg');
   if(msg){msg.textContent='✓ Journalisé · '+weekAxisMsg('endu')+'.';msg.style.color='var(--accent)';msg.style.fontWeight='600';}
 }
@@ -1389,7 +1393,7 @@ function weekAxisMsg(axis){
   return 'WOD '+c.endu+'/'+gE+' cette semaine'+(c.endu>=gE?' ✓':'');
 }
 function logSessionDone(label,n){if(!STORE.sessions)STORE.sessions=[];STORE.sessions.unshift({iso:new Date().toISOString(),label:label||'Séance',n:n||0});save();renderWeek();}
-function markWorkoutDone(btn){if(!lastGenSession)return;logSessionDone('Force · '+lastGenSession.label,lastGenSession.n);lastGenSession=null;if(btn){btn.textContent='✓ '+weekAxisMsg('force');btn.disabled=true;btn.style.opacity='.6';}}
+function markWorkoutDone(btn){if(!lastGenSession)return;logSessionDone('Force · '+lastGenSession.label,lastGenSession.n);lastGenSession=null;buzz(25);if(btn){btn.textContent='✓ '+weekAxisMsg('force');btn.disabled=true;btn.style.opacity='.6';}}
 function goGenerate(axis){showPage(axis==='force'?'workout':'endurance');}
 function axisBar(c,g,warn){var pct=g>0?Math.min(100,Math.round(c/g*100)):0;return '<div class="bar"><i class="'+(warn?'warn':'')+'" style="width:'+pct+'%"></i></div>';}
 function renderWeek(){
