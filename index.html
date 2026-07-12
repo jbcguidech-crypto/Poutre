@@ -62,6 +62,8 @@ header{padding:22px 0 6px;display:flex;justify-content:space-between;align-items
 .gen-row .nm{font-size:15px;font-weight:600;margin-top:1px}
 .gen-row .sc{font-size:12.5px;color:var(--ink-soft);margin-top:1px}
 .gen-row .go{font-size:18px;color:var(--ink-soft);flex:none}
+.dice{flex:none;font-size:17px;padding:6px 7px;border-radius:9px;background:var(--card2);border:1px solid var(--line);line-height:1}
+.dice:active{transform:rotate(72deg) scale(.92)}
 .gen-empty{font-size:13px;color:var(--ink-soft);text-align:center;padding:18px 8px}
 
 .trk{display:flex;gap:13px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:13px;margin-bottom:9px;box-shadow:var(--shadow);align-items:center}
@@ -260,6 +262,8 @@ body{padding-bottom:86px}
   <div class="page" id="page-endurance">
     <p class="intro">Metcons type CrossFit : le mix force-endurance qui remplace la montagne les semaines chargées. Génère, fais, journalise.</p>
 
+    <button class="gen-btn" style="margin-top:2px" onclick="spinWod()">🎲 WOD surprise — tirage au sort</button>
+
     <div class="sect">Générer un WOD</div>
     <div class="mini">
       <div class="cap">Durée du metcon</div>
@@ -314,7 +318,7 @@ body{padding-bottom:86px}
 </div>
 
 <script>
-const APP_VERSION='v1.6.0';
+const APP_VERSION='v1.7.0';
 document.getElementById('appVer').textContent=APP_VERSION;
 const EQUIPS=[['pdc','Poids du corps'],['barre','Barre'],['trx','TRX'],['anneaux','Anneaux'],['box','Box'],['kb','Kettlebell'],['gilet','Gilet lesté'],['mb','Med ball'],['slider','Plaquettes']];
 const PARTCLASS={Tirage:'p-tirage',Poussée:'p-poussee',Jambes:'p-jambes',Tronc:'p-tronc',Charge:'p-charge',Skill:'p-skill',Ischios:'p-ischio',Explosivité:'p-explo',Mollets:'p-jambes',Biceps:'p-tirage','Avant-bras':'p-charge','Épaules':'p-poussee',Fessiers:'p-jambes'};
@@ -829,6 +833,7 @@ function renderTracks(){
   });
 }
 
+var curGenIds=[],curGenLabel='';
 function generateSession(){
   const count=countForTime(timeCfg);
   const order=MUSCLES.map(m=>m[0]);
@@ -840,17 +845,37 @@ function generateSession(){
     for(const k of sel){if(out.length>=count)break;const arr=pools[k];if(!arr)continue;while(arr.length&&used.has(arr[arr.length-1].id))arr.pop();if(arr.length){const t=arr.pop();used.add(t.id);out.push(t);added=true;}}
     guard++;if(!added)break;
   }
-  const lbl=(sel.length===MUSCLES.length)?'Full body':(sel.length===1?muscleLabel(sel[0]):'Ciblé · '+sel.length+' muscles');
+  curGenLabel=(sel.length===MUSCLES.length)?'Full body':(sel.length===1?muscleLabel(sel[0]):'Ciblé · '+sel.length+' muscles');
+  curGenIds=out.map(t=>t.id);
+  renderGenSession();
+}
+function renderGenSession(){
   const el=document.getElementById('genOut');
-  if(!out.length){el.innerHTML='<div class="gen-card"><div class="gen-empty">Sélectionne au moins un muscle et le matériel nécessaire.</div></div>';return;}
-  lastGenSession={label:lbl,n:out.length};
-  el.innerHTML='<div class="gen-card"><div class="gen-head">'+lbl+' · '+timeLabel(timeCfg)+' · '+out.length+' mouvements</div>'+out.map(t=>{
+  if(!curGenIds.length){el.innerHTML='<div class="gen-card"><div class="gen-empty">Sélectionne au moins un muscle et le matériel nécessaire.</div></div>';return;}
+  lastGenSession={label:curGenLabel,n:curGenIds.length};
+  el.innerHTML='<div class="gen-card"><div class="gen-head">'+curGenLabel+' · '+timeLabel(timeCfg)+' · '+curGenIds.length+' mouvements</div>'+curGenIds.map((id,i)=>{
+    const t=TRACKS.find(x=>x.id===id);
     const lv=lvlOf(t.id);const cur=t.levels[lv];const feas=levelFeasible(cur,t);
     return `<div class="gen-row" onclick="openSheet('${t.id}')"><div class="pt ${PARTCLASS[t.part]}"></div>
       <div class="gi"><div class="part">${t.part} · niv. ${lv+1}</div><div class="nm">${escapeHtml(cur.n)}</div>
       <div class="sc">${feas?escapeHtml(cur.s):'⚠️ nécessite du matériel non sélectionné'}</div></div>
+      <button class="dice" onclick="event.stopPropagation();rerollMove(${i})" aria-label="Remplacer">🎲</button>
       <div class="go">›</div></div>`;
   }).join('')+'<button class="gen-btn" style="margin-top:14px" onclick="markWorkoutDone(this)">C\'est fait — compter dans la semaine</button></div>';
+}
+function rerollMove(i){
+  const id=curGenIds[i];
+  let owners=MUSCLES.filter(m=>m[2].indexOf(id)>=0&&focusParts.has(m[0]));
+  if(!owners.length)owners=MUSCLES.filter(m=>m[2].indexOf(id)>=0);
+  let pool=[];owners.forEach(m=>m[2].forEach(x=>{if(pool.indexOf(x)<0)pool.push(x);}));
+  let cand=pool.filter(x=>x!==id&&curGenIds.indexOf(x)<0).map(x=>TRACKS.find(t=>t.id===x)).filter(t=>t&&trackAvailable(t));
+  if(!cand.length){
+    let wide=[];MUSCLES.filter(m=>focusParts.size===0||focusParts.has(m[0])).forEach(m=>m[2].forEach(x=>{if(wide.indexOf(x)<0)wide.push(x);}));
+    cand=wide.filter(x=>x!==id&&curGenIds.indexOf(x)<0).map(x=>TRACKS.find(t=>t.id===x)).filter(t=>t&&trackAvailable(t));
+  }
+  if(!cand.length)return;
+  curGenIds[i]=cand[Math.floor(Math.random()*cand.length)].id;
+  renderGenSession();
 }
 
 let curTrack=null;
@@ -1140,6 +1165,33 @@ function showBench(id){
   var b=BENCH.find(function(x){return x.id===id;});if(!b)return;
   document.getElementById('wodOut').innerHTML=buildWodCard(b.name+' · '+b.sub,b.blocks,b.name);
   document.getElementById('wodOut').scrollIntoView({behavior:'smooth'});
+}
+// ---- Roulette WOD ----
+var spinning=false;
+function spinWod(){
+  if(spinning)return;
+  var avail=BENCH.filter(function(b){return !b.need||b.need.some(function(e){return equip.has(e);});});
+  if(!avail.length)return;
+  var recent=(STORE.endurance||[]).filter(function(e){return e.disc==='wod';}).slice(0,10).map(function(e){return e.note||'';});
+  var pool=avail.filter(function(b){return !recent.some(function(n){return n.indexOf(b.name)>=0;});});
+  if(!pool.length)pool=avail;
+  var pick=pool[Math.floor(Math.random()*pool.length)];
+  var el=document.getElementById('wodOut');
+  spinning=true;
+  var delays=[50,50,60,60,70,80,90,110,130,160,200,250,320,420];
+  var step=0;
+  function tick(){
+    if(step<delays.length){
+      var r=avail[Math.floor(Math.random()*avail.length)];
+      el.innerHTML='<div class="gen-card" style="text-align:center;padding:22px 16px"><div class="cap">🎲 Tirage…</div><div style="font-size:21px;font-weight:700;margin-top:8px">'+escapeHtml(r.name)+'</div></div>';
+      setTimeout(tick,delays[step]);step++;
+    } else {
+      spinning=false;
+      showBench(pick.id);
+    }
+  }
+  el.scrollIntoView({behavior:'smooth'});
+  tick();
 }
 function enList(){if(!STORE.endurance)STORE.endurance=[];return STORE.endurance;}
 function logWodFromGen(){
