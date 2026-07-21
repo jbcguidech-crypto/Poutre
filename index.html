@@ -241,6 +241,17 @@ canvas{width:100%;display:block}
 .cycrow.cur{background:rgba(20,184,162,.10);border-color:var(--cool-deep);color:var(--chalk)}
 .cycrow.cur .wk{color:var(--cool-deep)}
 
+/* plan du jour (programme général) */
+.slotrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.slotrow:last-of-type{border-bottom:none}
+.sdot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.smain{flex:1;min-width:0}
+.smain .st{font-weight:800;font-size:14px}
+.smain .st small{font-weight:600;color:var(--muted);font-size:12px}
+.smain .ss{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:2px}
+.quota{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin:4px 0 10px;font-weight:700}
+.quota b{color:var(--cool-deep)}
+
 /* toast */
 #toast{position:fixed;left:50%;bottom:calc(96px + var(--safe-b));transform:translateX(-50%) translateY(20px);
   background:#FFFFFF;border:1px solid var(--line-strong);color:var(--chalk);
@@ -303,7 +314,7 @@ canvas{width:100%;display:block}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v10"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v16"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -470,6 +481,94 @@ const PRESETS = [
     desc:"3 tenues de 30 s en pince à charge légère-modérée, 1 min de repos. Marche aussi en portage : le Mini Crux tenu en pince, charge suspendue, en marchant sur place (farmer walk).",
     technique:"Charge qui permet 30 s propres avec ~10 s de marge. Le poignet reste neutre du début à la fin — s'il casse, c'est terminé. Version farmer : marche lentement, épaule basse, sans balancer la charge.",
     gains:"Capacité de la pince sous fatigue prolongée + endurance du poignet et de l'avant-bras — le fond de commerce des longues sections à colonnettes et des dévers à plats." },
+  /* ===== TRACTIONS ===== */
+  { id:"pull-simple", name:"Tractions — séries simples", type:"Force générale", cat:"traction", color:"cool", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Tractions",
+    prepSec:12, hangSec:30, restRepSec:0, reps:1, restSetSec:120, sets:5, builtin:true,
+    desc:"5 séries de tractions au poids du corps, sur barre ou sur les bacs des triangles. Chaque fenêtre de 30 s : fais 60–80 % de ton maximum de reps, propres.",
+    technique:"Départ bras tendus, épaules engagées avant de tirer, menton au-dessus de la barre sans donner de coup de reins, descente contrôlée complète. Arrête la série 2 reps avant l'échec — la qualité construit la force, l'échec construit la fatigue.",
+    gains:"Force de tirage générale, la base du grimpeur. Progression : quand le RPE de séance passe à 7 ou moins, ajoute 1 rep par série la fois suivante. Quand tu dépasses ~12 reps par série, passe aux tractions lestées." },
+  { id:"pull-weight", name:"Tractions lestées", type:"Force maximale", cat:"traction", color:"hot", grip:"Bac / ouvert", edgeMm:0, addedKg:10, effortLabel:"Tractions",
+    prepSec:15, hangSec:20, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
+    desc:"5 séries de 3 à 5 tractions lourdes avec lest (ceinture, gilet ou sac). Fenêtre de 20 s par série, 3 min de repos complet.",
+    technique:"Échauffe-toi avec 2 séries au poids du corps d'abord. Lest accroché au baudrier ou en gilet, jamais tenu entre les jambes en séries lourdes. Amplitude complète stricte : bras tendus en bas, menton franchement au-dessus. 3-5 reps max par série — si tu en fais 6, monte la charge.",
+    gains:"Force maximale de tirage — le transfert le plus direct vers les mouvements durs et les blocages. L'app suit ta progression : RPE ≤ 6 → +2 kg proposés, RPE 7 → +1 kg, RPE ≥ 9 → on redescend." },
+  { id:"pull-frenchies", name:"Frenchies — blocages", type:"Force-endurance", cat:"traction", color:"amber", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Blocage",
+    prepSec:15, hangSec:25, restRepSec:20, reps:3, restSetSec:180, sets:3, builtin:true,
+    desc:"Le classique de l'escalade : 1 cycle = traction complète puis blocage 7 s en haut, descente à 90° blocage 7 s, descente à 120° blocage 7 s, puis bras tendus. 3 cycles par série (une fenêtre de 25 s = un cycle).",
+    technique:"Chaque blocage est TENU immobile — pas de tremblement toléré, sinon écourte. Les angles comptent : bras cassés en haut, coudes à l'équerre à 90°, presque tendus à 120°. Épaules basses en permanence. Si 3 cycles passent facilement, ajoute un blocage ou du lest léger.",
+    gains:"Force de blocage à tous les angles — exactement ce qui te tient sur une prise pendant que l'autre main avance. Le meilleur exercice de tirage spécifique escalade, et le plus redoutablement fatigant." },
+  /* ===== ANTAGONISTES ===== */
+  { id:"anta-ext", name:"Extensions de doigts — élastique", type:"Antagonistes", cat:"antago", color:"cool", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Extensions",
+    prepSec:5, hangSec:30, restRepSec:15, reps:2, restSetSec:45, sets:3, builtin:true,
+    desc:"Élastique (ou gros élastique de bureau) autour du bout des doigts : ouvre la main en grand contre la résistance, en rythme lent. Chaque série = 30 s main gauche (rep 1) puis main droite (rep 2).",
+    technique:"L'élastique se place sur les dernières phalanges, pouce inclus. Ouvre COMPLÈTEMENT — les doigts s'écartent et s'étendent à fond — puis referme en freinant. ~15-20 ouvertures par fenêtre de 30 s. Ça doit chauffer le dos de l'avant-bras, jamais faire mal.",
+    gains:"Rééquilibre fléchisseurs/extenseurs après le tirage : la prévention n°1 de l'épicondylite (coude du grimpeur) et des douleurs de poignet. 3 minutes qui économisent des mois de blessure." },
+  { id:"anta-pompes", name:"Pompes — variations", type:"Antagonistes", cat:"antago", color:"amber", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Pompes",
+    prepSec:8, hangSec:30, restRepSec:0, reps:1, restSetSec:60, sets:4, builtin:true,
+    desc:"4 fenêtres de 30 s de pompes, une variation par série : 1) standard, 2) prise large, 3) diamant (mains serrées), 4) pieds surélevés ou pompes hindu. Adapte sur les genoux si besoin — la qualité prime.",
+    technique:"Corps gainé en planche parfaite du début à la fin — si le bassin s'affaisse, passe sur les genoux. Descente poitrine au sol, coudes à ~45° du corps (pas en ailes de poulet). Vise 8-15 reps propres par fenêtre, garde 2 reps de marge.",
+    gains:"Renforce pectoraux, triceps et deltoïdes antérieurs — toute la chaîne de poussée que la grimpe n'entraîne jamais. Stabilise l'épaule, équilibre la posture « dos de grimpeur » et protège en réception de mouvements." },
+  { id:"anta-poignets", name:"Poignets — extensions inversées", type:"Antagonistes", cat:"antago", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:2, effortLabel:"Extensions",
+    prepSec:5, hangSec:30, restRepSec:15, reps:2, restSetSec:45, sets:2, builtin:true,
+    desc:"Avant-bras posé sur la cuisse ou une table, paume vers le bas, petit poids (1-3 kg) ou élastique en main : lève le dos de la main vers le haut, lentement. 30 s par côté, rep 1 = gauche, rep 2 = droite.",
+    technique:"Seul le poignet bouge, l'avant-bras reste plaqué. Monte en 1 s, redescends en 2-3 s en freinant — l'excentrique est la partie qui compte. Charge légère : 12-15 reps par fenêtre avec une brûlure douce, jamais de douleur vive.",
+    gains:"Extenseurs du poignet solides = poignet stable sur les réglettes, les pinces et les plats. Le complément direct des extensions de doigts pour des coudes en bonne santé sur le long terme." },
+  { id:"anta-pike", name:"Pompes piquées — épaules", type:"Antagonistes", cat:"antago", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Pompes",
+    prepSec:8, hangSec:30, restRepSec:0, reps:1, restSetSec:75, sets:3, builtin:true,
+    desc:"3 fenêtres de 30 s en position de V inversé (fesses hautes, jambes tendues) : plie les coudes pour amener le sommet du crâne vers le sol entre les mains, puis pousse. La poussée verticale du grimpeur — le geste du mantle.",
+    technique:"Hanches le plus haut possible, regard vers les pieds, mains largeur d'épaules. La tête descend ENTRE les mains (pas devant), coudes à ~45°. Vise 5-10 reps propres par fenêtre. Progression : pieds surélevés sur une chaise, puis pompes en équilibre contre un mur. Régression : réduis l'amplitude, pas la position.",
+    gains:"Deltoïdes, trapèzes et dentelé en poussée verticale : la force du rétablissement (mantle), la stabilité de l'épaule au-dessus de la tête et l'équilibre parfait du haut du corps face au tirage permanent de la grimpe." },
+  { id:"core-dorsal", name:"Chaîne postérieure — circuit", type:"Gainage", cat:"gainage", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Gainage",
+    prepSec:10, hangSec:35, restRepSec:20, reps:3, restSetSec:60, sets:3, builtin:true,
+    desc:"Le miroir de la planche : chaque série = planche inversée (rep 1, face au plafond, appui talons-mains), pont fessier tenu haut (rep 2), superman bras-jambes décollés (rep 3). 35 s d'effort, 20 s de transition.",
+    technique:"Planche inversée : corps aligné épaules-chevilles, hanches POUSSÉES vers le haut, épaules basses. Pont : serre les fessiers au sommet, ne creuse pas les lombaires — version dure sur une jambe. Superman : décolle bras et cuisses ensemble, nuque longue, regard au sol.",
+    gains:"Fessiers, ischios et érecteurs du rachis : la chaîne qui verrouille les talons (heel hooks), plaque les hanches au mur en dévers et tient la tension du corps pieds-mains. Le complément indispensable de la planche — la plupart des grimpeurs ne travaillent que la face avant." },
+  { id:"pull-scap", name:"Tractions d'omoplates", type:"Force générale", cat:"traction", color:"cool", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Omoplates",
+    prepSec:12, hangSec:20, restRepSec:0, reps:1, restSetSec:60, sets:4, builtin:true,
+    desc:"Suspendu bras TENDUS à la barre ou aux triangles : abaisse et rapproche les omoplates pour hausser le corps de quelques centimètres, sans plier les coudes. 6-10 reps lentes par fenêtre de 20 s.",
+    technique:"Les coudes restent verrouillés tendus tout du long — seules les omoplates bougent. Monte en 1-2 s (épaules qui s'éloignent des oreilles), tiens 1 s en haut, redescends en contrôle jusqu'à la suspension passive. Si tu plies les coudes, c'est raté.",
+    gains:"L'engagement scapulaire : le geste qui protège l'épaule sur chaque prise et chaque suspension. La fondation de toute la force de tirage — et l'exercice le plus rentable qui soit pour les épaules du grimpeur, débutant comme confirmé." },
+  { id:"anta-coiffe", name:"Coiffe des rotateurs — élastique", type:"Antagonistes", cat:"antago", color:"cool", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Rotations",
+    prepSec:5, hangSec:30, restRepSec:15, reps:3, restSetSec:45, sets:2, builtin:true,
+    desc:"Élastique ancré à hauteur du coude : rotations externes coude au corps (rep 1 bras gauche, rep 2 bras droit), puis tirage-visage (face pull) à deux mains (rep 3). 30 s par exercice, tempo lent.",
+    technique:"Rotation externe : coude collé au flanc à 90°, seule la main pivote vers l'extérieur, épaule basse. Face pull : tire l'élastique vers le visage en écartant les mains, omoplates serrées en fin de geste. Résistance légère — c'est un muscle profond, pas un muscle de force.",
+    gains:"La coiffe des rotateurs stabilise la tête de l'humérus que le tirage permanent tracte vers l'avant. Deux minutes qui préviennent les tendinites d'épaule et l'usure du grimpeur — le complément haut du corps des extensions de doigts." },
+  /* ===== RENFO — KETTLEBELLS & CO ===== */
+  { id:"kb-swing", name:"KB Swings — chaîne postérieure", type:"Renfo", cat:"renfo", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:16, effortLabel:"Swings",
+    prepSec:12, hangSec:30, restRepSec:0, reps:1, restSetSec:60, sets:5, builtin:true,
+    desc:"5 fenêtres de 30 s de swings à deux mains. Commence à 16 kg, passe à 24 kg quand la technique est acquise. ~12-15 swings par fenêtre, hanches explosives.",
+    technique:"C'est une CHARNIÈRE de hanche, pas un squat : le buste plonge, les hanches reculent, puis claquent vers l'avant — les bras ne font que suivre, la kettlebell monte à hauteur de poitrine max. Dos plat verrouillé, fessiers serrés au sommet.",
+    gains:"Puissance des fessiers et des ischios — la chaîne qui verrouille les talons et propulse les jetés — plus un vrai travail de grip d'endurance en prime. L'exercice chargé le plus rentable pour un grimpeur." },
+  { id:"kb-sdt", name:"KB Soulevé de terre lourd", type:"Renfo", cat:"renfo", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:32, effortLabel:"Soulevés",
+    prepSec:15, hangSec:20, restRepSec:0, reps:1, restSetSec:120, sets:5, builtin:true,
+    desc:"5 séries de 5 soulevés de terre à la kettlebell de 32 kg (ou 24+8 en valise, une dans chaque main). Fenêtre de 20 s, 2 min de repos.",
+    technique:"KB entre les pieds, hanches basses, dos plat, bras tendus. Pousse le sol avec les jambes, la barre... la kettlebell reste collée près du corps. Verrouille debout — fessiers serrés — sans cambrer. Descente contrôlée.",
+    gains:"Force brute de la chaîne postérieure et du grip. Version valise (une KB par main) : ajoute le gainage anti-inclinaison et double le travail de préhension." },
+  { id:"kb-jambes", name:"KB Jambes — goblet & box", type:"Renfo", cat:"renfo", color:"amber", grip:"Corps entier", edgeMm:0, addedKg:16, effortLabel:"Squats",
+    prepSec:12, hangSec:30, restRepSec:20, reps:2, restSetSec:75, sets:3, builtin:true,
+    desc:"Chaque série : rep 1 = goblet squats (KB 16-24 kg tenue contre la poitrine), rep 2 = montées sur la box en alternant les jambes (KB 8-16 kg). 30 s par exercice.",
+    technique:"Goblet : coudes entre les genoux en bas, talons au sol, buste droit. Box : pousse UNIQUEMENT sur la jambe du haut (l'autre ne donne pas d'élan), genou aligné avec le pied, descente freinée.",
+    gains:"Force des jambes et stabilité unilatérale : les pieds qui poussent fort et précis, la base des placements hauts et des rétablissements. La grimpe se gagne aussi par le bas." },
+  { id:"kb-press", name:"KB Développé unilatéral", type:"Renfo", cat:"renfo", color:"cool", grip:"Corps entier", edgeMm:0, addedKg:8, effortLabel:"Développés",
+    prepSec:12, hangSec:25, restRepSec:15, reps:2, restSetSec:75, sets:3, builtin:true,
+    desc:"Développé militaire d'un bras, KB de 8 puis 16 kg : rep 1 = bras gauche, rep 2 = bras droit, 25 s par côté (~6-8 reps).",
+    technique:"KB en position rack (posée sur l'avant-bras, coude devant), gaine fort, pousse verticalement jusqu'au bras tendu SANS cambrer — le gainage fait la moitié du travail. Descente lente en 2-3 s.",
+    gains:"Poussée verticale chargée et stabilité d'épaule au-dessus de la tête : le grand équilibrage du tirage permanent, avec un travail anti-rotation du tronc offert par l'unilatéral." },
+  { id:"trx-row", name:"TRX Rowing horizontal", type:"Renfo", cat:"renfo", color:"cool", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Rowing",
+    prepSec:10, hangSec:30, restRepSec:0, reps:1, restSetSec:60, sets:4, builtin:true,
+    desc:"4 fenêtres de 30 s de rowing au TRX, corps incliné. Plus tu es horizontal, plus c'est dur — règle la difficulté avec l'angle des pieds.",
+    technique:"Corps rigide en planche de la tête aux talons, omoplates qui se serrent EN PREMIER, coudes qui frôlent les flancs, poitrine vers les poignées. Descente contrôlée sans casser la ligne du corps.",
+    gains:"Tirage horizontal — l'angle que la grimpe verticale ne travaille presque jamais : arrière d'épaule, rhomboïdes, milieu du dos. Corrige la posture enroulée du grimpeur et blinde les épaules." },
+  { id:"mb-slam", name:"Medicine ball — slams", type:"Renfo", cat:"renfo", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Slams",
+    prepSec:10, hangSec:20, restRepSec:0, reps:1, restSetSec:60, sets:4, builtin:true,
+    desc:"4 fenêtres de 20 s de slams : monte la balle bras tendus au-dessus de la tête, extension complète, et projette-la au sol de toutes tes forces. Ramasse, répète.",
+    technique:"Extension TOTALE au sommet (sur la pointe des pieds), puis tout le corps participe à la projection — abdos, épaules, hanches. Réceptionne la balle en squat, dos plat. Rythme soutenu mais chaque slam est complet.",
+    gains:"Puissance du tronc et des épaules en chaîne complète, plus une décharge nerveuse et cardio courte. Le pont entre la force construite et l'explosivité des jetés." },
+  { id:"trx-core", name:"TRX Gainage — fallouts & pikes", type:"Gainage", cat:"gainage", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Gainage",
+    prepSec:10, hangSec:30, restRepSec:20, reps:2, restSetSec:75, sets:3, builtin:true,
+    desc:"Chaque série au TRX : rep 1 = fallouts (en planche mains dans les poignées, laisse glisser les bras vers l'avant puis reviens), rep 2 = pikes (pieds dans les sangles, monte les fesses en V inversé). 30 s par exercice.",
+    technique:"Fallouts : bassin rétroversé verrouillé, avance les bras SEULEMENT tant que le dos ne creuse pas — c'est l'anti-extension pure. Pikes : jambes tendues, monte les hanches au-dessus des épaules par les abdos, redescends en planche parfaite.",
+    gains:"Le gainage instable le plus transférable à la grimpe : maintenir la tension du tronc pendant que les points d'appui bougent — exactement ce qui se passe à chaque mouvement en dévers." },
 ];
 
 /* ---------- État ---------- */
@@ -564,15 +663,89 @@ const ROTATIONS = {
   force:      ["maxhangs","force5","minedge","pince","tri-nohang","tri-susp","mcx-lift","mcx-pinch-max"],
   endurance:  ["rep73","rep1515","eco3030","endurance","tri-rep","mcx-pinch-rep"],
   mixte:      ["maxhangs","rep73","force5","rep1515","minedge","eco3030","tri-nohang","tri-rep","mcx-lift","mcx-pinch-max"],
-  deload:     ["submax","tri-elastic","mcx-warm"]
+  deload:     ["submax","tri-elastic","mcx-warm","anta-ext"]
 };
-const GAINAGE_IDS = ["core-sol","core-hollow","core-susp","core-lsit"];
-const GOAL_TXT = { force:"objectif force", endurance:"objectif endurance", mixte:"cycle mixte force / endurance" };
+const GAINAGE_IDS = ["core-sol","core-dorsal","core-hollow","core-susp","core-lsit","trx-core"];
+const ANTAGO_IDS = ["anta-ext","anta-pompes","anta-pike","anta-poignets","anta-coiffe"];
+function shouldAntago(p){ return !["antago","gainage","renfo"].includes(p.cat||"poutre"); }
+
+/* ---- Pools du programme général & des séances ciblées ---- */
+const GENERAL_POOLS = {
+  doigts:  ["maxhangs","rep73","force5","minedge","tri-nohang","tri-susp","tri-rep","mcx-lift","mcx-pinch-max","mcx-pinch-rep"],
+  haut:    ["pull-simple","pull-weight","pull-frenchies","pull-scap","anta-pompes","anta-pike","trx-row","kb-press"],
+  gainage: ["core-sol","core-dorsal","core-hollow","core-susp","trx-core","kb-swing","kb-sdt"]
+};
+const POOL_TXT = { doigts:"Doigts", haut:"Muscles", gainage:"Gainage" };
+const POOL_DOT = { doigts:"var(--hot)", haut:"#3aa0d6", gainage:"var(--amber)" };
+const WEEK_TARGETS = { doigts:{min:2,max:3}, haut:{min:3,max:4}, gainage:{min:4,max:5} };
+
+function progCat(pid){ const p=programs.find(x=>x.id===pid); return p?(p.cat||"poutre"):null; }
+function domainOf(pid){
+  for(const [k,ids] of Object.entries(GENERAL_POOLS)) if(ids.includes(pid)) return k;
+  const c = progCat(pid);
+  if(["poutre","triangle","minicrux","mcxpince"].includes(c)) return "doigts";
+  if(c==="traction") return "haut";
+  if(c==="gainage") return "gainage";
+  return null; // antagonistes légers, divers : hors quotas
+}
+function weekSessions(){
+  const mon = mondayOf(new Date()).getTime();
+  return sessions.filter(s=>new Date(s.dateISO).getTime()>=mon);
+}
+function weekCounts(){
+  const c={doigts:0,haut:0,gainage:0};
+  weekSessions().forEach(s=>{ const d=domainOf(s.programId); if(d) c[d]++; });
+  return c;
+}
+function generalDayPlan(deload, isDay){
+  const counts = weekCounts();
+  const todayList = sessions.filter(s=>dayKey(s.dateISO)===dayKey(new Date()));
+  const todayDomains = new Set(todayList.map(s=>domainOf(s.programId)).filter(Boolean));
+  const slots = [];
+  const submax = programs.find(p=>p.id==="submax");
+  // surveillance de surcharge globale : 3 séances très dures cette semaine -> tout en léger
+  const hardWeek = weekSessions().filter(s=>s.rpe>=9).length >= 3;
+
+  // --- DOIGTS ---
+  if(counts.doigts < WEEK_TARGETS.doigts.max && !todayDomains.has("doigts") && isDay && !deload && !hardWeek){
+    let ok = true, light = false;
+    const lastFinger = sessions.find(s=>domainOf(s.programId)==="doigts");
+    if(lastFinger){
+      const hrs = (Date.now()-new Date(lastFinger.dateISO))/36e5;
+      if(lastFinger.rpe>=9 && hrs<40) ok=false;           // grosse séance < 40 h : pas de doigts
+      else if(lastFinger.rpe>=8 && hrs<20) light=true;    // dure hier : doigts légers seulement
+    }
+    if(ok){
+      const prog = light ? submax : pickNext(GENERAL_POOLS.doigts);
+      if(prog) slots.push({domain:"doigts", prog, light, optional:counts.doigts>=WEEK_TARGETS.doigts.min});
+    }
+  } else if(deload && counts.doigts < 2 && !todayDomains.has("doigts") && submax){
+    slots.push({domain:"doigts", prog:submax, light:true, optional:true});
+  }
+  // --- MUSCLES ---
+  if(counts.haut < WEEK_TARGETS.haut.max && !todayDomains.has("haut") && isDay && !deload && !hardWeek){
+    const prog = pickNext(GENERAL_POOLS.haut);
+    if(prog) slots.push({domain:"haut", prog, optional:counts.haut>=WEEK_TARGETS.haut.min});
+  }
+  // --- GAINAGE (quasi quotidien, y compris jours off et décharge) ---
+  if(counts.gainage < WEEK_TARGETS.gainage.max && !todayDomains.has("gainage")){
+    const prog = pickNext(GENERAL_POOLS.gainage);
+    if(prog) slots.push({domain:"gainage", prog, optional:counts.gainage>=WEEK_TARGETS.gainage.min});
+  }
+  return { slots, counts, hardWeek };
+}
+const GOAL_TXT = { general:"programme général complet", force:"objectif force", endurance:"objectif endurance", mixte:"cycle mixte force / endurance" };
 
 /* ---- Cycle par blocs (6 / 8 / 12 / 16 semaines) ---- */
 const B=(name,weeks,rot)=>({name,weeks,rot});
-const F=w=>B("Force",w,"force"), E=w=>B("Endurance",w,"endurance"), M=w=>B("Mixte",w,"mixte"), D=()=>B("Semaine légère",1,"deload");
+const F=w=>B("Force",w,"force"), E=w=>B("Endurance",w,"endurance"), M=w=>B("Mixte",w,"mixte"), D=()=>B("Semaine légère",1,"deload"), G=w=>B("Général",w,"general");
 const CYCLES = {
+  general: {
+    6:  [G(5), D()],
+    8:  [G(3), D(), G(3), D()],
+    12: [G(3), D(), G(3), D(), G(3), D()],
+    16: [G(3), D(), G(3), D(), G(3), D(), G(3), D()]
+  },
   force: {
     6:  [F(3), M(2), D()],
     8:  [F(3), D(), F(2), M(1), D()],
@@ -645,6 +818,14 @@ function todayRec(){
     return { kind:"train", prog, sug, noplan:true,
       reason:`Suggestion du jour. ${rot}${sugTxt} Touche l'icône réglages pour définir tes jours, ton objectif et un cycle sur 6 à 16 semaines — les propositions seront alors planifiées.` };
   }
+  if(plan.goal==="general"){
+    const cycG = cycleInfo();
+    const deload = !!(cycG && cycG.rot==="deload");
+    const isDay = plan.days.includes(dow);
+    const dp = generalDayPlan(deload, isDay);
+    if(!dp.slots.length) return { kind:"genDone", counts:dp.counts, cyc:cycG };
+    return { kind:"genPlan", slots:dp.slots, counts:dp.counts, cyc:cycG, deload, restDay:!isDay, hardWeek:dp.hardWeek };
+  }
   if(!plan.days.includes(dow)) return { kind:"rest", alt:submax };
   const cyc = cycleInfo();
   if(cyc && cyc.rot==="deload"){
@@ -667,6 +848,44 @@ function todayRec(){
 }
 function recCard(r){
   const gear = `<button class="icon-btn" id="recEdit" aria-label="Modifier le calendrier" style="width:34px;height:34px"><svg viewBox="0 0 24 24"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.5"/><circle cx="7" cy="16" r="2.5"/></svg></button>`;
+  if(r.kind==="genPlan"){
+    const t=WEEK_TARGETS, c=r.counts;
+    const badge = r.cyc
+      ? `<div class="rec-badge ${r.deload?"amber":"cool"}">Sem. ${r.cyc.week+1}/${r.cyc.total} · ${r.deload?"Décharge":"Général"}</div>`
+      : `<div class="rec-badge cool">Plan du jour</div>`;
+    const note = r.hardWeek ? "3 séances très dures cette semaine : tout passe en léger, c'est le corps qui encaisse." :
+      r.deload ? "Semaine légère : sous-max doigts et gainage doux uniquement." :
+      r.restDay ? "Jour off du calendrier — mais le quota gainage continue, il se travaille presque tous les jours." :
+      "Fais les doigts en premier, quand tu es frais. Le reste peut suivre ou attendre le soir.";
+    return `<div class="card">
+      <div class="rec-head">${badge}${gear}</div>
+      <div class="rec-title">Plan du jour</div>
+      <div class="quota">Doigts <b>${c.doigts}</b>/${t.doigts.min}–${t.doigts.max} · Muscles <b>${c.haut}</b>/${t.haut.min}–${t.haut.max} · Gainage <b>${c.gainage}</b>/${t.gainage.min}–${t.gainage.max}</div>
+      ${r.slots.map((s,i)=>{
+        const sug=loadSuggestion(s.prog);
+        return `<div class="slotrow">
+          <span class="sdot" style="background:${POOL_DOT[s.domain]}"></span>
+          <div class="smain">
+            <div class="st">${POOL_TXT[s.domain]} — ${esc(s.prog.name)} ${s.light?"<small>(léger)</small>":s.optional?"<small>(optionnel)</small>":""}</div>
+            <div class="ss">≈${Math.round(estDuration(s.prog)/60)} min${sug&&sug.delta!==0?` · lest conseillé ${sug.kg>0?"+":""}${sug.kg} kg`:""}</div>
+          </div>
+          <button class="btn btn-primary btn-sm slot-go" data-i="${i}">Go</button>
+        </div>`;
+      }).join("")}
+      <p class="rec-txt" style="margin:10px 0 10px">${note}</p>
+      <button class="btn btn-ghost btn-block" id="recWarm">Échauffement d'abord</button>
+    </div>`;
+  }
+  if(r.kind==="genDone"){
+    const t=WEEK_TARGETS, c=r.counts;
+    const weekFull = c.doigts>=t.doigts.min && c.haut>=t.haut.min && c.gainage>=t.gainage.min;
+    return `<div class="card">
+      <div class="rec-head"><div class="rec-badge cool">✓ ${weekFull?"Semaine complète":"Journée faite"}</div>${gear}</div>
+      <div class="rec-title">${weekFull?"Tous les minima de la semaine sont atteints":"Objectifs du jour atteints"}</div>
+      <div class="quota">Doigts <b>${c.doigts}</b>/${t.doigts.min}–${t.doigts.max} · Muscles <b>${c.haut}</b>/${t.haut.min}–${t.haut.max} · Gainage <b>${c.gainage}</b>/${t.gainage.min}–${t.gainage.max}</div>
+      <p class="rec-txt">${weekFull?"Le reste de la semaine est du bonus — la récupération fait partie du programme.":"Rien d'autre à cocher aujourd'hui. Repos, ou séance libre si tu veux vraiment."}</p>
+    </div>`;
+  }
   if(r.kind==="done") return `<div class="card">
     <div class="rec-head"><div class="rec-badge cool">✓ Fait</div>${gear}</div>
     <div class="rec-title">C'est fait pour aujourd'hui</div>
@@ -714,6 +933,13 @@ function bindRec(r){
     startSession(prog);
   };
   const co=q("recCore"); if(co) co.onclick=()=>{ const p=pickNext(GAINAGE_IDS); if(p) startSession(p); };
+  if(r.kind==="genPlan"){
+    document.querySelectorAll(".slot-go").forEach(b=>b.onclick=()=>{
+      const s=r.slots[+b.dataset.i]; if(!s) return;
+      const sug=loadSuggestion(s.prog);
+      startSession(sug ? {...s.prog, addedKg:sug.kg} : s.prog);
+    });
+  }
 }
 function openPlanSheet(){
   const cur = plan ? {goal:plan.goal, days:[...plan.days], cycle:!!plan.cycleStart, weeks:plan.cycleWeeks||6} : {goal:"mixte", days:[2,4,6], cycle:false, weeks:6};
@@ -722,7 +948,7 @@ function openPlanSheet(){
     <h3>Calendrier d'entraînement</h3>
     <div class="sub">Tes jours de poutre et ton objectif. La séance du jour s'adapte ensuite à ton historique.</div>
     <div class="field"><label>Objectif</label><div class="goalseg" id="pGoal">
-      ${[["force","Force"],["mixte","Mixte"],["endurance","Endurance"]].map(([v,l])=>`<button data-v="${v}" class="${v===cur.goal?"on":""}">${l}</button>`).join("")}
+      ${[["general","Général"],["force","Force"],["mixte","Mixte"],["endurance","Endurance"]].map(([v,l])=>`<button data-v="${v}" class="${v===cur.goal?"on":""}">${l}</button>`).join("")}
     </div></div>
     <div class="field"><label>Jours d'entraînement</label><div class="days" id="pDays">
       ${DAYS.map(([l,d])=>`<button data-d="${d}" class="${cur.days.includes(d)?"on":""}">${l}</button>`).join("")}
@@ -736,7 +962,7 @@ function openPlanSheet(){
         <div class="cycrows" id="pCycRows"></div>
       </div>
     </div>
-    <p class="hint" style="text-align:left;margin:0 0 16px">2 à 3 jours de poutre par semaine suffisent largement — les doigts progressent au repos. Les autres jours, le sous-max léger reste possible.</p>
+    <p class="hint" style="text-align:left;margin:0 0 16px">Objectif Général : coche 5-6 jours — le plan du jour empile doigts (2-3/sem), muscles (3-4/sem) et gainage (4-5/sem) en respectant la récupération des doigts. Autres objectifs : 2-3 jours de poutre suffisent.</p>
     <div class="row2">
       <button class="btn btn-ghost" id="pCancel">Annuler</button>
       <button class="btn btn-primary" id="pSave">Enregistrer</button>
@@ -816,7 +1042,6 @@ function renderTrain(){
   const totalHang = sessions.reduce((a,x)=>a+(x.hangTimeSec||0),0);
   const last = sessions[0];
   const rec = todayRec();
-  const suggested = programs.slice(0,3);
   view.innerHTML = `
     <div class="topbar">
       <div class="brand">${GLYPH}<div><div class="eyebrow">Poutre <span class="ver">${APP_VERSION}</span></div><h1>Prêt à tirer ?</h1></div></div>
@@ -840,13 +1065,25 @@ function renderTrain(){
           <div class="mono" style="font-size:12px;color:var(--muted);margin-top:2px">${relDate(last.dateISO)} · ${last.loadKg>0?"+":""}${last.loadKg} kg · ${last.edgeMm} mm · RPE ${last.rpe}</div>
         </div>
       </div>` : ""}
-    <h2>Ou choisis toi-même</h2>
-    ${suggested.map(progCard).join("")}
+    <h2>Séances ciblées</h2>
+    <div class="row3" style="margin-bottom:8px">
+      <button class="btn btn-ghost" id="tgtDoigts">Doigts</button>
+      <button class="btn btn-ghost" id="tgtHaut">Muscles</button>
+      <button class="btn btn-ghost" id="tgtCore">Gainage</button>
+    </div>
+    <p class="hint" style="margin:0 0 4px;text-align:left">Chaque bouton lance le programme le moins fait du domaine, tous outils confondus (poutre, triangles, Mini Crux, kettlebells, TRX…).</p>
+    <h2>Séance libre</h2>
+    <button class="btn btn-ghost btn-block" id="freeBtn">⚡ Règle et démarre un timer à la volée</button>
     <div class="hint">Astuce : garde le téléphone posé au pied de la poutre. L'écran se colore selon la phase — rouge tu tires, turquoise tu récupères.</div>
   `;
   bindRec(rec);
   bindBackupBanner();
-  suggested.forEach(p=>bindCard(p));
+  const fb=document.getElementById("freeBtn"); if(fb) fb.onclick=openFreeSheet;
+  [["tgtDoigts","doigts"],["tgtHaut","haut"],["tgtCore","gainage"]].forEach(([id,pool])=>{
+    const b=document.getElementById(id); if(!b) return;
+    b.onclick=()=>{ const p=pickNext(GENERAL_POOLS[pool]); if(!p) return;
+      const sug=loadSuggestion(p); startSession(sug?{...p,addedKg:sug.kg}:p); };
+  });
   setupInstall();
 }
 function colorOf(pid){ const p=programs.find(x=>x.id===pid); return p?p.color:"muted"; }
@@ -893,7 +1130,7 @@ function renderPrograms(){
       <button class="icon-btn" id="addProg" aria-label="Nouveau"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
     <button class="btn btn-ghost btn-block" id="newBtn" style="margin-bottom:6px">+ Créer un programme</button>
-    ${[["poutre","Poutre & hangboard"],["triangle","Triangle YY Vertical"],["minicrux","Mini Crux"],["mcxpince","Mini Crux — Spécial pince"],["gainage","Gainage"]].map(([cat,label])=>{
+    ${[["poutre","Poutre & hangboard"],["triangle","Triangle YY Vertical"],["minicrux","Mini Crux"],["mcxpince","Mini Crux — Spécial pince"],["traction","Tractions"],["renfo","Renfo — kettlebells & co"],["gainage","Gainage"],["antago","Antagonistes"]].map(([cat,label])=>{
       const list = programs.filter(p=>(p.cat||"poutre")===cat);
       return list.length ? `<h2>${label}</h2>`+list.map(fullCard).join("") : "";
     }).join("")}
@@ -1042,9 +1279,10 @@ function roundRect(g,x,y,w,h,r){ if(h<=0)return; r=Math.min(r,w/2,h); g.beginPat
 
 /* ---------- Détail programme (sheet) ---------- */
 function openDetail(p){
+  const sug = loadSuggestion(p);
   sheet(`
     <h3>${esc(p.name)}</h3>
-    <div class="sub">${esc(p.type)}</div>
+    <div class="sub">${esc(p.type)}${sug && sug.delta!==0 ? ` · lest conseillé : ${sug.kg>0?"+":""}${sug.kg} kg (RPE ${sug.prev.rpe} la dernière fois)` : ""}</div>
     <p style="color:var(--muted);font-size:14px;margin-bottom:14px">${esc(p.desc||"")}</p>
     ${p.technique?`<div style="margin-bottom:12px"><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cool-deep);font-weight:800;margin-bottom:5px">Technique</div><p style="color:var(--muted);font-size:13.5px">${esc(p.technique)}</p></div>`:""}
     ${p.gains?`<div style="margin-bottom:14px"><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--hot-deep);font-weight:800;margin-bottom:5px">Ce que ça développe</div><p style="color:var(--muted);font-size:13.5px">${esc(p.gains)}</p></div>`:""}
@@ -1085,7 +1323,7 @@ function openBuilder(existing){
     </div>
     <div class="row2">
       <div class="field"><label>Catégorie</label><div class="selectwrap"><select class="input" id="f_cat">
-        ${[["poutre","Poutre"],["triangle","Triangle"],["minicrux","Mini Crux"],["mcxpince","Mini Crux — pince"],["gainage","Gainage"]].map(([v,l])=>`<option value="${v}" ${v===(p.cat||"poutre")?"selected":""}>${l}</option>`).join("")}
+        ${[["poutre","Poutre"],["triangle","Triangle"],["minicrux","Mini Crux"],["mcxpince","Mini Crux — pince"],["traction","Tractions"],["renfo","Renfo"],["gainage","Gainage"],["antago","Antagonistes"]].map(([v,l])=>`<option value="${v}" ${v===(p.cat||"poutre")?"selected":""}>${l}</option>`).join("")}
       </select></div></div>
       <div class="field"><label>Prise</label><div class="selectwrap"><select class="input" id="f_grip">
         ${GRIPS.map(gname=>`<option ${gname===p.grip?"selected":""}>${gname}</option>`).join("")}
@@ -1235,6 +1473,59 @@ function sheet(html){
 }
 function closeSheet(){ $("#sheet-root").innerHTML=""; }
 
+
+/* ---------- Séance libre (workout indépendant, non sauvegardé) ---------- */
+let freeLast = store.get("freeLast", { prepSec:10, hangSec:7, restRepSec:3, reps:6, restSetSec:120, sets:3, addedKg:0, grip:"Bac / ouvert" });
+function openFreeSheet(){
+  const fl = freeLast;
+  sheet(`
+    <h3>Séance libre</h3>
+    <div class="sub">Un timer à la volée, sans créer de programme. Réglages mémorisés d'une fois sur l'autre.</div>
+    <div class="row2">
+      ${stepper("w_prep","Préparation","s",fl.prepSec,0,60,5)}
+      ${stepper("w_hang","Effort","s",fl.hangSec,1,180,1)}
+    </div>
+    <div class="row2">
+      ${stepper("w_reps","Reps / série","",fl.reps,1,30,1)}
+      ${stepper("w_restrep","Repos entre reps","s",fl.restRepSec,0,180,1)}
+    </div>
+    <div class="row2">
+      ${stepper("w_sets","Séries","",fl.sets,1,20,1)}
+      ${stepper("w_restset","Repos entre séries","s",fl.restSetSec,0,600,15)}
+    </div>
+    <div class="row2">
+      ${stepper("w_kg","Lest","kg",fl.addedKg,-60,100,1)}
+      <div class="field"><label>Prise</label><div class="selectwrap"><select class="input" id="w_grip">
+        ${GRIPS.map(gname=>`<option ${gname===fl.grip?"selected":""}>${gname}</option>`).join("")}
+      </select></div></div>
+    </div>
+    <div class="card" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+      <div><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700">Aperçu</div>
+      <div class="mono" id="w_preview" style="font-weight:800;font-size:15px;margin-top:4px"></div></div>
+    </div>
+    <div class="row2">
+      <button class="btn btn-ghost" id="w_cancel">Annuler</button>
+      <button class="btn btn-primary" id="w_start">Démarrer</button>
+    </div>
+  `);
+  function readFree(){
+    return { id:"libre", name:"Séance libre", type:"Libre", cat:"poutre", color:"cool",
+      grip:document.getElementById("w_grip").value, edgeMm:0, effortLabel:"Effort", builtin:false,
+      prepSec:step.val.w_prep, hangSec:step.val.w_hang, restRepSec:step.val.w_restrep,
+      reps:step.val.w_reps, restSetSec:step.val.w_restset, sets:step.val.w_sets, addedKg:step.val.w_kg };
+  }
+  function upd(){ const v=readFree(); document.getElementById("w_preview").textContent=`${hangTime(v)}s d'effort · ≈${Math.round(estDuration(v)/60)} min`; }
+  bindSteppers(upd); upd();
+  document.getElementById("w_cancel").onclick=closeSheet;
+  document.getElementById("w_start").onclick=()=>{
+    const v=readFree();
+    freeLast={ prepSec:v.prepSec, hangSec:v.hangSec, restRepSec:v.restRepSec, reps:v.reps,
+      restSetSec:v.restSetSec, sets:v.sets, addedKg:v.addedKg, grip:v.grip };
+    store.set("freeLast", freeLast);
+    closeSheet(); startSession(v);
+  };
+}
+
 /* ============================================================
    MOTEUR DE SÉANCE
    ============================================================ */
@@ -1376,6 +1667,33 @@ function finishSession(){
   setTimeout(()=>{ $("#session").classList.remove("on"); SESS=null; openLog(p,done,total); }, 1100);
 }
 
+
+/* ---------- Proposition antagonistes après séance ---------- */
+function openAntagoSheet(){
+  const list = ANTAGO_IDS.map(id=>programs.find(p=>p.id===id)).filter(Boolean);
+  if(!list.length){ render(); return; }
+  sheet(`
+    <h3>Compense les antagonistes</h3>
+    <div class="sub">Après le tirage, 3-5 minutes d'extenseurs et de poussée : c'est l'assurance anti-blessure des coudes, poignets et épaules.</div>
+    ${list.map(p=>`<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:15px">${esc(p.name)}</div>
+        <div class="mono" style="font-size:11.5px;color:var(--muted);margin-top:3px">≈${Math.round(estDuration(p)/60)} min · ${p.sets} série${p.sets>1?"s":""}</div>
+      </div>
+      <button class="icon-btn anta-info" data-pid="${p.id}" aria-label="Détails"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>
+      <button class="btn btn-primary btn-sm anta-go" data-pid="${p.id}">Go</button>
+    </div>`).join("")}
+    <button class="btn btn-ghost btn-block" id="antaLater" style="margin-top:4px">Pas cette fois</button>
+  `);
+  document.querySelectorAll(".anta-go").forEach(b=>b.onclick=()=>{
+    const p=programs.find(x=>x.id===b.dataset.pid); if(p){ closeSheet(); startSession(p); }
+  });
+  document.querySelectorAll(".anta-info").forEach(b=>b.onclick=()=>{
+    const p=programs.find(x=>x.id===b.dataset.pid); if(p) openDetail(p);
+  });
+  document.getElementById("antaLater").onclick=()=>{ closeSheet(); render(); };
+}
+
 /* ---------- Journal post-séance ---------- */
 function openLog(p, done, total){
   let rpe=7;
@@ -1402,7 +1720,7 @@ function openLog(p, done, total){
   $("#l_rpe").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     $("#l_rpe").querySelectorAll("button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); rpe=+b.dataset.v;
   });
-  $("#l_skip").onclick=()=>{ closeSheet(); render(); };
+  $("#l_skip").onclick=()=>{ closeSheet(); if(shouldAntago(p)) openAntagoSheet(); else render(); };
   $("#l_save").onclick=()=>{
     sessions.unshift({
       id:uid(), programId:p.id, programName:p.name, dateISO:new Date().toISOString(),
@@ -1411,6 +1729,7 @@ function openLog(p, done, total){
       notes:$("#l_notes").value.trim()
     });
     saveS(); closeSheet(); tab="progress"; render(); toast("Séance enregistrée 💪");
+    if(shouldAntago(p)) openAntagoSheet();
   };
 }
 
