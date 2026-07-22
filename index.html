@@ -362,7 +362,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v21"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v23"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -655,7 +655,7 @@ function hangTime(p){ return p.sets*p.reps*p.hangSec; }
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2200); }
 
 function dayKey(d){ const x=new Date(d); return `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`; }
-function weekMinsMet(c){ const t=WEEK_TARGETS; return c.doigts>=t.doigts.min && c.haut>=t.haut.min && c.gainage>=t.gainage.min; }
+function weekMinsMet(c){ return Object.keys(WEEK_TARGETS).every(k=>c[k]>=WEEK_TARGETS[k].min); }
 function weekFullStreak(){
   const monNow = mondayOf(new Date()).getTime();
   let streak = weekMinsMet(weekCountsAt(monNow)) ? 1 : 0; // semaine en cours si déjà complète
@@ -733,19 +733,23 @@ function shouldAntago(p){ return !["antago","gainage","renfo"].includes(p.cat||"
 /* ---- Pools du programme général & des séances ciblées ---- */
 const GENERAL_POOLS = {
   doigts:  ["maxhangs","rep73","force5","minedge","tri-nohang","tri-susp","tri-rep","mcx-lift","mcx-pinch-max","mcx-pinch-rep"],
-  haut:    ["pull-simple","pull-weight","pull-frenchies","pull-scap","anta-pompes","anta-pike","trx-row","kb-press"],
-  gainage: ["core-sol","core-dorsal","core-hollow","core-susp","trx-core","kb-swing","kb-sdt"]
+  tirage:  ["pull-simple","pull-weight","pull-frenchies","pull-scap","trx-row"],
+  poussee: ["anta-pompes","anta-pike","kb-press","mb-slam"],
+  jambes:  ["kb-jambes","kb-sdt","kb-swing"],
+  gainage: ["core-sol","core-dorsal","core-hollow","core-susp","core-lsit","trx-core"]
 };
-const POOL_TXT = { doigts:"Doigts", haut:"Muscles", gainage:"Gainage" };
-const POOL_DOT = { doigts:"var(--hot)", haut:"#3aa0d6", gainage:"var(--amber)" };
-const WEEK_TARGETS = { doigts:{min:2,max:3}, haut:{min:3,max:4}, gainage:{min:4,max:5} };
+const MUSCLE_KEYS = ["tirage","poussee","jambes"];
+const POOL_TXT = { doigts:"Doigts", tirage:"Tirage", poussee:"Poussée", jambes:"Jambes", gainage:"Gainage" };
+const POOL_DOT = { doigts:"var(--hot)", tirage:"#3aa0d6", poussee:"var(--cool)", jambes:"#9C6BD6", gainage:"var(--amber)" };
+const WEEK_TARGETS = { doigts:{min:2,max:3}, tirage:{min:1,max:2}, poussee:{min:1,max:2}, jambes:{min:1,max:2}, gainage:{min:4,max:5} };
 
 function progCat(pid){ const p=programs.find(x=>x.id===pid); return p?(p.cat||"poutre"):null; }
 function domainOf(pid){
   for(const [k,ids] of Object.entries(GENERAL_POOLS)) if(ids.includes(pid)) return k;
   const c = progCat(pid);
   if(["poutre","triangle","minicrux","mcxpince"].includes(c)) return "doigts";
-  if(c==="traction") return "haut";
+  if(c==="traction") return "tirage";
+  if(c==="renfo") return "jambes";
   if(c==="gainage") return "gainage";
   return null; // antagonistes légers, divers : hors quotas
 }
@@ -755,13 +759,13 @@ function weekSessions(){
 }
 function weekCountsAt(monTime){
   const end = monTime + 7*864e5;
-  const c={doigts:0,haut:0,gainage:0};
+  const c={doigts:0,tirage:0,poussee:0,jambes:0,gainage:0};
   sessions.forEach(s=>{ const t=new Date(s.dateISO).getTime();
     if(t>=monTime && t<end){ const d=domainOf(s.programId); if(d) c[d]++; } });
   return c;
 }
 function weekCounts(){
-  const c={doigts:0,haut:0,gainage:0};
+  const c={doigts:0,tirage:0,poussee:0,jambes:0,gainage:0};
   weekSessions().forEach(s=>{ const d=domainOf(s.programId); if(d) c[d]++; });
   return c;
 }
@@ -771,15 +775,16 @@ function generalDayPlan(deload, isDay){
   const todayDomains = new Set(todayList.map(s=>domainOf(s.programId)).filter(Boolean));
   const slots = [];
   const submax = programs.find(p=>p.id==="submax");
-  // surveillance de surcharge globale : 3 séances très dures cette semaine -> tout en léger
-  const hardWeek = weekSessions().filter(s=>s.rpe>=9).length >= 3;
-  // douleur signalée dans les 5 derniers jours : vive -> pas de doigts ; légère -> doigts en sous-max
-  const painS = sessions.find(s=>(s.pain||0)>=1 && (Date.now()-new Date(s.dateISO).getTime())/864e5 < 5);
-  const painLvl = painS ? painS.pain : 0;
+  // Garde-fous PAR DOMAINE : la charge des gros muscles n'affecte jamais les doigts, et inversement
+  const hardFinger = weekSessions().filter(s=>domainOf(s.programId)==="doigts" && s.rpe>=9).length >= 2;
+  const hardSystemic = weekSessions().filter(s=>{ const d=domainOf(s.programId); return d && d!=="doigts" && s.rpe>=9; }).length >= 3;
+  // douleur (5 derniers jours), scindée par domaine d'origine
+  const painF = sessions.find(s=>(s.pain||0)>=1 && domainOf(s.programId)==="doigts" && (Date.now()-new Date(s.dateISO).getTime())/864e5 < 5);
+  const painLvl = painF ? painF.pain : 0;
 
-  // --- DOIGTS ---
-  if(counts.doigts < WEEK_TARGETS.doigts.max && !todayDomains.has("doigts") && isDay && !deload && !hardWeek && painLvl<2){
-    let ok = true, light = painLvl===1;
+  // --- DOIGTS (indépendants de la charge systémique) ---
+  if(counts.doigts < WEEK_TARGETS.doigts.max && !todayDomains.has("doigts") && isDay && !deload && painLvl<2){
+    let ok = true, light = painLvl===1 || hardFinger;
     const lastFinger = sessions.find(s=>domainOf(s.programId)==="doigts");
     if(lastFinger){
       const hrs = (Date.now()-new Date(lastFinger.dateISO))/36e5;
@@ -793,17 +798,33 @@ function generalDayPlan(deload, isDay){
   } else if(deload && counts.doigts < 2 && !todayDomains.has("doigts") && submax){
     slots.push({domain:"doigts", prog:submax, light:true, optional:true});
   }
-  // --- MUSCLES ---
-  if(counts.haut < WEEK_TARGETS.haut.max && !todayDomains.has("haut") && isDay && !deload && !hardWeek){
-    const prog = pickNext(GENERAL_POOLS.haut);
-    if(prog) slots.push({domain:"haut", prog, optional:counts.haut>=WEEK_TARGETS.haut.min});
+  // --- MUSCLES : tirage / poussée / jambes indépendants, un créneau max par jour ---
+  if(isDay && !deload && !hardSystemic && !MUSCLE_KEYS.some(k=>todayDomains.has(k))){
+    const cands = MUSCLE_KEYS.filter(k=>{
+      if(counts[k] >= WEEK_TARGETS[k].max) return false;
+      const lastS = sessions.find(s=>domainOf(s.programId)===k);
+      if(lastS && lastS.rpe>=9 && (Date.now()-new Date(lastS.dateISO).getTime())/36e5 < 40) return false; // même groupe, très dur < 40 h
+      const painK = sessions.find(s=>(s.pain||0)>=2 && domainOf(s.programId)===k && (Date.now()-new Date(s.dateISO).getTime())/864e5 < 5);
+      return !painK; // douleur vive limitée à SON groupe
+    });
+    cands.sort((a,b)=>{
+      const da = WEEK_TARGETS[a].min - counts[a], db = WEEK_TARGETS[b].min - counts[b];
+      if(db !== da) return db - da;                                    // le plus en retard sur son quota d'abord
+      const la = Math.max(0,...GENERAL_POOLS[a].map(lastDoneAt)),
+            lb = Math.max(0,...GENERAL_POOLS[b].map(lastDoneAt));
+      return la - lb;                                                  // sinon le moins récemment travaillé
+    });
+    if(cands.length){
+      const k = cands[0], prog = pickNext(GENERAL_POOLS[k]);
+      if(prog) slots.push({domain:k, prog, optional:counts[k]>=WEEK_TARGETS[k].min});
+    }
   }
   // --- GAINAGE (quasi quotidien, y compris jours off et décharge) ---
   if(counts.gainage < WEEK_TARGETS.gainage.max && !todayDomains.has("gainage")){
     const prog = pickNext(GENERAL_POOLS.gainage);
     if(prog) slots.push({domain:"gainage", prog, optional:counts.gainage>=WEEK_TARGETS.gainage.min});
   }
-  return { slots, counts, hardWeek, painLvl, painNote: painS ? (painS.painNote||"") : "" };
+  return { slots, counts, hardFinger, hardSystemic, painLvl, painNote: painF ? (painF.painNote||"") : "" };
 }
 const GOAL_TXT = { general:"programme général complet", force:"objectif force", endurance:"objectif endurance", mixte:"cycle mixte force / endurance" };
 
@@ -870,12 +891,23 @@ function pickNext(list){
 function todayRec(){
   const now = new Date(), dow = now.getDay();
   const submax = programs.find(p=>p.id==="submax");
-  if(sessions.some(s=>dayKey(s.dateISO)===dayKey(now))) return { kind:"done", alt:submax };
-  const last = sessions[0];
-  const hrs = last ? (now - new Date(last.dateISO))/36e5 : Infinity;
-  if(last && last.rpe>=9 && hrs<40){
+  // Objectif général : traité en premier — les garde-fous sont gérés PAR DOMAINE dans generalDayPlan
+  if(plan && plan.goal==="general"){
+    const cycG = cycleInfo();
+    const deload = !!(cycG && cycG.rot==="deload");
+    const isDay = plan.days.includes(dow);
+    const dp = generalDayPlan(deload, isDay);
+    if(!dp.slots.length) return { kind:"genDone", counts:dp.counts, cyc:cycG };
+    return { kind:"genPlan", slots:dp.slots, counts:dp.counts, cyc:cycG, deload, restDay:!isDay,
+      hardFinger:dp.hardFinger, hardSystemic:dp.hardSystemic, painLvl:dp.painLvl, painNote:dp.painNote };
+  }
+  // Objectifs doigts : les garde-fous ne regardent QUE les séances doigts
+  if(sessions.some(s=>dayKey(s.dateISO)===dayKey(now) && domainOf(s.programId)==="doigts")) return { kind:"done", alt:submax };
+  const lastF = sessions.find(s=>domainOf(s.programId)==="doigts");
+  const hrsF = lastF ? (now - new Date(lastF.dateISO))/36e5 : Infinity;
+  if(lastF && lastF.rpe>=9 && hrsF<40){
     return { kind:"fatigue", prog:submax,
-      reason:`Ta dernière séance (${last.programName}) était très dure — RPE ${last.rpe} il y a moins de 48 h. Les doigts progressent pendant le repos : aujourd'hui, du sous-maximal léger, pas plus.` };
+      reason:`Ta dernière séance doigts (${lastF.programName}) était très dure — RPE ${lastF.rpe} il y a moins de 48 h. Les tissus des doigts récupèrent lentement : sous-maximal léger aujourd'hui. La charge des autres domaines ne compte pas ici — leurs filières sont indépendantes.` };
   }
   if(!plan){
     const prog = pickNext(ROTATIONS.mixte);
@@ -888,14 +920,6 @@ function todayRec(){
     else if(sug && sug.delta<0) sugTxt = ` RPE ${sug.prev.rpe} la dernière fois : on redescend à ${sug.kg>0?"+":""}${sug.kg} kg pour consolider.`;
     return { kind:"train", prog, sug, noplan:true,
       reason:`Suggestion du jour. ${rot}${sugTxt} Touche l'icône réglages pour définir tes jours, ton objectif et un cycle sur 6 à 16 semaines — les propositions seront alors planifiées.` };
-  }
-  if(plan.goal==="general"){
-    const cycG = cycleInfo();
-    const deload = !!(cycG && cycG.rot==="deload");
-    const isDay = plan.days.includes(dow);
-    const dp = generalDayPlan(deload, isDay);
-    if(!dp.slots.length) return { kind:"genDone", counts:dp.counts, cyc:cycG };
-    return { kind:"genPlan", slots:dp.slots, counts:dp.counts, cyc:cycG, deload, restDay:!isDay, hardWeek:dp.hardWeek, painLvl:dp.painLvl, painNote:dp.painNote };
   }
   if(!plan.days.includes(dow)) return { kind:"rest", alt:submax };
   const cyc = cycleInfo();
@@ -924,16 +948,17 @@ function recCard(r){
     const badge = r.cyc
       ? `<div class="rec-badge ${r.deload?"amber":"cool"}">Sem. ${r.cyc.week+1}/${r.cyc.total} · ${r.deload?"Décharge":"Général"}</div>`
       : `<div class="rec-badge cool">Plan du jour</div>`;
-    const note = r.painLvl===2 ? `Douleur vive signalée${r.painNote?` (${esc(r.painNote)})`:""} : zéro doigts tant que ça dure. Si ça persiste plus d'une semaine, consulte.` :
-      r.painLvl===1 ? `Gêne signalée${r.painNote?` (${esc(r.painNote)})`:""} : doigts en sous-max léger uniquement, on surveille.` :
-      r.hardWeek ? "3 séances très dures cette semaine : tout passe en léger, c'est le corps qui encaisse." :
+    const note = r.painLvl===2 ? `Douleur vive signalée sur les doigts${r.painNote?` (${esc(r.painNote)})`:""} : zéro doigts tant que ça dure. Si ça persiste plus d'une semaine, consulte.` :
+      r.painLvl===1 ? `Gêne doigts signalée${r.painNote?` (${esc(r.painNote)})`:""} : doigts en sous-max léger uniquement, on surveille.` :
+      r.hardFinger ? "Déjà 2 séances doigts très dures cette semaine : doigts en léger, leurs tissus récupèrent lentement." :
+      r.hardSystemic ? "3 séances de force très dures cette semaine : muscu en pause (tirage, poussée, jambes). Doigts et gainage continuent — filières indépendantes." :
       r.deload ? "Semaine légère : sous-max doigts et gainage doux uniquement." :
       r.restDay ? "Jour off du calendrier — mais le quota gainage continue, il se travaille presque tous les jours." :
       "Fais les doigts en premier, quand tu es frais. Le reste peut suivre ou attendre le soir.";
     return `<div class="card">
       <div class="rec-head">${badge}${gear}</div>
       <div class="rec-title">Plan du jour</div>
-      <div class="quota">Doigts <b>${c.doigts}</b>/${t.doigts.min}–${t.doigts.max} · Muscles <b>${c.haut}</b>/${t.haut.min}–${t.haut.max} · Gainage <b>${c.gainage}</b>/${t.gainage.min}–${t.gainage.max}</div>
+      <div class="quota" style="display:flex;flex-wrap:wrap;gap:3px 10px">${Object.keys(WEEK_TARGETS).map(k=>`<span>${POOL_TXT[k]} <b>${c[k]}</b>/${t[k].min}–${t[k].max}</span>`).join("")}</div>
       ${r.slots.map((s,i)=>{
         const sug=loadSuggestion(s.prog);
         return `<div class="slotrow">
@@ -951,11 +976,11 @@ function recCard(r){
   }
   if(r.kind==="genDone"){
     const t=WEEK_TARGETS, c=r.counts;
-    const weekFull = c.doigts>=t.doigts.min && c.haut>=t.haut.min && c.gainage>=t.gainage.min;
+    const weekFull = weekMinsMet(c);
     return `<div class="card">
       <div class="rec-head"><div class="rec-badge cool">✓ ${weekFull?"Semaine complète":"Journée faite"}</div>${gear}</div>
       <div class="rec-title">${weekFull?"Tous les minima de la semaine sont atteints":"Objectifs du jour atteints"}</div>
-      <div class="quota">Doigts <b>${c.doigts}</b>/${t.doigts.min}–${t.doigts.max} · Muscles <b>${c.haut}</b>/${t.haut.min}–${t.haut.max} · Gainage <b>${c.gainage}</b>/${t.gainage.min}–${t.gainage.max}</div>
+      <div class="quota" style="display:flex;flex-wrap:wrap;gap:3px 10px">${Object.keys(WEEK_TARGETS).map(k=>`<span>${POOL_TXT[k]} <b>${c[k]}</b>/${t[k].min}–${t[k].max}</span>`).join("")}</div>
       <p class="rec-txt">${weekFull?"Le reste de la semaine est du bonus — la récupération fait partie du programme.":"Rien d'autre à cocher aujourd'hui. Repos, ou séance libre si tu veux vraiment."}</p>
     </div>`;
   }
@@ -1155,9 +1180,9 @@ function renderTrain(){
   bindBackupBanner();
   bindTestBanner();
   const fb=document.getElementById("freeBtn"); if(fb) fb.onclick=openFreeSheet;
-  [["tgtDoigts","doigts"],["tgtHaut","haut"],["tgtCore","gainage"]].forEach(([id,pool])=>{
+  [["tgtDoigts",["doigts"]],["tgtHaut",MUSCLE_KEYS],["tgtCore",["gainage"]]].forEach(([id,pools])=>{
     const b=document.getElementById(id); if(!b) return;
-    b.onclick=()=>{ const p=pickNext(GENERAL_POOLS[pool]); if(!p) return;
+    b.onclick=()=>{ const p=pickNext(pools.flatMap(k=>GENERAL_POOLS[k])); if(!p) return;
       const sug=loadSuggestion(p); startSession(sug?{...p,addedKg:sug.kg}:p); };
   });
   setupInstall();
@@ -1288,8 +1313,8 @@ function renderProgress(){
       <h2>Domaines — cette semaine</h2>
       <div class="card">
         ${(()=>{ const c=weekCountsAt(mondayOf(new Date()).getTime()), t=WEEK_TARGETS;
-          return [["doigts","Doigts","var(--hot)"],["haut","Muscles","#3aa0d6"],["gainage","Gainage","var(--amber)"]].map(([k,l,col])=>{
-            const v=c[k], tg=t[k];
+          return Object.keys(WEEK_TARGETS).map(k=>{
+            const l=POOL_TXT[k], col=POOL_DOT[k], v=c[k], tg=t[k];
             return `<div class="drow"><div class="dl">${l}</div>
               <div class="dtrack"><div class="dfill" style="width:${Math.min(100,v/tg.max*100)}%;background:${col}"></div>
               <div class="dmin" style="left:${tg.min/tg.max*100}%"></div></div>
@@ -1299,14 +1324,12 @@ function renderProgress(){
       </div>
       <h2>6 dernières semaines</h2>
       <div class="card" style="padding:8px 14px">
-        <div class="wgrid" style="border-bottom:1px solid var(--line-strong)"><span class="wl">Semaine</span><span class="wl">Doigts</span><span class="wl">Muscles</span><span class="wl">Gainage</span></div>
+        <div class="wgrid" style="border-bottom:1px solid var(--line-strong)"><span class="wl">Sem.</span><span class="wl">Dgt</span><span class="wl">Tir</span><span class="wl">Pou</span><span class="wl">Jmb</span><span class="wl">Gain</span></div>
         ${(()=>{ const t=WEEK_TARGETS, rows=[];
           for(let i=0;i<6;i++){
             const mon=mondayOf(new Date()).getTime()-i*7*864e5, c=weekCountsAt(mon), d=new Date(mon);
-            rows.push(`<div class="wgrid"><span class="wl">${i===0?"En cours":d.getDate()+"/"+(d.getMonth()+1)}</span>
-              <b class="${c.doigts>=t.doigts.min?"ok":"ko"}">${c.doigts}</b>
-              <b class="${c.haut>=t.haut.min?"ok":"ko"}">${c.haut}</b>
-              <b class="${c.gainage>=t.gainage.min?"ok":"ko"}">${c.gainage}</b></div>`);
+            rows.push(`<div class="wgrid"><span class="wl">${i===0?"Cours":d.getDate()+"/"+(d.getMonth()+1)}</span>
+              ${Object.keys(WEEK_TARGETS).map(k=>`<b class="${c[k]>=t[k].min?"ok":"ko"}">${c[k]}</b>`).join("")}</div>`);
           } return rows.join(""); })()}
       </div>
       <h2>Charge & volume par séance</h2>
