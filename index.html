@@ -372,7 +372,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v26"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v27"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -738,7 +738,7 @@ const ROTATIONS = {
 };
 const GAINAGE_IDS = ["core-sol","core-dorsal","core-hollow","core-susp","core-lsit","trx-core"];
 const ANTAGO_IDS = ["anta-ext","anta-pompes","anta-pike","anta-poignets","anta-coiffe"];
-function shouldAntago(p){ return p && p.id!=="cardio" && !["antago","gainage","renfo"].includes(p.cat||"poutre"); }
+function shouldAntago(p){ return p && p.id!=="cardio" && p.id!=="wod" && !["antago","gainage","renfo"].includes(p.cat||"poutre"); }
 
 /* ---- Pools du programme général & des séances ciblées ---- */
 const GENERAL_POOLS = {
@@ -749,13 +749,14 @@ const GENERAL_POOLS = {
   gainage: ["core-sol","core-dorsal","core-hollow","core-susp","core-lsit","trx-core"]
 };
 const MUSCLE_KEYS = ["tirage","poussee","jambes"];
-const POOL_TXT = { doigts:"Doigts", tirage:"Tirage", poussee:"Poussée", jambes:"Jambes", gainage:"Gainage", endurance:"Endurance" };
-const POOL_DOT = { doigts:"var(--hot)", tirage:"#3aa0d6", poussee:"var(--cool)", jambes:"#9C6BD6", gainage:"var(--amber)", endurance:"#2E7FB8" };
-const WEEK_TARGETS = { doigts:{min:2,max:3}, tirage:{min:1,max:2}, poussee:{min:1,max:2}, jambes:{min:1,max:2}, gainage:{min:4,max:5}, endurance:{min:2,max:4} };
+const POOL_TXT = { doigts:"Doigts", tirage:"Tirage", poussee:"Poussée", jambes:"Jambes", gainage:"Gainage", endurance:"Endurance", wod:"WOD" };
+const POOL_DOT = { doigts:"var(--hot)", tirage:"#3aa0d6", poussee:"var(--cool)", jambes:"#9C6BD6", gainage:"var(--amber)", endurance:"#2E7FB8", wod:"var(--hot-deep)" };
+const WEEK_TARGETS = { doigts:{min:2,max:3}, tirage:{min:1,max:2}, poussee:{min:1,max:2}, jambes:{min:1,max:2}, gainage:{min:4,max:5}, endurance:{min:2,max:4}, wod:{min:0,max:1} };
 
 function progCat(pid){ const p=programs.find(x=>x.id===pid); return p?(p.cat||"poutre"):null; }
 function domainOf(pid){
   if(pid==="cardio") return "endurance";
+  if(pid==="wod") return "wod";
   for(const [k,ids] of Object.entries(GENERAL_POOLS)) if(ids.includes(pid)) return k;
   const c = progCat(pid);
   if(["poutre","triangle","minicrux","mcxpince"].includes(c)) return "doigts";
@@ -770,13 +771,13 @@ function weekSessions(){
 }
 function weekCountsAt(monTime){
   const end = monTime + 7*864e5;
-  const c={doigts:0,tirage:0,poussee:0,jambes:0,gainage:0,endurance:0};
+  const c={doigts:0,tirage:0,poussee:0,jambes:0,gainage:0,endurance:0,wod:0};
   sessions.forEach(s=>{ const t=new Date(s.dateISO).getTime();
     if(t>=monTime && t<end){ const d=domainOf(s.programId); if(d) c[d]++; } });
   return c;
 }
 function weekCounts(){
-  const c={doigts:0,tirage:0,poussee:0,jambes:0,gainage:0,endurance:0};
+  const c={doigts:0,tirage:0,poussee:0,jambes:0,gainage:0,endurance:0,wod:0};
   weekSessions().forEach(s=>{ const d=domainOf(s.programId); if(d) c[d]++; });
   return c;
 }
@@ -832,12 +833,20 @@ function generalDayPlan(deload, isDay){
     }
   }
   // --- ENDURANCE (autonome : n'affecte jamais les doigts) ---
-  if(counts.endurance < WEEK_TARGETS.endurance.max && !todayDomains.has("endurance") && !deload){
-    const budgetUsed = weekSessions().filter(s=>domainOf(s.programId)==="endurance" && s.intensity==="dur").length>=1;
+  if(!deload){
+    const budgetUsed = weekHardUsed()>=1;
     const yest = sessions.some(s=>s.intensity==="dur" && (Date.now()-new Date(s.dateISO).getTime())<864e5);
-    const hard = !budgetUsed && !yest && counts.endurance>=1; // la dure arrive après au moins une facile
-    slots.push({ domain:"endurance", cardio:true, int:hard?"dur":"facile",
-      optional:counts.endurance>=WEEK_TARGETS.endurance.min });
+    const canHard = !budgetUsed && !yest && counts.endurance>=1; // la dure arrive après au moins une facile
+    // alternance : si la dernière séance dure était du cardio, c'est au tour du WOD
+    const lastHard = sessions.find(s=>s.intensity==="dur");
+    const wodTurn = canHard && counts.wod<WEEK_TARGETS.wod.max && !todayDomains.has("wod")
+      && (!lastHard || domainOf(lastHard.programId)==="endurance");
+    if(wodTurn){
+      slots.push({ domain:"wod", wod:true, optional:true });
+    } else if(counts.endurance < WEEK_TARGETS.endurance.max && !todayDomains.has("endurance")){
+      slots.push({ domain:"endurance", cardio:true, int:canHard?"dur":"facile",
+        optional:counts.endurance>=WEEK_TARGETS.endurance.min });
+    }
   }
   // --- GAINAGE (quasi quotidien, y compris jours off et décharge) ---
   if(counts.gainage < WEEK_TARGETS.gainage.max && !todayDomains.has("gainage")){
@@ -981,6 +990,16 @@ function recCard(r){
       <div class="rec-title">Plan du jour</div>
       <div class="quota" style="display:flex;flex-wrap:wrap;gap:3px 10px">${Object.keys(WEEK_TARGETS).map(k=>`<span>${POOL_TXT[k]} <b>${c[k]}</b>/${t[k].min}–${t[k].max}</span>`).join("")}</div>
       ${r.slots.map((s,i)=>{
+        if(s.wod){
+          return `<div class="slotrow">
+            <span class="sdot" style="background:${POOL_DOT.wod}"></span>
+            <div class="smain">
+              <div class="st">WOD — benchmark ou Hero <small>(optionnel)</small></div>
+              <div class="ss">Ta séance dure de la semaine · ${BENCH.length} au choix</div>
+            </div>
+            <button class="btn btn-primary btn-sm slot-go" data-i="${i}">Go</button>
+          </div>`;
+        }
         if(s.cardio){
           return `<div class="slotrow">
             <span class="sdot" style="background:${POOL_DOT.endurance}"></span>
@@ -1065,7 +1084,9 @@ function bindRec(r){
   if(r.kind==="genPlan"){
     document.querySelectorAll(".slot-go").forEach(b=>b.onclick=()=>{
       const s=r.slots[+b.dataset.i]; if(!s) return;
-      if(s.cardio){ openCardioSheet(s.int); return; }
+      if(s.wod){ openWodList(); return; }
+      if(s.wod){ openWodList(); return; }
+    if(s.cardio){ openCardioSheet(s.int); return; }
       const sug=loadSuggestion(s.prog);
       startSession(sug ? {...s.prog, addedKg:sug.kg} : s.prog);
     });
@@ -1205,6 +1226,7 @@ function renderTrain(){
       <button class="btn btn-ghost" id="tgtCore">Gainage</button>
     </div>
     <button class="btn btn-ghost btn-block" id="tgtEndu" style="margin-bottom:8px">Endurance — nage, course, vélo, ski…</button>
+    <button class="btn btn-ghost btn-block" id="tgtWod" style="margin-bottom:8px">WOD — benchmarks & Hero WODs</button>
     <p class="hint" style="margin:0 0 4px;text-align:left">Chaque bouton lance le programme le moins fait du domaine, tous outils confondus (poutre, triangles, Mini Crux, kettlebells, TRX…).</p>
     <h2>Séance libre</h2>
     <button class="btn btn-ghost btn-block" id="freeBtn">⚡ Règle et démarre un timer à la volée</button>
@@ -1216,6 +1238,7 @@ function renderTrain(){
   const frg=document.getElementById("frGo"); if(frg) frg.onclick=openFreshSheet;
   const fb=document.getElementById("freeBtn"); if(fb) fb.onclick=openFreeSheet;
   const te=document.getElementById("tgtEndu"); if(te) te.onclick=()=>openCardioSheet();
+  const tw=document.getElementById("tgtWod"); if(tw) tw.onclick=openWodList;
   [["tgtDoigts",["doigts"]],["tgtHaut",MUSCLE_KEYS],["tgtCore",["gainage"]]].forEach(([id,pools])=>{
     const b=document.getElementById(id); if(!b) return;
     b.onclick=()=>{ const p=pickNext(pools.flatMap(k=>GENERAL_POOLS[k])); if(!p) return;
@@ -1360,7 +1383,7 @@ function renderProgress(){
       </div>
       <h2>6 dernières semaines</h2>
       <div class="card" style="padding:8px 14px">
-        <div class="wgrid" style="border-bottom:1px solid var(--line-strong)"><span class="wl">Sem.</span><span class="wl">Dgt</span><span class="wl">Tir</span><span class="wl">Pou</span><span class="wl">Jmb</span><span class="wl">Gain</span><span class="wl">Endu</span></div>
+        <div class="wgrid" style="border-bottom:1px solid var(--line-strong)"><span class="wl">Sem.</span><span class="wl">Dgt</span><span class="wl">Tir</span><span class="wl">Pou</span><span class="wl">Jmb</span><span class="wl">Gain</span><span class="wl">Endu</span><span class="wl">WOD</span></div>
         ${(()=>{ const t=WEEK_TARGETS, rows=[];
           for(let i=0;i<6;i++){
             const mon=mondayOf(new Date()).getTime()-i*7*864e5, c=weekCountsAt(mon), d=new Date(mon);
@@ -1387,6 +1410,11 @@ function renderProgress(){
       <div class="row2">
         <button class="cyctoggle ${settings.sound?"on":""}" id="setSound"><span>Sons</span><span class="sw"></span></button>
         <button class="cyctoggle ${settings.vibrate?"on":""}" id="setVib"><span>Vibrations</span><span class="sw"></span></button>
+      </div>
+      <div class="field" style="margin-top:12px"><label>Matériel disponible (filtre les WOD)</label>
+        <div class="pills" id="setEquip">
+          ${EQUIP_ALL.map(([k,l])=>`<button data-k="${k}" class="${equipSet().has(k)?"on":""}">${l}</button>`).join("")}
+        </div>
       </div>
       <div class="field" style="margin-top:12px"><label>FTP vélo (optionnel, en watts)</label>
         <input class="input" id="setFtp" type="number" inputmode="numeric" min="50" max="500" placeholder="—" value="${settings.ftp||""}">
@@ -1439,6 +1467,12 @@ function renderProgress(){
   if(ss) ss.onclick=()=>{ settings.sound=!settings.sound; store.set("settings",settings); ss.classList.toggle("on",settings.sound); if(settings.sound) audio.go(); };
   const sv=document.getElementById("setVib");
   if(sv) sv.onclick=()=>{ settings.vibrate=!settings.vibrate; store.set("settings",settings); sv.classList.toggle("on",settings.vibrate); if(settings.vibrate) vibrate(60); };
+  const eq=document.getElementById("setEquip");
+  if(eq) eq.querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    const s=equipSet(); const k=b.dataset.k;
+    if(s.has(k)) s.delete(k); else s.add(k);
+    settings.equip=[...s]; store.set("settings",settings); b.classList.toggle("on",s.has(k));
+  });
   const ft=document.getElementById("setFtp");
   if(ft) ft.onchange=()=>{ const n=parseInt(ft.value,10); settings.ftp=(n>0?n:null); store.set("settings",settings); toast(settings.ftp?`FTP ${settings.ftp} W`:"FTP effacée"); };
   const sf=document.getElementById("setFresh"); if(sf) sf.onclick=openFreshSheet;
@@ -1801,7 +1835,7 @@ function needBackupReminder(){
 }
 function doExport(){
   const data={ app:"poutre", version:APP_VERSION, exportedAt:new Date().toISOString(),
-    programs, sessions, plan, settings, tests, fresh };
+    programs, sessions, plan, settings, tests, fresh, benchHist:benchHistAll };
   const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
@@ -1836,6 +1870,15 @@ function bindBackup(){
           tests.sort((a,b)=>new Date(b.dateISO)-new Date(a.dateISO)); saveT();
         }
         if(d.fresh && typeof d.fresh.baselineKg==="number"){ fresh=d.fresh; saveFresh(); }
+        if(d.benchHist && typeof d.benchHist==="object"){
+          Object.entries(d.benchHist).forEach(([k,arr])=>{
+            if(!Array.isArray(arr)) return;
+            const cur=benchHistAll[k]||[]; const have=new Set(cur.map(e=>e.iso));
+            arr.forEach(e=>{ if(e&&e.iso&&!have.has(e.iso)) cur.push(e); });
+            cur.sort((a,b)=>new Date(b.iso)-new Date(a.iso)); benchHistAll[k]=cur;
+          });
+          saveBench();
+        }
         if(d.plan!==undefined) plan=d.plan;
         if(d.settings) settings={...settings,...d.settings};
         saveS(); saveP(); savePlan(); store.set("settings",settings);
@@ -1948,9 +1991,10 @@ function buildCardio(disc,intn,mins,brick){
 }
 
 /* ---- Budget d'intensité systémique : 1 séance dure/semaine (doigts exclus) ---- */
-function hardIntensityUsed(){
-  return weekSessions().filter(s=>domainOf(s.programId)==="endurance" && s.intensity==="dur").length;
+function weekHardUsed(){ // budget systémique partagé endurance + WOD (doigts exclus)
+  return weekSessions().filter(s=>s.intensity==="dur").length;
 }
+function hardIntensityUsed(){ return weekHardUsed(); }
 function hardYesterday(){
   const y=Date.now()-864e5;
   return sessions.some(s=>s.intensity==="dur" && new Date(s.dateISO).getTime()>y);
@@ -2033,6 +2077,194 @@ function openCardioLog(s){
       disc:cdState.disc, intensity: rpe>=8 ? "dur" : cdState.int, minutes:step.val.cd_min,
       pain:0, painNote:"", notes:document.getElementById("cd_notes").value.trim() });
     saveS(); closeSheet(); tab="progress"; render(); toast("Séance d'endurance enregistrée 🏃");
+  };
+}
+
+/* ============================================================
+   WOD — benchmarks & Hero WODs (portés d'Endurance 2.0)
+   ============================================================ */
+const BENCH=[
+ {id:'cindy',name:'Cindy',sub:'AMRAP 20 min',need:['barre'],blocks:['Échauffement 8-10 min','AMRAP 20 min : 5 tractions → 10 pompes → 15 squats','Note ton nombre de tours (référence : 12-15 tours = solide)','Retour au calme 5 min']},
+ {id:'annie',name:'Annie',sub:'50-40-30-20-10 · for time',blocks:['Échauffement 8 min + corde progressive','50-40-30-20-10 : double-unders (ou 2× sauts simples) + sit-ups','Note ton temps (référence : 8-12 min)','Retour au calme 5 min']},
+ {id:'helen',name:'Helen',sub:'3 rounds for time',need:['kb','barre'],blocks:['Échauffement 10 min avec accélérations','3 tours : 400 m course → 21 KB swings (16-24 kg) → 12 tractions','Note ton temps (référence : 10-14 min)','Retour au calme 5 min trot']},
+ {id:'halfmurph',name:'Half Murph',hero:true,sub:'Hero WOD · for time',need:['barre'],blocks:['Échauffement 10 min','800 m course → 50 tractions + 100 pompes + 150 squats (partitionne : 10 tours de 5/10/15) → 800 m course','Gilet lesté optionnel pour la version fidèle','Note ton temps (référence : 22-30 min)']},
+ {id:'jackie',name:'Jackie (adaptée)',sub:'For time',need:['kb','barre'],blocks:['Échauffement 10 min','1000 m course → 50 thrusters KB léger (2×8-12 kg) → 30 tractions','Note ton temps (référence : 12-16 min)','Retour au calme 5 min']},
+ {id:'jt',name:'J.T.',hero:true,sub:'Hero WOD · 21-15-9',need:['anneaux','box'],blocks:['Échauffement épaules complet 10 min','21-15-9 : pompes piquées (ou HSPU) → dips → pompes','Épaules exigeantes : réduis à 15-12-9 si besoin','Note ton temps']},
+ {id:'fran',name:'Fran (adaptée KB)',sub:'21-15-9 · for time',need:['kb','barre'],blocks:['Échauffement 10 min + quelques thrusters légers','21-15-9 : thrusters KB (2×12-16 kg) → tractions','Court et violent — pace le premier tour, sprinte le dernier','Note ton temps (référence : 6-10 min)']},
+ {id:'barbara',name:'Barbara',sub:'5 rounds · repos 3 min',need:['barre'],blocks:['Échauffement 10 min','5 tours : 20 tractions → 30 pompes → 40 sit-ups → 50 squats','Repos strict 3 min entre les tours — note le temps de chaque tour','Référence : tours réguliers, sans effondrement au 4ᵉ']},
+ {id:'chelsea',name:'Chelsea',sub:'EMOM 30 min',need:['barre'],blocks:['Échauffement 8 min','Chaque minute pendant 30 min : 5 tractions → 10 pompes → 15 squats','Si tu rates une minute, continue en AMRAP — note les minutes tenues','Référence : 30/30 = très solide (c\'est Cindy en plus dur)']},
+ {id:'angie',name:'Angie',sub:'100-100-100-100 · for time',need:['barre'],blocks:['Échauffement 10 min','For time : 100 tractions → 100 pompes → 100 sit-ups → 100 squats','Termine chaque mouvement avant de passer au suivant — fractionne intelligemment','Note ton temps (référence : 20-28 min)']},
+ {id:'mary',name:'Mary',sub:'AMRAP 20 min',need:['barre'],blocks:['Échauffement 10 min épaules + hanches','AMRAP 20 min : 5 HSPU (ou pompes piquées) → 10 pistols alternés (ou sur box) → 15 tractions','Utilise tes variantes d\'échelle du moment — c\'est prévu pour','Note tes tours (référence : 8-12)']},
+ {id:'nicole',name:'Nicole',sub:'AMRAP 20 min · course + tractions',need:['barre'],blocks:['Échauffement 10 min','AMRAP 20 min : 400 m course → max tractions sans lâcher la barre','Note le total de tractions cumulées','Référence : 40-60 tractions au total']},
+ {id:'eva',name:'Eva',sub:'5 rounds · long et dur',need:['kb','barre'],blocks:['Échauffement 12 min complet','5 tours : 800 m course → 30 KB swings (24 kg) → 30 tractions','Un des benchmarks les plus longs — gère dès le premier tour','Note ton temps (référence : 35-50 min)']},
+ {id:'karen',name:'Karen (med ball)',sub:'150 reps · for time',need:['mb'],blocks:['Échauffement 8 min + squats progressifs','150 lancers-squat med ball (squat complet, lancer vertical ou contre un mur)','Fractionne : 15×10 ou 10×15 — les jambes vont chauffer','Note ton temps (référence : 8-14 min)']},
+ {id:'murph',name:'Murph',hero:true,sub:'Hero WOD · le classique',need:['barre'],blocks:['Échauffement 12 min','1,6 km course → 100 tractions + 200 pompes + 300 squats (partitionne : 20 tours de 5/10/15) → 1,6 km course','Gilet lesté pour la version fidèle — sinon poids du corps, c\'est déjà sérieux','Note ton temps (référence : 45-70 min)']},
+ {id:'chad',name:'Chad',hero:true,sub:'Hero WOD · 1000 step-ups',need:['box','gilet'],blocks:['Échauffement 10 min hanches + mollets','1000 montées de box (50 cm) avec gilet lesté','L\'hommage qui te parle : c\'est une ascension. Rythme régulier, fractionne par 50 ou 100','Note ton temps (référence : 60-90 min) — prévois la journée légère derrière']},
+ {id:'michael',name:'Michael',hero:true,sub:'Hero WOD · 3 rounds',blocks:['Échauffement 10 min','3 tours : 800 m course → 50 supermans (extensions dorsales) → 50 sit-ups','Chaîne postérieure + tronc entre les courses','Note ton temps (référence : 22-30 min)']},
+ {id:'loredo',name:'Loredo',hero:true,sub:'Hero WOD · 6 rounds',blocks:['Échauffement 10 min','6 tours : 24 squats → 24 pompes → 24 fentes marchées → 400 m course','100 % poids du corps — parfait en déplacement','Note ton temps (référence : 28-38 min)']},
+ {id:'daniel',name:'Daniel (adapté KB)',hero:true,sub:'Hero WOD · pyramide',need:['kb','barre'],blocks:['Échauffement 12 min','50 tractions → 400 m → 21 thrusters KB (2×12-16 kg) → 800 m → 21 thrusters → 400 m → 50 tractions','Fractionne les tractions dès le début (10×5)','Note ton temps (référence : 25-35 min)']},
+ {id:'hansen',name:'Hansen (adapté)',hero:true,sub:'Hero WOD · 5 rounds',need:['kb'],blocks:['Échauffement 10 min','5 tours : 30 KB swings (24 kg) → 30 burpees → 30 v-ups','Volume brutal sur le cardio et le tronc — pace les burpees','Note ton temps (référence : 30-40 min)']},
+ {id:'grace',name:'Grace (adaptée KB)',sub:'30 reps · for time',need:['kb'],blocks:['Échauffement 10 min + cleans légers','30 clean & push press KB (20-24 kg, 15/bras)','Sprint pur — technique propre malgré la vitesse','Note ton temps (référence : 3-6 min)']},
+ {id:'isabel',name:'Isabel (adaptée KB)',sub:'30 reps · for time',need:['kb'],blocks:['Échauffement 10 min épaules + hanches','30 KB snatches (20-24 kg, 15/bras)','Le hinge fait le boulot, le bras guide','Note ton temps (référence : 3-6 min)']},
+ {id:'diane',name:'Diane (adaptée)',sub:'21-15-9 · for time',need:['kb'],blocks:['Échauffement 10 min épaules complet','21-15-9 : soulevés de terre KB lourds (2×28-32 kg) → HSPU (ou pompes piquées)','Dos neutre sous fatigue — c\'est le test','Note ton temps (référence : 6-12 min)']},
+ {id:'elizabeth',name:'Elizabeth (adaptée)',sub:'21-15-9 · for time',need:['kb','anneaux'],blocks:['Échauffement 10 min','21-15-9 : cleans KB (2×16-20 kg) → dips aux anneaux','Les dips fondent vite — fractionne tôt','Note ton temps (référence : 8-14 min)']},
+ {id:'kelly',name:'Kelly (adaptée)',sub:'5 rounds · for time',need:['box','mb'],blocks:['Échauffement 10 min','5 tours : 400 m course → 30 sauts sur box → 30 lancers-squat med ball','Long et cardio — allure régulière dès le tour 1','Note ton temps (référence : 25-35 min)']},
+ {id:'nancy',name:'Nancy (adaptée)',sub:'5 rounds · for time',need:['kb'],blocks:['Échauffement 10 min + mobilité épaules','5 tours : 400 m course → 15 squats overhead KB (12-16 kg, change de bras à volonté)','L\'overhead sous fatigue cardio : gainage total','Note ton temps (référence : 18-26 min)']},
+ {id:'lynne',name:'Lynne (adaptée)',sub:'5 rounds · max reps',need:['kb','barre'],blocks:['Échauffement 10 min','5 tours : floor press lourd (2×24-32 kg) max reps → tractions max reps','Pas de chrono — score = total des reps des 2 mouvements','Repos libre entre les tours, qualité maximale']},
+ {id:'tabata',name:'Tabata Something Else',sub:'4 × tabata · score total',need:['barre'],blocks:['Échauffement 8 min','Tabata (8 × 20 s effort / 10 s repos) de : tractions, puis pompes, puis sit-ups, puis squats','1 min de repos entre chaque tabata','Score = total de reps cumulées (référence : 250-350)']},
+ {id:'fgb',name:'Fight Gone Bad (adapté)',sub:'3 rounds · 5 stations',need:['kb','box','mb'],blocks:['Échauffement 10 min','3 tours de 5 × 1 min : lancers med ball → sumo high pull KB (16 kg) → sauts sur box → push press KB (2×12 kg) → burpees · 1 min repos entre tours','Change de station chaque minute sans pause','Score = total de reps (référence : 200-300)']},
+ {id:'filthy50',name:'Filthy Fifty (adapté)',sub:'Chipper · 10 × 50 reps',need:['kb','box','barre','mb'],blocks:['Échauffement 10 min','50 de chaque, dans l\'ordre : sauts sur box → tractions (élan ok) → KB swings 16 kg → fentes → relevés de genoux suspendu → push press 2×8-12 kg → supermans → lancers med ball → burpees → double-unders','Le chipper mythique — avance station par station','Note ton temps (référence : 25-40 min)']},
+ {id:'chief',name:'The Chief (adapté)',est:19,sub:'5 × AMRAP 3 min',need:['kb'],blocks:['Échauffement 10 min','5 cycles : AMRAP 3 min de (3 cleans KB 2×16 kg → 6 pompes → 9 squats) · 1 min repos entre cycles','Reprends chaque cycle où tu t\'es arrêté','Score = total de tours (référence : 17-25)']},
+ {id:'gijane',name:'G.I. Jane',sub:'100 reps · for time',need:['barre'],blocks:['Échauffement 10 min','100 burpee-tractions : burpee → saut → traction, c\'est 1 rep','Rythme métronome — 5 à 8 reps/min tiennent la distance','Note ton temps (référence : 15-25 min)']},
+ {id:'baseline',name:'Baseline (adapté)',sub:'Chipper court · for time',need:['barre'],blocks:['Échauffement 8 min','400 m course → 40 squats → 30 sit-ups → 20 pompes → 10 tractions','Le test d\'entrée classique — à refaire tous les 2-3 mois pour mesurer','Note ton temps (référence : 5-8 min)']},
+ {id:'deathby',name:'Death by burpees',sub:'EMOM ladder · jusqu\'à l\'échec',blocks:['Échauffement 8 min','Minute 1 : 1 burpee · minute 2 : 2 burpees · minute 3 : 3… continue tant que tu finis dans la minute','Ça paraît facile jusqu\'à la minute 12','Score = dernière minute complétée (référence : 14-18)']},
+ {id:'griff',name:'Griff',hero:true,sub:'Hero WOD · courses',blocks:['Échauffement 10 min','2 tours : 800 m course avant → 400 m course en ARRIÈRE','La marche arrière réveille quadris et proprioception — terrain dégagé obligatoire','Note ton temps (référence : 11-16 min)']},
+ {id:'maupin',name:'Maupin',hero:true,sub:'Hero WOD · 4 rounds',blocks:['Échauffement 10 min','4 tours : 800 m course → 49 pompes → 49 sit-ups → 49 squats','100 % poids du corps + course — volume sec','Note ton temps (référence : 30-40 min)']},
+ {id:'ryan',name:'Ryan (adapté)',hero:true,sub:'Hero WOD · 5 rounds',need:['barre','anneaux'],blocks:['Échauffement 12 min épaules','5 tours : 7 muscle-ups (ou 7 tractions + 7 dips) → 21 burpees','Les burpees s\'accumulent : 105 au total','Note ton temps (référence : 20-30 min)']},
+ {id:'nate',name:'Nate (adapté)',hero:true,sub:'Hero WOD · AMRAP 20',need:['kb','barre'],blocks:['Échauffement 12 min','AMRAP 20 min : 2 muscle-ups (ou 2 tractions + 2 dips) → 4 HSPU (ou pompes piquées) → 8 KB swings (32 kg)','Petites séries, haute qualité — le format le permet','Score = tours (référence : 10-16)']},
+ {id:'mcghee',name:'McGhee (adapté)',hero:true,sub:'Hero WOD · AMRAP 30',need:['kb','box'],blocks:['Échauffement 10 min','AMRAP 30 min : 5 soulevés de terre KB lourds (2×32 kg) → 13 pompes → 9 sauts sur box','30 minutes : pars à 70 %, finis à 100 %','Score = tours (référence : 15-22)']},
+ {id:'randy',name:'Randy (adapté KB)',hero:true,sub:'Hero WOD · 75 snatches',need:['kb'],blocks:['Échauffement 10 min épaules + hinge','75 KB snatches (16-20 kg) — change de bras par 5 ou 10','Le grip et le cardio lâchent avant les jambes','Note ton temps (référence : 8-14 min)']},
+ {id:'manion',name:'Manion (adapté)',hero:true,sub:'Hero WOD · 7 rounds',need:['kb'],blocks:['Échauffement 10 min','7 tours : 400 m course → 29 goblet squats (20-24 kg)','203 squats au total — les jambes s\'en souviendront','Note ton temps (référence : 30-42 min)']},
+ {id:'badger',name:'Badger (adapté)',hero:true,sub:'Hero WOD · 3 rounds',need:['kb','barre'],blocks:['Échauffement 12 min','3 tours : 30 squat cleans KB (2×12-16 kg) → 30 tractions → 800 m course','Un des plus durs du répertoire — respecte-le','Note ton temps (référence : 35-50 min)']},
+ {id:'josh',name:'Josh (adapté)',hero:true,sub:'Hero WOD · descente',need:['kb','barre'],blocks:['Échauffement 10 min','21 squats overhead KB → 42 tractions → 15 OHS → 30 tractions → 9 OHS → 18 tractions','90 tractions au total — fractionne dès le début','Note ton temps (référence : 12-20 min)']},
+ {id:'helton',name:'Helton (adapté)',hero:true,sub:'Hero WOD · 3 rounds',need:['kb'],blocks:['Échauffement 10 min','3 tours : 800 m course → 30 squat cleans KB (2×12-16 kg) → 30 burpees','Course-force-cardio : le triptyque complet','Note ton temps (référence : 28-38 min)']},
+ {id:'riley',name:'Riley (adapté)',hero:true,sub:'Hero WOD · course + burpees',blocks:['Échauffement 10 min','2,4 km course → 150 burpees → 2,4 km course','Gilet lesté pour la version fidèle — sinon déjà très costaud','Note ton temps (référence : 45-65 min)']},
+ {id:'kalsu',name:'Kalsu (adapté)',hero:true,sub:'Hero WOD · le redouté',need:['kb'],blocks:['Échauffement 12 min sérieux','100 thrusters KB (2×12-16 kg) · au début de CHAQUE minute : 5 burpees, puis thrusters le reste de la minute','L\'un des plus exigeants mentalement du répertoire','Note ton temps (référence : 25-45 min)']},
+ {id:'wittman',name:'Wittman (adapté)',hero:true,sub:'Hero WOD · 7 rounds',need:['kb','box'],blocks:['Échauffement 10 min','7 tours : 15 KB swings (24 kg) → 15 power cleans KB (2×12-16 kg) → 15 sauts sur box','315 reps — trouve le rythme durable','Note ton temps (référence : 25-35 min)']},
+ {id:'tellier',name:'Zachary Tellier',hero:true,sub:'Hero WOD · chipper cumulatif',blocks:['Échauffement 10 min','10 burpees → puis 10 burpees + 25 pompes → puis 10 b. + 25 p. + 50 fentes → + 100 sit-ups → + 150 squats (chaque bloc reprend tout depuis le début)','100 % poids du corps — la charge mentale monte avec les blocs','Note ton temps (référence : 25-35 min)']},
+ {id:'brenton',name:'Brenton (adapté)',hero:true,sub:'Hero WOD · déplacements',blocks:['Échauffement 10 min','5 tours : 30 m de bear crawl (marche de l\'ours) → 30 m de sauts en longueur enchaînés','Gilet lesté pour la version fidèle · burpee à chaque pause','Note ton temps (référence : 12-20 min)']},
+ {id:'collin',name:'Collin (adapté)',hero:true,sub:'Hero WOD · 6 rounds',need:['kb','box'],blocks:['Échauffement 10 min','6 tours : 200 m farmer carry (2×16-20 kg) → 12 push press KB → 12 sauts sur box → 12 sit-ups','Le carry use le grip pour tout le reste — anticipe','Note ton temps (référence : 30-40 min)']},
+];
+const BENCH_SCORE = new Set(["cindy","chelsea","mary","nicole","lynne","tabata","fgb","chief","deathby","nate","mcghee"]);
+const BENCH_FILTERS = [["all","Tous"],["bench","Benchmarks"],["hero","Heroes"],["court","Courts < 20 min"],["long","Longs ≥ 30 min"]];
+const EQUIP_ALL = [["barre","Barre de traction"],["kb","Kettlebells"],["box","Box / step"],["mb","Medicine ball"],["trx","TRX"],["anneaux","Anneaux"],["gilet","Gilet lesté"]];
+let benchState = store.get("benchState", { filter:"all", mins:30 });
+let benchHistAll = store.get("benchHist", {});
+function saveBench(){ store.set("benchState", benchState); store.set("benchHist", benchHistAll); }
+function equipSet(){ return new Set(settings.equip || ["barre","kb","box","mb","trx"]); }
+function estBenchMin(b){
+  if(b.est) return b.est;
+  if(BENCH_SCORE.has(b.id)){ const s=(b.sub||"").match(/(\d+)\s*min/i); return s?+s[1]:20; }
+  const m=(b.blocks||[]).join(" ").match(/référence\s*:\s*(\d+)/i);
+  if(m) return +m[1];
+  const s2=(b.sub||"").match(/(\d+)\s*min/i);
+  return s2?+s2[1]:20;
+}
+function benchMatches(b){
+  const f=benchState.filter;
+  if(f==="bench") return !b.hero;
+  if(f==="hero") return !!b.hero;
+  if(f==="court") return estBenchMin(b)<20;
+  if(f==="long") return estBenchMin(b)>=30;
+  return true;
+}
+function benchAvail(b){ const eq=equipSet(); return !b.need || b.need.every(e=>eq.has(e)); }
+function benchHist(id){ if(!benchHistAll[id]) benchHistAll[id]=[]; return benchHistAll[id]; }
+function parseScoreVal(s,isScore){
+  s=(s||"").trim(); if(!s) return null;
+  const m=s.match(/^(\d+)\s*[:hm']\s*(\d{1,2})/);
+  if(m) return (+m[1])*60+(+m[2]);
+  const n=parseFloat(s.replace(",","."));
+  if(isNaN(n)) return null;
+  return isScore ? n : n*60;
+}
+function benchPR(id){
+  const isScore=BENCH_SCORE.has(id);
+  const h=benchHist(id).filter(e=>e.val!=null);
+  if(!h.length) return null;
+  return h.reduce((a,b)=>isScore ? (b.val>a.val?b:a) : (b.val<a.val?b:a));
+}
+function pickBenchByTime(mins){
+  const pool = BENCH.filter(b=>benchAvail(b)).filter(b=>{
+    const e=estBenchMin(b); return e>=mins*0.6 && e<=mins*1.6;
+  });
+  const src = pool.length ? pool : BENCH.filter(benchAvail);
+  return src[Math.floor(Math.random()*src.length)] || null;
+}
+function openWodList(){
+  const list = BENCH.filter(benchMatches);
+  sheet(`
+    <h3>WOD & Hero WODs</h3>
+    <div class="sub">${BENCH.length} séances de référence, adaptées à ton matériel (kettlebells, box, medicine ball). Une seule par semaine : elles consomment ton budget d'intensité.</div>
+    <div class="field"><label>Filtre</label><div class="pills" id="wfF">
+      ${BENCH_FILTERS.map(([k,l])=>`<button data-k="${k}" class="${benchState.filter===k?"on":""}">${l}</button>`).join("")}
+    </div></div>
+    <div class="field"><label>Temps dispo — tirage au sort</label><div class="pills" id="wfT">
+      ${[15,20,30,45,60].map(t=>`<button data-k="${t}" class="${benchState.mins===t?"on":""}">${t} min</button>`).join("")}
+    </div>
+    <button class="btn btn-ghost btn-block" id="wfRand" style="margin-top:8px">🎲 Tire-moi un WOD de ~${benchState.mins} min</button>
+    </div>
+    <div style="max-height:46vh;overflow:auto;margin-bottom:14px">
+      ${list.map(b=>{
+        const av=benchAvail(b), pr=benchPR(b.id);
+        return `<div class="prow wod-row" data-id="${b.id}">
+          <span class="pdot" style="background:${b.hero?"var(--hot)":"#2E7FB8"}"></span>
+          <div class="pmain"><div class="pn">${esc(b.name)}${av?"":" <small style='color:var(--muted)'>· matériel manquant</small>"}</div>
+          <div class="ps">${esc(b.sub)} · ~${estBenchMin(b)} min${pr?` · 🏆 ${esc(pr.score)}`:""}</div></div>
+          <span style="color:var(--muted);font-size:18px">›</span>
+        </div>`;
+      }).join("")}
+    </div>
+    <button class="btn btn-ghost btn-block" id="wfClose">Fermer</button>
+  `);
+  document.querySelectorAll("#wfF button").forEach(b=>b.onclick=()=>{ benchState.filter=b.dataset.k; saveBench(); openWodList(); });
+  document.querySelectorAll("#wfT button").forEach(b=>b.onclick=()=>{ benchState.mins=+b.dataset.k; saveBench(); openWodList(); });
+  document.getElementById("wfRand").onclick=()=>{ const b=pickBenchByTime(benchState.mins); if(b) openWod(b.id); };
+  document.querySelectorAll(".wod-row").forEach(el=>el.onclick=()=>openWod(el.dataset.id));
+  document.getElementById("wfClose").onclick=closeSheet;
+}
+function openWod(id){
+  const b=BENCH.find(x=>x.id===id); if(!b) return;
+  const pr=benchPR(id), h=benchHist(id), isScore=BENCH_SCORE.has(id);
+  const budgetUsed = weekHardUsed()>=1;
+  sheet(`
+    <h3>${esc(b.name)}</h3>
+    <div class="sub">${b.hero?"Hero WOD":"Benchmark"} · ${esc(b.sub)} · ~${estBenchMin(b)} min${benchAvail(b)?"":" · ⚠ matériel manquant"}</div>
+    ${pr?`<div class="card" style="margin-bottom:12px;border-color:rgba(221,154,24,.45)"><div class="mono" style="font-size:12px">🏆 Meilleure perf : <b style="color:var(--chalk)">${esc(pr.score)}</b> · ${relDate(pr.iso).toLowerCase()}${h.length>1?` · ${h.length} tentatives`:""}</div></div>`:""}
+    <ul class="cdblocks" style="margin-bottom:14px">${b.blocks.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+    ${budgetUsed?`<p class="hint" style="text-align:left;margin:0 0 12px">⚠ Ton budget d'intensité de la semaine est déjà consommé. Ce WOD s'ajoutera par-dessus — à toi de juger. Tes doigts ne sont pas concernés.</p>`:""}
+    <div class="row2">
+      <button class="btn btn-ghost" id="wdBack">Retour</button>
+      <button class="btn btn-primary" id="wdDone">J'ai fait ce WOD</button>
+    </div>
+  `);
+  document.getElementById("wdBack").onclick=openWodList;
+  document.getElementById("wdDone").onclick=()=>openWodLog(b,isScore);
+}
+function openWodLog(b,isScore){
+  let rpe=9;
+  sheet(`
+    <h3>${esc(b.name)}</h3>
+    <div class="sub">${isScore?"Score : nombre de tours ou de reps.":"Temps : format 12:30 ou 12,5 (minutes)."}</div>
+    <div class="field"><label>${isScore?"Score (tours / reps)":"Temps"}</label>
+      <input class="input" id="wd_score" inputmode="${isScore?"numeric":"text"}" placeholder="${isScore?"ex. 14":"ex. 12:30"}"></div>
+    <div class="field"><label>Effort ressenti (RPE)</label><div class="goalseg" id="wd_rpe">
+      ${[6,7,8,9,10].map(v=>`<button data-v="${v}" class="${v===rpe?"on":""}">${v}</button>`).join("")}
+    </div></div>
+    <div class="field"><label>Notes</label><textarea class="input" id="wd_notes" placeholder="Échelles utilisées, ressenti, matériel…"></textarea></div>
+    <div class="row2">
+      <button class="btn btn-ghost" id="wd_skip">Ne pas enregistrer</button>
+      <button class="btn btn-primary" id="wd_save">Enregistrer</button>
+    </div>
+  `);
+  document.querySelectorAll("#wd_rpe button").forEach(x=>x.onclick=()=>{
+    document.querySelectorAll("#wd_rpe button").forEach(y=>y.classList.remove("on"));
+    x.classList.add("on"); rpe=+x.dataset.v; });
+  document.getElementById("wd_skip").onclick=()=>{ closeSheet(); render(); };
+  document.getElementById("wd_save").onclick=()=>{
+    const raw=document.getElementById("wd_score").value.trim();
+    const val=parseScoreVal(raw,isScore);
+    const prev=benchPR(b.id);
+    if(raw) benchHist(b.id).unshift({ iso:new Date().toISOString(), score:raw, val });
+    saveBench();
+    sessions.unshift({ id:uid(), programId:"wod", programName:b.name, dateISO:new Date().toISOString(),
+      grip:b.hero?"Hero WOD":"Benchmark", edgeMm:0, loadKg:0, rpe,
+      completedReps:1, totalReps:1, hangTimeSec:estBenchMin(b)*60,
+      wodId:b.id, intensity:"dur", minutes:estBenchMin(b),
+      pain:0, painNote:"", notes:(raw?`${raw} · `:"")+document.getElementById("wd_notes").value.trim() });
+    saveS(); closeSheet(); tab="progress"; render();
+    const isPR = val!=null && (!prev || (isScore ? val>prev.val : val<prev.val));
+    toast(isPR ? "Nouveau record 🏆" : "WOD enregistré 🔥");
   };
 }
 
@@ -2245,6 +2477,7 @@ function openNextSheet(p){
     <div class="sub">Séance terminée. Tu peux enchaîner maintenant ou revenir plus tard — le plan se met à jour tout seul.</div>
     ${nextSlots.length?`<div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cool-deep);font-weight:800;margin:4px 0 2px">Suite du plan du jour</div>
       ${nextSlots.map((s,i)=>{
+        if(s.wod) return row(POOL_DOT.wod, "WOD — benchmark ou Hero", `${BENCH.length} au choix · tirage par durée`, "ns-slot", i);
         if(s.cardio) return row(POOL_DOT.endurance, `Endurance — séance ${s.int}`, `${cdState.mins} min · sensation d'abord`, "ns-slot", i);
         const sug=loadSuggestion(s.prog);
         return row(POOL_DOT[s.domain], `${POOL_TXT[s.domain]} — ${esc(s.prog.name)}${s.light?" (léger)":s.optional?" (optionnel)":""}`,
@@ -2256,6 +2489,7 @@ function openNextSheet(p){
   document.querySelectorAll(".ns-slot").forEach(b=>b.onclick=()=>{
     const s=nextSlots[+b.dataset.k]; if(!s) return;
     closeSheet();
+    if(s.wod){ openWodList(); return; }
     if(s.cardio){ openCardioSheet(s.int); return; }
     const sug=loadSuggestion(s.prog); startSession(sug?{...s.prog,addedKg:sug.kg}:s.prog);
   });
