@@ -241,6 +241,16 @@ canvas{width:100%;display:block}
 .cycrow.cur{background:rgba(20,184,162,.10);border-color:var(--cool-deep);color:var(--chalk)}
 .cycrow.cur .wk{color:var(--cool-deep)}
 
+/* endurance : sélecteurs en pastilles + blocs de séance */
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pills button{padding:9px 12px;border-radius:999px;background:var(--bg);border:1px solid var(--line);
+  font-weight:700;font-size:12.5px;color:var(--muted)}
+.pills button.on{background:linear-gradient(180deg,var(--cool),var(--cool-deep));color:#fff;border-color:transparent}
+.cdblocks{list-style:none;padding:0;margin:0}
+.cdblocks li{position:relative;padding:9px 0 9px 20px;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.45}
+.cdblocks li:last-child{border-bottom:none}
+.cdblocks li:before{content:"";position:absolute;left:2px;top:16px;width:7px;height:7px;border-radius:50%;background:var(--cool)}
+
 /* progrès par domaine */
 .drow{display:flex;align-items:center;gap:10px;margin:9px 0}
 .drow .dl{width:62px;font-size:12px;font-weight:700}
@@ -362,7 +372,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v23"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v26"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -728,7 +738,7 @@ const ROTATIONS = {
 };
 const GAINAGE_IDS = ["core-sol","core-dorsal","core-hollow","core-susp","core-lsit","trx-core"];
 const ANTAGO_IDS = ["anta-ext","anta-pompes","anta-pike","anta-poignets","anta-coiffe"];
-function shouldAntago(p){ return !["antago","gainage","renfo"].includes(p.cat||"poutre"); }
+function shouldAntago(p){ return p && p.id!=="cardio" && !["antago","gainage","renfo"].includes(p.cat||"poutre"); }
 
 /* ---- Pools du programme général & des séances ciblées ---- */
 const GENERAL_POOLS = {
@@ -739,12 +749,13 @@ const GENERAL_POOLS = {
   gainage: ["core-sol","core-dorsal","core-hollow","core-susp","core-lsit","trx-core"]
 };
 const MUSCLE_KEYS = ["tirage","poussee","jambes"];
-const POOL_TXT = { doigts:"Doigts", tirage:"Tirage", poussee:"Poussée", jambes:"Jambes", gainage:"Gainage" };
-const POOL_DOT = { doigts:"var(--hot)", tirage:"#3aa0d6", poussee:"var(--cool)", jambes:"#9C6BD6", gainage:"var(--amber)" };
-const WEEK_TARGETS = { doigts:{min:2,max:3}, tirage:{min:1,max:2}, poussee:{min:1,max:2}, jambes:{min:1,max:2}, gainage:{min:4,max:5} };
+const POOL_TXT = { doigts:"Doigts", tirage:"Tirage", poussee:"Poussée", jambes:"Jambes", gainage:"Gainage", endurance:"Endurance" };
+const POOL_DOT = { doigts:"var(--hot)", tirage:"#3aa0d6", poussee:"var(--cool)", jambes:"#9C6BD6", gainage:"var(--amber)", endurance:"#2E7FB8" };
+const WEEK_TARGETS = { doigts:{min:2,max:3}, tirage:{min:1,max:2}, poussee:{min:1,max:2}, jambes:{min:1,max:2}, gainage:{min:4,max:5}, endurance:{min:2,max:4} };
 
 function progCat(pid){ const p=programs.find(x=>x.id===pid); return p?(p.cat||"poutre"):null; }
 function domainOf(pid){
+  if(pid==="cardio") return "endurance";
   for(const [k,ids] of Object.entries(GENERAL_POOLS)) if(ids.includes(pid)) return k;
   const c = progCat(pid);
   if(["poutre","triangle","minicrux","mcxpince"].includes(c)) return "doigts";
@@ -759,13 +770,13 @@ function weekSessions(){
 }
 function weekCountsAt(monTime){
   const end = monTime + 7*864e5;
-  const c={doigts:0,tirage:0,poussee:0,jambes:0,gainage:0};
+  const c={doigts:0,tirage:0,poussee:0,jambes:0,gainage:0,endurance:0};
   sessions.forEach(s=>{ const t=new Date(s.dateISO).getTime();
     if(t>=monTime && t<end){ const d=domainOf(s.programId); if(d) c[d]++; } });
   return c;
 }
 function weekCounts(){
-  const c={doigts:0,tirage:0,poussee:0,jambes:0,gainage:0};
+  const c={doigts:0,tirage:0,poussee:0,jambes:0,gainage:0,endurance:0};
   weekSessions().forEach(s=>{ const d=domainOf(s.programId); if(d) c[d]++; });
   return c;
 }
@@ -783,8 +794,9 @@ function generalDayPlan(deload, isDay){
   const painLvl = painF ? painF.pain : 0;
 
   // --- DOIGTS (indépendants de la charge systémique) ---
+  const fState = freshState();
   if(counts.doigts < WEEK_TARGETS.doigts.max && !todayDomains.has("doigts") && isDay && !deload && painLvl<2){
-    let ok = true, light = painLvl===1 || hardFinger;
+    let ok = true, light = painLvl===1 || hardFinger || (fState && fState.low);
     const lastFinger = sessions.find(s=>domainOf(s.programId)==="doigts");
     if(lastFinger){
       const hrs = (Date.now()-new Date(lastFinger.dateISO))/36e5;
@@ -819,12 +831,20 @@ function generalDayPlan(deload, isDay){
       if(prog) slots.push({domain:k, prog, optional:counts[k]>=WEEK_TARGETS[k].min});
     }
   }
+  // --- ENDURANCE (autonome : n'affecte jamais les doigts) ---
+  if(counts.endurance < WEEK_TARGETS.endurance.max && !todayDomains.has("endurance") && !deload){
+    const budgetUsed = weekSessions().filter(s=>domainOf(s.programId)==="endurance" && s.intensity==="dur").length>=1;
+    const yest = sessions.some(s=>s.intensity==="dur" && (Date.now()-new Date(s.dateISO).getTime())<864e5);
+    const hard = !budgetUsed && !yest && counts.endurance>=1; // la dure arrive après au moins une facile
+    slots.push({ domain:"endurance", cardio:true, int:hard?"dur":"facile",
+      optional:counts.endurance>=WEEK_TARGETS.endurance.min });
+  }
   // --- GAINAGE (quasi quotidien, y compris jours off et décharge) ---
   if(counts.gainage < WEEK_TARGETS.gainage.max && !todayDomains.has("gainage")){
     const prog = pickNext(GENERAL_POOLS.gainage);
     if(prog) slots.push({domain:"gainage", prog, optional:counts.gainage>=WEEK_TARGETS.gainage.min});
   }
-  return { slots, counts, hardFinger, hardSystemic, painLvl, painNote: painF ? (painF.painNote||"") : "" };
+  return { slots, counts, hardFinger, hardSystemic, painLvl, painNote: painF ? (painF.painNote||"") : "", freshLow: !!(fState&&fState.low), freshRatio: fState?fState.ratio:null };
 }
 const GOAL_TXT = { general:"programme général complet", force:"objectif force", endurance:"objectif endurance", mixte:"cycle mixte force / endurance" };
 
@@ -899,7 +919,7 @@ function todayRec(){
     const dp = generalDayPlan(deload, isDay);
     if(!dp.slots.length) return { kind:"genDone", counts:dp.counts, cyc:cycG };
     return { kind:"genPlan", slots:dp.slots, counts:dp.counts, cyc:cycG, deload, restDay:!isDay,
-      hardFinger:dp.hardFinger, hardSystemic:dp.hardSystemic, painLvl:dp.painLvl, painNote:dp.painNote };
+      hardFinger:dp.hardFinger, hardSystemic:dp.hardSystemic, painLvl:dp.painLvl, painNote:dp.painNote, freshLow:dp.freshLow, freshRatio:dp.freshRatio };
   }
   // Objectifs doigts : les garde-fous ne regardent QUE les séances doigts
   if(sessions.some(s=>dayKey(s.dateISO)===dayKey(now) && domainOf(s.programId)==="doigts")) return { kind:"done", alt:submax };
@@ -948,7 +968,8 @@ function recCard(r){
     const badge = r.cyc
       ? `<div class="rec-badge ${r.deload?"amber":"cool"}">Sem. ${r.cyc.week+1}/${r.cyc.total} · ${r.deload?"Décharge":"Général"}</div>`
       : `<div class="rec-badge cool">Plan du jour</div>`;
-    const note = r.painLvl===2 ? `Douleur vive signalée sur les doigts${r.painNote?` (${esc(r.painNote)})`:""} : zéro doigts tant que ça dure. Si ça persiste plus d'une semaine, consulte.` :
+    const note = (r.freshLow && r.painLvl<2 && !r.hardFinger) ? `Check de fraîcheur à ${Math.round(r.freshRatio*100)} % de ta référence : les doigts ne sont pas récupérés, on reste en léger aujourd'hui.` :
+      r.painLvl===2 ? `Douleur vive signalée sur les doigts${r.painNote?` (${esc(r.painNote)})`:""} : zéro doigts tant que ça dure. Si ça persiste plus d'une semaine, consulte.` :
       r.painLvl===1 ? `Gêne doigts signalée${r.painNote?` (${esc(r.painNote)})`:""} : doigts en sous-max léger uniquement, on surveille.` :
       r.hardFinger ? "Déjà 2 séances doigts très dures cette semaine : doigts en léger, leurs tissus récupèrent lentement." :
       r.hardSystemic ? "3 séances de force très dures cette semaine : muscu en pause (tirage, poussée, jambes). Doigts et gainage continuent — filières indépendantes." :
@@ -960,6 +981,16 @@ function recCard(r){
       <div class="rec-title">Plan du jour</div>
       <div class="quota" style="display:flex;flex-wrap:wrap;gap:3px 10px">${Object.keys(WEEK_TARGETS).map(k=>`<span>${POOL_TXT[k]} <b>${c[k]}</b>/${t[k].min}–${t[k].max}</span>`).join("")}</div>
       ${r.slots.map((s,i)=>{
+        if(s.cardio){
+          return `<div class="slotrow">
+            <span class="sdot" style="background:${POOL_DOT.endurance}"></span>
+            <div class="smain">
+              <div class="st">Endurance — ${CD_LBL[cdState.disc]||"séance"} ${s.int==="dur"?"<small>(dure)</small>":"<small>(facile)</small>"}${s.optional?" <small>(optionnel)</small>":""}</div>
+              <div class="ss">${cdState.mins} min · choisis ta discipline au lancement</div>
+            </div>
+            <button class="btn btn-primary btn-sm slot-go" data-i="${i}">Go</button>
+          </div>`;
+        }
         const sug=loadSuggestion(s.prog);
         return `<div class="slotrow">
           <span class="sdot" style="background:${POOL_DOT[s.domain]}"></span>
@@ -1034,6 +1065,7 @@ function bindRec(r){
   if(r.kind==="genPlan"){
     document.querySelectorAll(".slot-go").forEach(b=>b.onclick=()=>{
       const s=r.slots[+b.dataset.i]; if(!s) return;
+      if(s.cardio){ openCardioSheet(s.int); return; }
       const sug=loadSuggestion(s.prog);
       startSession(sug ? {...s.prog, addedKg:sug.kg} : s.prog);
     });
@@ -1151,6 +1183,7 @@ function renderTrain(){
     </div>
     ${backupBanner()}
     ${testBanner()}
+    ${freshCard(rec)}
     ${recCard(rec)}
     <div class="chips" style="margin-top:12px">
       <div class="chip cool"><div class="n">${s}</div><div class="l">Semaines OK</div></div>
@@ -1171,6 +1204,7 @@ function renderTrain(){
       <button class="btn btn-ghost" id="tgtHaut">Muscles</button>
       <button class="btn btn-ghost" id="tgtCore">Gainage</button>
     </div>
+    <button class="btn btn-ghost btn-block" id="tgtEndu" style="margin-bottom:8px">Endurance — nage, course, vélo, ski…</button>
     <p class="hint" style="margin:0 0 4px;text-align:left">Chaque bouton lance le programme le moins fait du domaine, tous outils confondus (poutre, triangles, Mini Crux, kettlebells, TRX…).</p>
     <h2>Séance libre</h2>
     <button class="btn btn-ghost btn-block" id="freeBtn">⚡ Règle et démarre un timer à la volée</button>
@@ -1179,7 +1213,9 @@ function renderTrain(){
   bindRec(rec);
   bindBackupBanner();
   bindTestBanner();
+  const frg=document.getElementById("frGo"); if(frg) frg.onclick=openFreshSheet;
   const fb=document.getElementById("freeBtn"); if(fb) fb.onclick=openFreeSheet;
+  const te=document.getElementById("tgtEndu"); if(te) te.onclick=()=>openCardioSheet();
   [["tgtDoigts",["doigts"]],["tgtHaut",MUSCLE_KEYS],["tgtCore",["gainage"]]].forEach(([id,pools])=>{
     const b=document.getElementById(id); if(!b) return;
     b.onclick=()=>{ const p=pickNext(pools.flatMap(k=>GENERAL_POOLS[k])); if(!p) return;
@@ -1324,7 +1360,7 @@ function renderProgress(){
       </div>
       <h2>6 dernières semaines</h2>
       <div class="card" style="padding:8px 14px">
-        <div class="wgrid" style="border-bottom:1px solid var(--line-strong)"><span class="wl">Sem.</span><span class="wl">Dgt</span><span class="wl">Tir</span><span class="wl">Pou</span><span class="wl">Jmb</span><span class="wl">Gain</span></div>
+        <div class="wgrid" style="border-bottom:1px solid var(--line-strong)"><span class="wl">Sem.</span><span class="wl">Dgt</span><span class="wl">Tir</span><span class="wl">Pou</span><span class="wl">Jmb</span><span class="wl">Gain</span><span class="wl">Endu</span></div>
         ${(()=>{ const t=WEEK_TARGETS, rows=[];
           for(let i=0;i<6;i++){
             const mon=mondayOf(new Date()).getTime()-i*7*864e5, c=weekCountsAt(mon), d=new Date(mon);
@@ -1351,6 +1387,15 @@ function renderProgress(){
       <div class="row2">
         <button class="cyctoggle ${settings.sound?"on":""}" id="setSound"><span>Sons</span><span class="sw"></span></button>
         <button class="cyctoggle ${settings.vibrate?"on":""}" id="setVib"><span>Vibrations</span><span class="sw"></span></button>
+      </div>
+      <div class="field" style="margin-top:12px"><label>FTP vélo (optionnel, en watts)</label>
+        <input class="input" id="setFtp" type="number" inputmode="numeric" min="50" max="500" placeholder="—" value="${settings.ftp||""}">
+        <p class="hint" style="text-align:left;margin:6px 0 0">Si renseignée, les séances vélo/home trainer affichent aussi les watts. Sinon, tout reste en sensation.</p>
+      </div>
+      <div class="field" style="margin-top:12px"><label>Check de fraîcheur (peson)</label>
+      <div class="mono" style="font-size:11.5px;color:var(--muted);margin-bottom:8px">${fresh.baselineKg?`Référence : ${fresh.baselineKg} kg · ${fresh.log.length} relevé(s)`:"Non configuré — accroche un pèse-bagage au Mini Crux pour un suivi objectif des doigts."}</div>
+      <button class="btn btn-ghost btn-block" id="setFresh">${fresh.baselineKg?"Nouveau relevé":"Configurer le peson"}</button>
+      ${fresh.baselineKg?`<button class="btn btn-ghost btn-block" id="setFreshReset" style="margin-top:6px;color:var(--hot-deep)">Réinitialiser la référence</button>`:""}
       </div>
     </div>
     <h2>Bilans de force</h2>
@@ -1394,6 +1439,10 @@ function renderProgress(){
   if(ss) ss.onclick=()=>{ settings.sound=!settings.sound; store.set("settings",settings); ss.classList.toggle("on",settings.sound); if(settings.sound) audio.go(); };
   const sv=document.getElementById("setVib");
   if(sv) sv.onclick=()=>{ settings.vibrate=!settings.vibrate; store.set("settings",settings); sv.classList.toggle("on",settings.vibrate); if(settings.vibrate) vibrate(60); };
+  const ft=document.getElementById("setFtp");
+  if(ft) ft.onchange=()=>{ const n=parseInt(ft.value,10); settings.ftp=(n>0?n:null); store.set("settings",settings); toast(settings.ftp?`FTP ${settings.ftp} W`:"FTP effacée"); };
+  const sf=document.getElementById("setFresh"); if(sf) sf.onclick=openFreshSheet;
+  const sfr=document.getElementById("setFreshReset"); if(sfr) sfr.onclick=()=>{ if(confirm("Effacer la référence et l'historique du peson ?")){ fresh={baselineKg:0,log:[]}; saveFresh(); render(); toast("Peson réinitialisé"); } };
 }
 function histRow(s){
   return `<div class="hist" data-sid="${s.id}">
@@ -1625,6 +1674,40 @@ function bindSteppers(onChange){
   });
 }
 
+/* ---------- Check de fraîcheur (peson / pèse-bagage) ---------- */
+let fresh = store.get("fresh", { baselineKg:0, log:[] }); // log: [{dateISO, kg, ratio}]
+function saveFresh(){ store.set("fresh", fresh); }
+function todayFresh(){ return fresh.log.find(f=>dayKey(f.dateISO)===dayKey(new Date())); }
+function openFreshSheet(){
+  const hasBase = fresh.baselineKg>0;
+  sheet(`
+    <h3>Check de fraîcheur</h3>
+    <div class="sub">Accroche le peson au Mini Crux (réglette 20 mm, semi-arqué), tire un maximum isométrique de 5 s d'un bras, note le pic. À faire échauffé, le matin d'une séance doigts, toujours dans les mêmes conditions.</div>
+    ${stepper("fr_kg","Pic de traction (main la plus forte)","kg",todayFresh()?todayFresh().kg:(hasBase?fresh.baselineKg:30),0,150,1)}
+    ${hasBase?`<div class="card" style="margin-bottom:14px"><div class="mono" style="font-size:12px;color:var(--muted)">Ta référence : <b style="color:var(--chalk)">${fresh.baselineKg} kg</b></div><p class="hint" style="text-align:left;margin:6px 0 0">Sous 90 % de ta référence = doigts non récupérés, le plan bascule en léger pour la journée.</p></div>`:`<p class="hint" style="text-align:left;margin:0 0 14px">Premier relevé : il devient ta référence. Refais-le quelques matins frais pour l'affiner — on garde le meilleur.</p>`}
+    <div class="row2">
+      <button class="btn btn-ghost" id="fr_cancel">Annuler</button>
+      <button class="btn btn-primary" id="fr_save">Enregistrer</button>
+    </div>
+  `);
+  bindSteppers();
+  document.getElementById("fr_cancel").onclick=closeSheet;
+  document.getElementById("fr_save").onclick=()=>{
+    const kg=step.val.fr_kg;
+    if(!fresh.baselineKg || kg>fresh.baselineKg) fresh.baselineKg=kg; // la référence = meilleur relevé
+    const ratio = fresh.baselineKg ? kg/fresh.baselineKg : 1;
+    fresh.log = fresh.log.filter(f=>dayKey(f.dateISO)!==dayKey(new Date()));
+    fresh.log.unshift({ dateISO:new Date().toISOString(), kg, ratio });
+    fresh.log = fresh.log.slice(0,60);
+    saveFresh(); closeSheet(); render();
+    toast(ratio>=0.9 ? "Doigts frais 💪" : "Doigts fatigués — on lève le pied");
+  };
+}
+function freshState(){ // état du jour pour le plan
+  const f=todayFresh(); if(!f || !fresh.baselineKg) return null;
+  return { ratio:f.ratio, low:f.ratio<0.9 };
+}
+
 /* ---------- Bilans de force ---------- */
 let tests = store.get("tests", []);
 let testMeta = store.get("testMeta", { snoozeUntilISO:null });
@@ -1634,6 +1717,23 @@ function needTestReminder(){
   if(testMeta.snoozeUntilISO && new Date(testMeta.snoozeUntilISO) > new Date()) return false;
   if(!tests.length) return true;
   return (Date.now() - new Date(tests[0].dateISO).getTime())/864e5 >= 42;
+}
+function freshCard(rec){
+  if(!fresh.baselineKg) return ""; // pas de peson configuré -> rien
+  if(!(rec && rec.kind==="genPlan" && rec.slots.some(s=>s.domain==="doigts"))) return "";
+  const f=todayFresh();
+  if(f){
+    const pct=Math.round(f.ratio*100);
+    return `<div class="card" style="border-color:${f.ratio<0.9?"rgba(232,78,42,.4)":"rgba(20,184,162,.4)"}">
+      <div class="rec-head"><div class="rec-badge ${f.ratio<0.9?"amber":"cool"}">Fraîcheur ${pct}%</div></div>
+      <p class="rec-txt" style="margin-top:2px">${f.ratio<0.9?"Doigts sous ta référence — le plan reste léger aujourd'hui.":"Doigts frais, tu peux charger normalement."} <span class="mono" style="font-size:11px">${f.kg}/${fresh.baselineKg} kg</span></p>
+    </div>`;
+  }
+  return `<div class="card" style="border-color:rgba(20,184,162,.35)">
+    <div class="rec-head"><div class="rec-badge cool">Check de fraîcheur</div></div>
+    <p class="rec-txt" style="margin-top:2px">Séance doigts au programme. 10 s au peson pour vérifier que tes doigts sont récupérés avant de charger ?</p>
+    <button class="btn btn-primary btn-sm" id="frGo" style="margin-top:10px">Faire le check</button>
+  </div>`;
 }
 function testBanner(){
   if(!needTestReminder()) return "";
@@ -1658,7 +1758,7 @@ function openTestSheet(){
   const last = tests[0] || { hangKg:0, pinchKg:15, pullKg:0, plankSec:60 };
   sheet(`
     <h3>Bilan de force</h3>
-    <div class="sub">À faire frais, après un échauffement complet. Monte progressivement vers chaque max — 3 min de repos entre les essais. Mêmes conditions à chaque bilan pour comparer honnêtement.</div>
+    <div class="sub">À faire frais, après un échauffement complet. Monte progressivement vers chaque max — 3 min de repos entre les essais. Mêmes conditions à chaque bilan pour comparer honnêtement. Repère : un « max » de bilan = RPE 9-10, à une seconde de l'échec.</div>
     ${stepper("t_hang","Suspension 10 s — lest total (réglette 20 mm)","kg",last.hangKg,-60,120,1)}
     <p class="hint" style="text-align:left;margin:-6px 0 12px">Lest max tenu 10 s propres en semi-arqué. Négatif si allégé à l'élastique.</p>
     ${stepper("t_pinch","Pince 7 s — charge soulevée (Mini Crux)","kg",last.pinchKg,0,100,1)}
@@ -1701,7 +1801,7 @@ function needBackupReminder(){
 }
 function doExport(){
   const data={ app:"poutre", version:APP_VERSION, exportedAt:new Date().toISOString(),
-    programs, sessions, plan, settings, tests };
+    programs, sessions, plan, settings, tests, fresh };
   const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
@@ -1735,6 +1835,7 @@ function bindBackup(){
           d.tests.forEach(x=>{ if(x&&x.id&&!tIds.has(x.id)) tests.push(x); });
           tests.sort((a,b)=>new Date(b.dateISO)-new Date(a.dateISO)); saveT();
         }
+        if(d.fresh && typeof d.fresh.baselineKg==="number"){ fresh=d.fresh; saveFresh(); }
         if(d.plan!==undefined) plan=d.plan;
         if(d.settings) settings={...settings,...d.settings};
         saveS(); saveP(); savePlan(); store.set("settings",settings);
@@ -1756,6 +1857,184 @@ function sheet(html){
 }
 function closeSheet(){ $("#sheet-root").innerHTML=""; }
 
+
+/* ============================================================
+   ENDURANCE — générateur sensation-first (porté d'Endurance 2.0)
+   ============================================================ */
+const CD_DISCS=[["nage","Nage"],["course","Course"],["ht","Home trainer"],["brick","Brick swimrun"],
+  ["rando","Rando rapide"],["velo","Vélo route"],["skirando","Ski de rando"],["corde","Corde à sauter"]];
+const CD_TIMES=[20,30,45,60,75,90];
+const CD_LBL=Object.fromEntries(CD_DISCS);
+let cdState = store.get("cdState", { disc:"course", int:"facile", mins:45, brick:"nage" });
+function saveCd(){ store.set("cdState", cdState); }
+function pw(lo,hi){ const f=settings.ftp; if(!f) return "";
+  const a=Math.round(f*lo/100), b=Math.round(f*hi/100); return ` (${lo===hi?a:a+"-"+b} W)`; }
+const FX={ z2:"aisance : conversation complète possible (3-4/10)",
+  ss:"soutenu : phrases courtes seulement (6-7/10)", vo2:"vif : quelques mots max (8-9/10)" };
+const FXN={ z2:"respiration 3 temps confortable — au mur tu parles normalement (3-4/10)",
+  ss:"le 2 temps devient nécessaire — au mur, phrases courtes (6-7/10)",
+  vo2:"essoufflé en fin de série — au mur, quelques mots après 2-3 respirations (8/10)" };
+function tgt(k,lo,hi){ return settings.ftp ? `${FX[k]} · ${lo===hi?lo:lo+"-"+hi} % FTP${pw(lo,hi)}` : FX[k]; }
+function buildCardio(disc,intn,mins,brick){
+  const name=CD_LBL[disc]||disc;
+  if(disc==="brick"){
+    if(brick==="indoor"){
+      const run=Math.min(20,Math.round(mins*0.35)), ht=Math.max(15,mins-run-4);
+      if(intn==="facile") return {title:"Brick indoor · HT + course", sub:`${mins} min · facile`, blocks:[
+        `Home trainer ${ht} min en ${tgt("z2",65,75)}`,
+        "Transition < 2 min — chaussures prêtes à côté du vélo",
+        `Course facile ${run} min — cadence haute, tu dois pouvoir parler`,
+        "C'est l'enchaînement qui compte, pas l'allure"]};
+      return {title:"Brick indoor · HT + course", sub:`${mins} min · dur`, blocks:[
+        "Échauffement HT 10 min progressif",
+        `${Math.max(2,Math.round((ht-10)/12))} × 8 min ${tgt("ss",88,92)} / 3 min souple`,
+        "Transition < 2 min",
+        `Course tempo ${Math.min(15,run)} min sur jambes lourdes — phrases courtes (7/10)`,
+        "Retour au calme 5 min marche/trot"]};
+    }
+    if(intn==="facile"){
+      const r1=Math.round(mins*0.35), sw=Math.round(mins*0.25), r2=Math.max(10,mins-r1-sw-4);
+      return {title:"Brick swimrun · nage + course", sub:`${mins} min · facile + transitions`, blocks:[
+        `Course facile ${r1} min en tenue de swimrun — conversation possible`,
+        "Transition rapide — pull-buoy, lunettes, entre dans l'eau sans traîner",
+        `Nage continue ${sw} min — ${FXN.z2}`,
+        "Transition — repars en courant immédiatement, jambes lourdes",
+        `Course facile ${r2} min, retrouve ta foulée`]};
+    }
+    const reps=Math.max(2,Math.round((mins-15)/13));
+    return {title:"Brick swimrun · nage + course", sub:`${mins} min · effort course`, blocks:[
+      "Échauffement 10 min course facile + mobilité épaules",
+      `${reps} × (course 8 min soutenue — phrases courtes → transition chrono → nage 4 min vive, 2 temps nécessaire)`,
+      "Transitions chronométrées : chaque seconde compte le jour J",
+      "Retour au calme 5 min trot + nage souple"]};
+  }
+  if(disc==="ht"){
+    if(intn==="facile") return {title:"Home trainer · facile", sub:`${mins} min · Z2`, blocks:[
+      "Mise en route 8-10 min en montant doucement",
+      `Continu ~${Math.max(15,mins-15)} min en ${tgt("z2",65,75)} · cadence ~90 tr/min`,
+      "Reste vraiment facile : si tu ne peux plus discuter, ralentis",
+      "Retour au calme 5 min souple"]};
+    let w,f;
+    if(mins>=75){ w=12; f=`3 × 15 min ${tgt("ss",88,92)} / 5 min souple entre les blocs`; }
+    else if(mins>=60){ w=12; f=`2 × 20 min ${tgt("ss",90,90)} / 5-8 min souple entre les blocs`; }
+    else if(mins>=45){ w=10; f=`3 × 10 min ${tgt("ss",90,94)} / 5 min souple`; }
+    else { w=12; f="2-3 blocs de 10 × (30 s quasi à fond (9/10) / 15 s souple) · 5 min entre blocs"; }
+    return {title:"Home trainer · dur", sub:`${mins} min · ${mins>=45?"sweet spot":"30/15"}`, blocks:[
+      `Échauffement progressif ${w} min avec 2-3 accélérations courtes`, f, "Retour au calme 8 min souple"]};
+  }
+  if(intn==="facile"){
+    let b;
+    if(disc==="nage") b=["Échauffement souple 200-300 m",
+      `Nage continue facile ~${Math.max(10,mins-10)} min — ${FXN.z2}`,
+      "Quelques éducatifs si tu veux (battements, rattrapé)","Retour au calme 100-200 m"];
+    else if(disc==="corde"){ const r=Math.max(3,Math.round(mins/4));
+      b=[`${r} × 2 min sauts souples / 1 min repos`,"Rebonds bas, rythme régulier, respiration calme"]; }
+    else b=["Mise en route progressive 5-8 min",
+      `${name} facile en continu ~${Math.max(10,mins-8)} min — conversation complète possible (3-4/10)`,
+      "Tu finis en te sentant capable de continuer"];
+    return {title:`${name} · facile`, sub:`${mins} min · continu`, blocks:b};
+  }
+  const warm=12, cool=8, work=Math.max(8,mins-warm-cool);
+  let fmt, fk="ss";
+  if(disc==="nage"){ fmt=`${Math.max(4,Math.round(work/2.5))} × 100 m vif / 30 s repos`; fk="vo2"; }
+  else if(disc==="corde"){ fmt=`${Math.max(5,Math.round(work/1.5))} × 45 s rapide / 45 s repos`; fk="vo2"; }
+  else if(disc==="velo") fmt=`${Math.max(4,Math.round(work/6))} × 3 min fort / 3 min souple`;
+  else if(disc==="skirando") fmt=`${Math.max(3,Math.round(work/8))} × 4 min soutenu / récup en descente ou pause`;
+  else if(disc==="rando") fmt=`${Math.max(4,Math.round(work/6))} × 3 min en côte soutenu / redescente récup`;
+  else fmt=`${Math.max(4,Math.round(work/4))} × 2 min soutenu / 2 min récup`;
+  return {title:`${name} · dur`, sub:`${mins} min · intervalles`, blocks:[
+    `Échauffement progressif ${warm} min`, fmt,
+    `Cible sur les efforts — ${disc==="nage"?FXN[fk]:FX[fk]}`, `Retour au calme ${cool} min`]};
+}
+
+/* ---- Budget d'intensité systémique : 1 séance dure/semaine (doigts exclus) ---- */
+function hardIntensityUsed(){
+  return weekSessions().filter(s=>domainOf(s.programId)==="endurance" && s.intensity==="dur").length;
+}
+function hardYesterday(){
+  const y=Date.now()-864e5;
+  return sessions.some(s=>s.intensity==="dur" && new Date(s.dateISO).getTime()>y);
+}
+
+function openCardioSheet(forceInt){
+  if(forceInt) cdState.int=forceInt;
+  const budgetUsed = hardIntensityUsed()>=1, dayAfter = hardYesterday();
+  const locked = budgetUsed || dayAfter;
+  if(locked) cdState.int="facile";
+  const s = buildCardio(cdState.disc, cdState.int, cdState.mins, cdState.brick);
+  sheet(`
+    <h3>Séance d'endurance</h3>
+    <div class="sub">Sensation d'abord : les repères sont respiratoires, la montre est optionnelle.</div>
+    <div class="field"><label>Discipline</label><div class="pills" id="cdD">
+      ${CD_DISCS.map(([k,l])=>`<button data-k="${k}" class="${cdState.disc===k?"on":""}">${l}</button>`).join("")}
+    </div></div>
+    ${cdState.disc==="brick"?`<div class="field"><label>Type de brick</label><div class="goalseg" id="cdB">
+      <button data-k="nage" class="${cdState.brick==="nage"?"on":""}">Nage + course</button>
+      <button data-k="indoor" class="${cdState.brick==="indoor"?"on":""}">HT + course</button>
+    </div></div>`:""}
+    <div class="field"><label>Intensité</label><div class="goalseg" id="cdI">
+      <button data-k="facile" class="${cdState.int==="facile"?"on":""}">Facile</button>
+      <button data-k="dur" class="${cdState.int==="dur"?"on":""}" ${locked?'style="opacity:.45"':""}>Dur</button>
+    </div>
+    ${locked?`<p class="hint" style="text-align:left;margin:6px 0 0">${budgetUsed?"Budget d'intensité déjà consommé cette semaine (1 séance dure).":"Séance dure hier : on ne fait jamais deux durs de suite."} Tes doigts ne sont pas concernés — filières indépendantes.</p>`:""}
+    </div>
+    <div class="field"><label>Durée</label><div class="pills" id="cdT">
+      ${CD_TIMES.map(t=>`<button data-k="${t}" class="${cdState.mins===t?"on":""}">${t} min</button>`).join("")}
+    </div></div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="font-weight:800;font-size:15px">${esc(s.title)}</div>
+      <div class="mono" style="font-size:11.5px;color:var(--muted);margin:3px 0 8px">${esc(s.sub)}</div>
+      <ul class="cdblocks">${s.blocks.map(b=>`<li>${esc(b)}</li>`).join("")}</ul>
+    </div>
+    <div class="row2">
+      <button class="btn btn-ghost" id="cdClose">Fermer</button>
+      <button class="btn btn-primary" id="cdDone">J'ai fait cette séance</button>
+    </div>
+  `);
+  const re=()=>openCardioSheet();
+  document.querySelectorAll("#cdD button").forEach(b=>b.onclick=()=>{ cdState.disc=b.dataset.k; saveCd(); re(); });
+  const bb=document.getElementById("cdB");
+  if(bb) bb.querySelectorAll("button").forEach(b=>b.onclick=()=>{ cdState.brick=b.dataset.k; saveCd(); re(); });
+  document.querySelectorAll("#cdI button").forEach(b=>b.onclick=()=>{
+    if(locked && b.dataset.k==="dur"){ toast("Budget d'intensité épuisé cette semaine"); return; }
+    cdState.int=b.dataset.k; saveCd(); re(); });
+  document.querySelectorAll("#cdT button").forEach(b=>b.onclick=()=>{ cdState.mins=+b.dataset.k; saveCd(); re(); });
+  document.getElementById("cdClose").onclick=closeSheet;
+  document.getElementById("cdDone").onclick=()=>{ closeSheet(); openCardioLog(s); };
+}
+function openCardioLog(s){
+  let rpe = cdState.int==="dur" ? 8 : 4;
+  sheet(`
+    <h3>${esc(s.title)}</h3>
+    <div class="sub">${esc(s.sub)} — comment c'était ?</div>
+    <div class="field"><label>Effort ressenti (RPE)</label><div class="goalseg" id="cd_rpe" style="flex-wrap:wrap">
+      ${[2,4,6,8,10].map(v=>`<button data-v="${v}" class="${v===rpe?"on":""}">${v}</button>`).join("")}
+    </div></div>
+    <div class="mono" id="cd_rpetxt" style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-6px 0 14px"></div>
+    ${stepper("cd_min","Durée réelle","min",cdState.mins,5,240,5)}
+    <div class="field"><label>Notes</label><textarea class="input" id="cd_notes" placeholder="Sensations, météo, parcours…"></textarea></div>
+    <div class="row2">
+      <button class="btn btn-ghost" id="cd_skip">Ne pas enregistrer</button>
+      <button class="btn btn-primary" id="cd_save">Enregistrer</button>
+    </div>
+  `);
+  const T={2:"Très facile — récupération",4:"Facile — conversation complète",6:"Modéré — phrases courtes",
+    8:"Dur — quelques mots max",10:"Maximal — à bout de souffle"};
+  const upd=()=>{ const el=document.getElementById("cd_rpetxt"); if(el) el.textContent=`RPE ${rpe} : ${T[rpe]}`; };
+  upd(); bindSteppers();
+  document.querySelectorAll("#cd_rpe button").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll("#cd_rpe button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); rpe=+b.dataset.v; upd(); });
+  document.getElementById("cd_skip").onclick=()=>{ closeSheet(); render(); };
+  document.getElementById("cd_save").onclick=()=>{
+    sessions.unshift({ id:uid(), programId:"cardio", programName:s.title, dateISO:new Date().toISOString(),
+      grip:CD_LBL[cdState.disc]||cdState.disc, edgeMm:0, loadKg:0, rpe,
+      completedReps:1, totalReps:1, hangTimeSec:step.val.cd_min*60,
+      disc:cdState.disc, intensity: rpe>=8 ? "dur" : cdState.int, minutes:step.val.cd_min,
+      pain:0, painNote:"", notes:document.getElementById("cd_notes").value.trim() });
+    saveS(); closeSheet(); tab="progress"; render(); toast("Séance d'endurance enregistrée 🏃");
+  };
+}
 
 /* ---------- Séance libre (workout indépendant, non sauvegardé) ---------- */
 let freeLast = store.get("freeLast", { prepSec:10, hangSec:7, restRepSec:3, reps:6, restSetSec:120, sets:3, addedKg:0, grip:"Bac / ouvert" });
@@ -1965,7 +2244,9 @@ function openNextSheet(p){
     <h3>Et ensuite ?</h3>
     <div class="sub">Séance terminée. Tu peux enchaîner maintenant ou revenir plus tard — le plan se met à jour tout seul.</div>
     ${nextSlots.length?`<div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cool-deep);font-weight:800;margin:4px 0 2px">Suite du plan du jour</div>
-      ${nextSlots.map((s,i)=>{ const sug=loadSuggestion(s.prog);
+      ${nextSlots.map((s,i)=>{
+        if(s.cardio) return row(POOL_DOT.endurance, `Endurance — séance ${s.int}`, `${cdState.mins} min · sensation d'abord`, "ns-slot", i);
+        const sug=loadSuggestion(s.prog);
         return row(POOL_DOT[s.domain], `${POOL_TXT[s.domain]} — ${esc(s.prog.name)}${s.light?" (léger)":s.optional?" (optionnel)":""}`,
           `≈${Math.round(estDuration(s.prog)/60)} min${sug&&sug.delta!==0?` · lest ${sug.kg>0?"+":""}${sug.kg} kg`:""}`, "ns-slot", i); }).join("")}`:""}
     ${anta.length?`<div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--hot-deep);font-weight:800;margin:12px 0 2px">Antagonistes — recommandé après le tirage</div>
@@ -1974,7 +2255,9 @@ function openNextSheet(p){
   `);
   document.querySelectorAll(".ns-slot").forEach(b=>b.onclick=()=>{
     const s=nextSlots[+b.dataset.k]; if(!s) return;
-    const sug=loadSuggestion(s.prog); closeSheet(); startSession(sug?{...s.prog,addedKg:sug.kg}:s.prog);
+    closeSheet();
+    if(s.cardio){ openCardioSheet(s.int); return; }
+    const sug=loadSuggestion(s.prog); startSession(sug?{...s.prog,addedKg:sug.kg}:s.prog);
   });
   document.querySelectorAll(".ns-anta").forEach(b=>b.onclick=()=>{
     const a=programs.find(x=>x.id===b.dataset.k); if(a){ closeSheet(); startSession(a); }
@@ -1998,6 +2281,7 @@ function openLog(p, done, total){
     <div class="field"><label>Effort perçu (RPE)</label><div class="rpe" id="l_rpe">
       ${[4,5,6,7,8,9,10].map(v=>`<button data-v="${v}" class="${v===7?"on":""}">${v}</button>`).join("")}
     </div></div>
+    <div class="mono" id="l_rpetxt" style="font-size:11.5px;color:var(--muted);font-weight:700;margin:-6px 0 14px"></div>
     <div class="field"><label>Douleur / gêne</label><div class="goalseg" id="l_pain">
       <button data-v="0" class="on">Aucune</button><button data-v="1">Légère</button><button data-v="2">Vive</button>
     </div></div>
@@ -2009,8 +2293,17 @@ function openLog(p, done, total){
     </div>
   `);
   bindSteppers();
+  const RPE_TXT = {
+    1:"Très léger — à peine un effort", 2:"Très léger — à peine un effort",
+    3:"Léger — échauffement, récupération", 4:"Léger — échauffement, récupération",
+    5:"Confortable — beaucoup de réserve", 6:"Modéré — la charge peut monter",
+    7:"Solide — 3 reps / secondes de marge", 8:"Dur mais contrôlé — 2-3 s de marge",
+    9:"Très dur — à 1 seconde de l'échec", 10:"Échec réel — la prise a lâché"
+  };
+  const rpeTxt=()=>{ const el=$("#l_rpetxt"); if(el) el.textContent = `RPE ${rpe} : ${RPE_TXT[rpe]}`; };
+  rpeTxt();
   $("#l_rpe").querySelectorAll("button").forEach(b=>b.onclick=()=>{
-    $("#l_rpe").querySelectorAll("button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); rpe=+b.dataset.v;
+    $("#l_rpe").querySelectorAll("button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); rpe=+b.dataset.v; rpeTxt();
   });
   let pain=0;
   $("#l_pain").querySelectorAll("button").forEach(b=>b.onclick=()=>{
