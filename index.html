@@ -309,6 +309,12 @@ canvas{width:100%;display:block}
 
 
 
+/* ---------- Lecteur d'échauffement doigts guidé ---------- */
+#fwarm{position:fixed;inset:0;z-index:118;background:var(--bg);color:var(--ink);
+  display:none;flex-direction:column;align-items:center;
+  padding:calc(14px + env(safe-area-inset-top)) 18px calc(14px + env(safe-area-inset-bottom))}
+#fwarm.on{display:flex}
+
 /* ---------- Player OA (module scellé, palette claire OA 2.0) ---------- */
 #oaplayer{ --bg:#f2f7f6; --ink:#12312d; --dim:#5f7c79; --mut:#5f7c79; --faint:#8aa19d;
   --aqua:#0e7c6f; --teal:#2db6a4; --teal2:#175f56; --tealD:#1c8f80;
@@ -461,6 +467,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
 <div id="sheet-root"></div>
 
 
+<div id="fwarm"></div>
 <div id="oaplayer"><div id="playerRoot"></div></div>
 <div id="yplayer" role="dialog" aria-label="Pratique de yoga en cours">
   <div class="p-top">
@@ -505,7 +512,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v37"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v39"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -1439,6 +1446,11 @@ function bindRec(r){
   if(r.kind==="genPlan"){
     document.querySelectorAll(".slot-go").forEach(b=>b.onclick=()=>{
       const s=r.slots[+b.dataset.i]; if(!s) return;
+      if(s.domain==="doigts" && !s.light && !warmupDoneToday()){
+        const prog=s.prog;
+        startFingerWarmup(()=>{ const sug=loadSuggestion(prog); startSession(sug?{...prog,addedKg:sug.kg}:prog); });
+        return;
+      }
       if(s.oa){ openOaHome(); return; }
       if(s.oa){ openOaHome(); return; }
     if(s.yoga){ const y=yogaSuggest(); openYoga(y.style, STYLE_MENUS[y.style].sessions.indexOf(y.s)); return; }
@@ -1668,6 +1680,7 @@ function renderTrain(){
     <button class="btn btn-ghost btn-block" id="tgtWod" style="margin-bottom:8px">WOD — benchmarks & Hero WODs</button>
     <p class="hint" style="margin:0 0 4px;text-align:left">Chaque bouton lance le programme le moins fait du domaine, tous outils confondus (poutre, triangles, Mini Crux, kettlebells, TRX…).</p>
     <h2>Matériel</h2>
+    <button class="btn btn-ghost btn-block" id="fwBtn" style="margin-bottom:8px">🔥 Échauffement doigts guidé</button>
     <button class="btn btn-ghost btn-block" id="eqBtn" style="margin-bottom:8px">🎒 Je n'ai pas tout mon matériel aujourd'hui</button>
     <h2>Séance libre</h2>
     <button class="btn btn-ghost btn-block" id="freeBtn">⚡ Règle et démarre un timer à la volée</button>
@@ -1681,6 +1694,7 @@ function renderTrain(){
   const te=document.getElementById("tgtEndu"); if(te) te.onclick=()=>openCardioSheet();
   const tw=document.getElementById("tgtWod"); if(tw) tw.onclick=openWodList;
   bindMorning();
+  const fw=document.getElementById("fwBtn"); if(fw) fw.onclick=()=>startFingerWarmup();
   const eb=document.getElementById("eqBtn"); if(eb) eb.onclick=openEquipSheet;
   const ee=document.getElementById("eqEdit"); if(ee) ee.onclick=openEquipSheet;
   const to=document.getElementById("tgtOa"); if(to) to.onclick=openOaHome;
@@ -1693,7 +1707,10 @@ function renderTrain(){
       if(!p){ const t=pools.map(pickTrack).find(Boolean);
         if(t){ pendingVerdict=null; openTrack(t.id); return; }
         toast("Rien de faisable avec le matériel du jour"); return; }
-      const sug=loadSuggestion(p); startSession(sug?{...p,addedKg:sug.kg}:p); };
+      const launch=()=>{ const sug=loadSuggestion(p); startSession(sug?{...p,addedKg:sug.kg}:p); };
+      // les doigts passent toujours par l'échauffement guidé s'il n'a pas été fait
+      if(id==="tgtDoigts" && !warmupDoneToday()){ startFingerWarmup(launch); return; }
+      launch(); };
   });
   setupInstall();
 }
@@ -1893,7 +1910,7 @@ function renderProgress(){
         <p class="hint" style="text-align:left;margin:6px 0 0">Si renseignée, les séances vélo/home trainer affichent aussi les watts. Sinon, tout reste en sensation.</p>
       </div>
       <div class="field" style="margin-top:12px"><label>Check de fraîcheur (peson)</label>
-      <div class="mono" style="font-size:11.5px;color:var(--muted);margin-bottom:8px">${fresh.baselineKg?`Référence : ${fresh.baselineKg} kg · ${fresh.log.length} relevé(s)`:"Non configuré — accroche un pèse-bagage au Mini Crux pour un suivi objectif des doigts."}</div>
+      <div class="mono" style="font-size:11.5px;color:var(--muted);margin-bottom:8px">${fresh.baselineKg?`Référence : ${fresh.baselineKg} kg · ${(fresh.log||[]).length} relevé(s)`:"Non configuré — accroche un pèse-bagage au Mini Crux pour un suivi objectif des doigts."}</div>
       <button class="btn btn-ghost btn-block" id="setFresh">${fresh.baselineKg?"Nouveau relevé":"Configurer le peson"}</button>
       ${fresh.baselineKg?`<button class="btn btn-ghost btn-block" id="setFreshReset" style="margin-top:6px;color:var(--hot-deep)">Réinitialiser la référence</button>`:""}
       </div>
@@ -2189,8 +2206,10 @@ function bindSteppers(onChange){
 
 /* ---------- Check de fraîcheur (peson / pèse-bagage) ---------- */
 let fresh = store.get("fresh", { baselineKg:0, log:[] }); // log: [{dateISO, kg, ratio}]
+if(!fresh || typeof fresh!=="object") fresh = { baselineKg:0, log:[] };
+if(!Array.isArray(fresh.log)) fresh.log = [];
 function saveFresh(){ store.set("fresh", fresh); }
-function todayFresh(){ return fresh.log.find(f=>dayKey(f.dateISO)===dayKey(new Date())); }
+function todayFresh(){ return (fresh.log||[]).find(f=>dayKey(f.dateISO)===dayKey(new Date())); }
 function openFreshSheet(){
   const hasBase = fresh.baselineKg>0;
   sheet(`
@@ -2268,6 +2287,20 @@ function bindTestBanner(){
   if(later) later.onclick=()=>{ testMeta.snoozeUntilISO=new Date(Date.now()+14*864e5).toISOString(); store.set("testMeta",testMeta); render(); toast("Rappel dans 2 semaines"); };
 }
 function openTestSheet(){
+  if(!warmupDoneToday()){
+    sheet(`
+      <h3>Bilan de force</h3>
+      <div class="sub">Ce sont des efforts maximaux — les mesurer à froid, c'est le meilleur moyen de se blesser une poulie. L'échauffement complet est obligatoire avant de mesurer.</div>
+      <div class="card" style="margin-bottom:14px;border-color:rgba(232,78,42,.4)">
+        <p style="font-size:13.5px;margin:0">Protocole long recommandé pour du max (20-30 min de montée progressive selon la littérature). Le lecteur te guide pas à pas.</p>
+      </div>
+      <button class="btn btn-primary btn-block" id="tWarm" style="margin-bottom:8px">🔥 Lancer l'échauffement de bilan</button>
+      <button class="btn btn-ghost btn-block" id="tClose">Plus tard</button>
+    `);
+    document.getElementById("tWarm").onclick=()=>{ closeSheet(); startFingerWarmup(()=>openTestSheet(), {mode:"test"}); };
+    document.getElementById("tClose").onclick=closeSheet;
+    return;
+  }
   const last = tests[0] || { hangKg:0, pinchKg:15, pullKg:0, plankSec:60 };
   sheet(`
     <h3>Bilan de force</h3>
@@ -5012,6 +5045,166 @@ function openWodLog(b,isScore){
   };
 }
 
+/* ============================================================
+   ÉCHAUFFEMENT DOIGTS GUIDÉ (protocoles Eva López, Hörst, Nelson)
+   Phases minutées, calibré sur le type de séance et le matériel.
+   Références : suspensions progressives 40→90% (López), mobilité +
+   activation générale (Hörst), tractions de recrutement 3-5 s (Nelson).
+   ============================================================ */
+function warmupPlan(target, mode){
+  /* Protocole fondé sur la littérature (Eva López ; Schweizer 2001, Swiss Med Weekly ;
+     The Climbing Doctor ; PhysiVantage ; Unlevel Edge) : 3 temps — (1) température et
+     flux sanguin corps entier, (2) mobilité et circulation locale des doigts, (3) montée
+     en charge PROGRESSIVE des fléchisseurs, du sous-maximal vers l'intensité de travail,
+     jamais à froid, jamais à l'échec. L'escalier part de suspensions courtes (5 s) sur
+     gros bac et descend vers la prise de travail en montant la charge (≈40→50→65→80 %),
+     puis 2 amorces de recrutement (3-5 s) qui potentialisent le max sans fatiguer. */
+  const grip = target ? target.grip : "";
+  const isPinch = grip==="Pince";
+  const eq = (typeof equipSet==="function") ? equipSet() : new Set();
+  const noHang = !eq.has("poutre") && eq.has("minicrux"); // voyage Mini Crux : tout au sol
+  const baseKg = (fresh && fresh.baselineKg) ? fresh.baselineKg : null;
+  const load = pct => baseKg ? ` · vise ~${Math.max(0,Math.round(baseKg*pct/100))} kg` : "";
+  const rest = (d,cue) => ({ dur:d, phase:"Repos", cue:cue||"Descends, secoue les avant-bras, respire.", kind:"rest" });
+  const steps = [];
+  steps.push({ dur:180, phase:"Activation générale", kind:"move",
+    cue:"3 min pour élever la température : montées de genoux, jumping jacks ou corde à sauter, puis grands cercles de bras, épaules, coudes et poignets. Le sang doit affluer avant toute charge." });
+  steps.push({ dur:90, phase:"Mobilité des doigts", kind:"move",
+    cue:"Ouvre/ferme les poings lentement, écarte les doigts, rotations de poignets. Masse les avant-bras — fléchisseurs ET extenseurs. La chaleur locale rend les tendons plus souples et capables d'absorber plus de force." });
+  steps.push({ dur:75, phase:"Tirage facile", kind:"move",
+    cue:"3-4 tractions lentes sur bac (ou tractions d'omoplates), quelques rotations de coiffe. Réveille dorsaux et épaules avant de charger les doigts." });
+  if(isPinch){
+    steps.push({ dur:8,  phase:"Pince — contact léger", kind:"hang", cue:`Soulevé de pince ~8 s, charge très légère${load(40)}. Serrage progressif du pouce, dos droit, bras le long du corps.` });
+    steps.push(rest(45));
+    steps.push({ dur:10, phase:"Pince — montée", kind:"hang", cue:`~10 s à charge modérée${load(55)}. Marge confortable, jamais de crispation brusque.` });
+    steps.push(rest(50));
+    steps.push({ dur:10, phase:"Pince — soutenu", kind:"hang", cue:`~10 s à charge soutenue${load(70)}. Grosse marge — arrête bien avant l'échec.` });
+    steps.push(rest(60, "Repos complet. Tes pinces sont prêtes pour les séries de travail."));
+  } else if(noHang){
+    steps.push({ dur:5,  phase:"No-hang — contact", kind:"hang", cue:`Soulevé Mini Crux réglette 25 mm, ~5 s très léger${load(40)}. Demi-arqué, poignet neutre.` });
+    steps.push(rest(45));
+    steps.push({ dur:8,  phase:"No-hang — léger", kind:"hang", cue:`~8 s à charge légère${load(50)}. Montée de force lente, sans à-coup.` });
+    steps.push(rest(50));
+    steps.push({ dur:10, phase:"No-hang — modéré", kind:"hang", cue:`~10 s à charge modérée${load(65)}. Épaule et gainage engagés même au sol.` });
+    steps.push(rest(60));
+    steps.push({ dur:10, phase:"No-hang — soutenu", kind:"hang", cue:`~10 s à ${baseKg?"~80 %":"charge soutenue"}${load(80)}. Grosse marge, forme parfaite.` });
+    steps.push(rest(70, "Repos complet avant les séries de travail."));
+  } else {
+    steps.push({ dur:5,  phase:"Bac — contact", kind:"hang", cue:`Gros bac, bras fléchis, ~5 s sans forcer${load(40)}. Pieds au sol si besoin pour doser. On amorce, on ne charge pas encore.` });
+    steps.push(rest(40));
+    steps.push({ dur:10, phase:"Suspension légère", kind:"hang", cue:`Réglette 30-35 mm, ~10 s à charge très légère${load(50)}. Demi-arqué ou tendu — jamais arqué complet à froid.` });
+    steps.push(rest(60));
+    steps.push({ dur:10, phase:"Suspension modérée", kind:"hang", cue:`Même prise, ~10 s à charge modérée${load(65)}. Épaules actives (omoplates basses), gainage engagé.` });
+    steps.push(rest(60));
+    steps.push({ dur:10, phase:"Suspension soutenue", kind:"hang", cue:`Descends vers ta prise de travail, ~10 s à ${baseKg?"~80 %":"charge soutenue"}${load(80)}. Grosse marge — arrête bien avant l'échec.` });
+    steps.push(rest(75, "Repos complet — laisse les poulies se réhydrater."));
+    const isMax = mode==="test" || !target || /max|force|recrut|bloc/i.test((target.name||"")+" "+(target.type||""));
+    if(isMax){
+      steps.push({ dur:5, phase:"Recrutement", kind:"hang", cue:"Tire ~3-5 s aussi fort que possible sur une réglette fixe ou contre le pied. Fléchisseurs seuls, montée de force lente. Amorce le max sans fatiguer." });
+      steps.push(rest(40, "Change de main."));
+      steps.push({ dur:5, phase:"Recrutement — 2e main", kind:"hang", cue:"Idem ~3-5 s à fond, autre main. Puis repos complet." });
+      steps.push(rest(50, "Tes doigts sont chauds, recrutés, prêts pour le max."));
+    }
+  }
+  if(mode==="light"){ steps.forEach(s=>{ if(s.kind==="rest") s.dur=Math.round(s.dur*0.6); }); }
+  else if(mode==="test"){ steps.forEach(s=>{ if(s.kind==="rest") s.dur=Math.round(s.dur*1.15); }); }
+  return { steps, isPinch, noHang, mode: mode||"standard", totalSec: steps.reduce((a,s)=>a+s.dur,0) };
+}
+
+let warmupState = null;
+function startFingerWarmup(onDone, opts){
+  const sessEl=document.getElementById("session");
+  if(YogaPlayer.isOn() || OA.playerOn() || (sessEl && sessEl.classList.contains("on"))){ toast("Termine d'abord l'exercice en cours"); return; }
+  opts = opts || {};
+  let target = opts.target || null, mode = opts.mode || null;
+  if(!target && !mode){
+    const r = todayRec();
+    const slot = (r.slots||[]).find(s=>s.domain==="doigts");
+    target = slot ? slot.prog : null;
+    if(slot && slot.light) mode = "light";
+  }
+  const plan = warmupPlan(target, mode);
+  warmupState = { plan, i:0, remain:plan.steps[0].dur, running:true, onDone:onDone||null, lastBeep:null };
+  const el = document.getElementById("fwarm");
+  el.classList.add("on");
+  document.body.style.overflow="hidden";
+  drawWarmup();
+  requestWakeGeneric();
+  warmupLoop(performance.now());
+}
+let wuRAF=null, wuWake=null;
+function requestWakeGeneric(){ try{ if(settings.wake && "wakeLock" in navigator) navigator.wakeLock.request("screen").then(w=>wuWake=w).catch(()=>{}); }catch(e){} }
+function warmupLoop(t){
+  if(!warmupState || !warmupState.running) return;
+  const st = warmupState, cur = st.plan.steps[st.i];
+  if(st.last==null) st.last=t;
+  const dt=(t-st.last)/1000; st.last=t;
+  if(st.running) st.remain -= dt;
+  // bips de fin de phase
+  const rs=Math.ceil(st.remain);
+  if(rs<=3 && rs>0 && st.lastBeep!==rs && cur.kind!=="move"){ st.lastBeep=rs; try{audio.tick&&audio.tick();}catch(e){} }
+  if(st.remain<=0){
+    st.i++;
+    if(st.i>=st.plan.steps.length){ finishWarmup(true); return; }
+    st.remain=st.plan.steps[st.i].dur; st.lastBeep=null;
+    try{audio.go&&audio.go();}catch(e){}
+    drawWarmup();
+  } else {
+    updateWarmupTime();
+  }
+  wuRAF=requestAnimationFrame(warmupLoop);
+}
+function drawWarmup(){
+  const st=warmupState; if(!st) return;
+  const cur=st.plan.steps[st.i];
+  const kindColor={hang:"var(--hot)",rest:"var(--cool)",move:"var(--amber)"}[cur.kind]||"var(--cool)";
+  const done=st.plan.steps.slice(0,st.i).reduce((a,s)=>a+s.dur,0);
+  const pct=Math.round(100*done/st.plan.totalSec);
+  document.getElementById("fwarm").innerHTML=`
+    <div class="p-top" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:4px 2px">
+      <span style="font-size:12px;color:var(--muted);font-weight:800;letter-spacing:.05em;text-transform:uppercase">Échauffement doigts${st.plan.isPinch?" · pince":st.plan.noHang?" · no-hang":""}${st.plan.mode==="test"?" · bilan":st.plan.mode==="light"?" · léger":""} · ${Math.round(st.plan.totalSec/60)} min</span>
+      <button class="p-close" id="fwClose" style="background:none;border:1px solid var(--line);border-radius:999px;padding:6px 13px;color:var(--muted);font-weight:700;font-size:12.5px">Passer</button>
+    </div>
+    <div class="p-prog" style="width:100%;height:4px;background:var(--line);border-radius:2px;margin:10px 0"><i style="display:block;height:100%;width:${pct}%;background:var(--cool);border-radius:2px;transition:width .3s"></i></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:0 10px">
+      <div style="width:180px;height:180px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 40% 35%, ${kindColor}, transparent 72%);border:2px solid ${kindColor}">
+        <span id="fwTime" style="font-size:56px;font-weight:800;font-family:var(--mono)">${Math.ceil(st.remain)}</span>
+      </div>
+      <div style="font-size:22px;font-weight:800">${esc(cur.phase)}</div>
+      <div style="font-size:14px;color:var(--muted);max-width:32ch;line-height:1.5">${esc(cur.cue)}</div>
+      <div style="font-size:11.5px;color:var(--faint)">Étape ${st.i+1}/${st.plan.steps.length}${cur.kind==="move"?" · à ton rythme":""}</div>
+    </div>
+    <div style="display:flex;gap:12px;padding:8px 0 calc(10px + env(safe-area-inset-bottom))">
+      <button class="btn btn-ghost" id="fwSkipStep" style="padding:12px 20px">Étape suivante ›</button>
+      ${cur.kind==="move"?`<button class="btn btn-primary" id="fwNextMove" style="padding:12px 24px">Fait ✓</button>`:""}
+    </div>`;
+  document.getElementById("fwClose").onclick=()=>finishWarmup(false);
+  document.getElementById("fwSkipStep").onclick=()=>{ st.remain=0; };
+  const nm=document.getElementById("fwNextMove"); if(nm) nm.onclick=()=>{ st.remain=0; };
+}
+function updateWarmupTime(){ const e=document.getElementById("fwTime"); if(e) e.textContent=Math.max(0,Math.ceil(warmupState.remain)); 
+  const cur=warmupState.plan.steps[warmupState.i];
+  const done=warmupState.plan.steps.slice(0,warmupState.i).reduce((a,s)=>a+s.dur,0)+(cur.dur-warmupState.remain);
+  const bar=document.querySelector("#fwarm .p-prog i"); if(bar) bar.style.width=Math.round(100*done/warmupState.plan.totalSec)+"%";
+}
+function finishWarmup(completed){
+  if(wuRAF) cancelAnimationFrame(wuRAF); wuRAF=null;
+  try{ wuWake&&wuWake.release(); }catch(e){} wuWake=null;
+  const st=warmupState; warmupState=null;
+  document.getElementById("fwarm").classList.remove("on");
+  document.body.style.overflow="";
+  if(completed){
+    // journalise l'échauffement (exclu des quotas via PREP_IDS) et déverrouille les doigts
+    sessions.unshift({ id:uid(), programId:"echauffement", programName:"Échauffement doigts (guidé)",
+      dateISO:new Date().toISOString(), grip:"Préparation", edgeMm:0, loadKg:0, rpe:3,
+      completedReps:1, totalReps:1, hangTimeSec:st?st.plan.totalSec:0, pain:0, painNote:"", notes:"Protocole guidé" });
+    saveS();
+    toast("Doigts échauffés 🔥 — prêt pour le travail");
+    if(st && st.onDone) st.onDone();
+  }
+  render();
+}
+
 /* ---------- Routine matinale : BOLT à froid → force des doigts → yoga ---------- */
 function logYogaQuick(styleKey, s, mins){
   sessions.unshift({ id:uid(), programId:"yoga", programName:s.name, dateISO:new Date().toISOString(),
@@ -5027,11 +5220,13 @@ function morningYogaPick(){
   }
   return { style:"hatha", idx:0 };
 }
-function fingerWarmupProg(){
-  const w = programs.find(p=>p.id==="echauffement");
-  if(w && progAvail(w)) return w;
-  const m = programs.find(p=>p.id==="mcx-warm");
-  return (m && progAvail(m)) ? m : w;
+function recentlyWarm(){
+  // chaud = échauffement OU vraie séance doigts dans les 90 dernières minutes
+  const lim = Date.now() - 90*60e3;
+  return sessions.some(s=>{
+    if(new Date(s.dateISO).getTime() < lim) return false;
+    return PREP_IDS.has(s.programId) || domainOf(s.programId)==="doigts";
+  });
 }
 function warmupDoneToday(){
   return sessions.some(s=>dayKey(s.dateISO)===dayKey(new Date())
@@ -5049,13 +5244,12 @@ function morningSteps(){
     const r = todayRec();
     const slot = (r.slots||[]).find(s=>s.domain==="doigts");
     if(slot){
-      const wu = fingerWarmupProg();
-      steps.push({ k:"warmup", label:"Échauffement doigts", prog:wu,
-        sub:"Montée en charge progressive — obligatoire avant de charger",
-        done: warmupDoneToday() });
+      steps.push({ k:"warmup", label:"Échauffement doigts guidé",
+        sub:"10-12 min : mobilité, suspensions progressives, recrutement — obligatoire avant de charger",
+        done: recentlyWarm() || warmupDoneToday() });
       steps.push({ k:"doigts", label:"Force des doigts", slot,
         sub: slot.light ? `${slot.prog.name} — léger (récupération en cours)` : slot.prog.name,
-        done: today("doigts"), locked: !warmupDoneToday() && !today("doigts") });
+        done: today("doigts"), locked: !recentlyWarm() && !today("doigts") });
     } else {
       steps.push({ k:"doigts", label:"Force des doigts", slot:null,
         sub:"Rien aujourd'hui (garde-fous ou jour off)", done:false });
@@ -5069,13 +5263,14 @@ function morningNext(){
 function morningLaunch(st){
   if(!st) return;
   if(st.k==="bolt"){ oaSafetyCheck(()=>OA.openPlayer("bolt")); return; }
-  if(st.k==="warmup" && st.prog){ startSession(st.prog); return; }
+  if(st.k==="warmup"){
+    const dSlot = morningSteps().find(x=>x.k==="doigts");
+    startFingerWarmup(()=>render(), { target: dSlot&&dSlot.slot ? dSlot.slot.prog : null,
+      mode: dSlot&&dSlot.slot&&dSlot.slot.light ? "light" : null });
+    return;
+  }
   if(st.k==="doigts" && st.slot){
-    if(!warmupDoneToday()){
-      toast("Jamais à froid — échauffement d'abord 🔥");
-      const wu=fingerWarmupProg(); if(wu) startSession(wu);
-      return;
-    }
+    // startSession chaîne lui-même l'échauffement guidé si les 90 min sont dépassées
     const sug=loadSuggestion(st.slot.prog);
     startSession(sug?{...st.slot.prog,addedKg:sug.kg}:st.slot.prog); return;
   }
@@ -5325,6 +5520,12 @@ const PHASE_TXT={prep:"Préparation",hang:"Suspension",restRep:"Repos",restSet:"
 async function startSession(p){
   if(YogaPlayer.isOn()){ toast("Termine d'abord ta pratique de yoga"); return; }
   if(OA.playerOn()){ toast("Termine d'abord ton exercice de respiration"); return; }
+  if(warmupState){ toast("Termine d'abord ton échauffement"); return; }
+  if(p && domainOf(p.id)==="doigts" && !PREP_IDS.has(p.id) && !recentlyWarm()
+     && !/submax/i.test(p.id||"") && !p.light){
+    startFingerWarmup(()=>startSession(p), {target:p});
+    return;
+  }
   audio.unlock();
   const phases=buildPhases(p);
   SESS={ p, phases, i:0, remain:phases[0].dur, running:true, lastSec:null, completedReps:0, wl:null };
@@ -5515,6 +5716,10 @@ function openNextSheet(p){
     if(s.track){ pendingVerdict=null; openTrack(s.track.id); return; }
     if(s.wod){ openWodList(); return; }
     if(s.cardio){ openCardioSheet(s.int); return; }
+    if(s.domain==="doigts" && !s.light && !warmupDoneToday()){
+      const prog=s.prog; startFingerWarmup(()=>{ const sug=loadSuggestion(prog); startSession(sug?{...prog,addedKg:sug.kg}:prog); }, {target:prog});
+      return;
+    }
     const sug=loadSuggestion(s.prog); startSession(sug?{...s.prog,addedKg:sug.kg}:s.prog);
   });
   document.querySelectorAll(".ns-anta").forEach(b=>b.onclick=()=>{
