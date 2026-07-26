@@ -512,7 +512,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v39"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v45"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -1675,7 +1675,7 @@ function renderTrain(){
     </div>
     <button class="btn btn-ghost btn-block" id="tgtEndu" style="margin-bottom:8px">Endurance — nage, course, vélo, ski…</button>
     <button class="btn btn-ghost btn-block" id="tgtOa" style="margin-bottom:8px">Respiration OA — BOLT & exercices</button>
-    <button class="btn btn-ghost btn-block" id="tgtYoga" style="margin-bottom:8px">Yoga & mobilité — 27 séances</button>
+    <button class="btn btn-ghost btn-block" id="tgtYoga" style="margin-bottom:8px">Yoga — séances, sur mesure, routines & postures</button>
     <button class="btn btn-ghost btn-block" id="tgtTrack" style="margin-bottom:8px">Force à niveaux — ${TRACKS.length} mouvements</button>
     <button class="btn btn-ghost btn-block" id="tgtWod" style="margin-bottom:8px">WOD — benchmarks & Hero WODs</button>
     <p class="hint" style="margin:0 0 4px;text-align:left">Chaque bouton lance le programme le moins fait du domaine, tous outils confondus (poutre, triangles, Mini Crux, kettlebells, TRX…).</p>
@@ -1760,6 +1760,15 @@ function renderPrograms(){
     <div class="topbar"><div><div class="eyebrow">Bibliothèque <span class="ver">${APP_VERSION}</span></div><h1>Programmes</h1></div>
       <button class="icon-btn" id="addProg" aria-label="Nouveau"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
+    <h2>Accès rapides</h2>
+    <div class="row2" style="margin-bottom:8px">
+      <button class="btn btn-ghost" id="qYoga">🧘 Yoga & postures</button>
+      <button class="btn btn-ghost" id="qOa">🌬️ Respiration OA</button>
+    </div>
+    <div class="row2" style="margin-bottom:14px">
+      <button class="btn btn-ghost" id="qTrack">🏋️ Force à niveaux</button>
+      <button class="btn btn-ghost" id="qWod">⚡ WOD</button>
+    </div>
     <h2>Mes 5 programmes</h2>
     <p class="hint" style="text-align:left;margin:0 0 4px">Chaque piste a son propre cycle 8/12/16 semaines (ou entretien). Le plan du jour croise les pistes actives avec les garde-fous.</p>
     <div class="field" style="margin:10px 0 4px"><label>Jours d'entraînement</label><div class="days" id="daysRow">
@@ -1796,6 +1805,8 @@ function renderPrograms(){
     }).join("")}
     <button class="btn btn-ghost btn-block" id="newBtn" style="margin-top:14px">+ Créer un programme</button>
   `;
+  [["qYoga",()=>openYogaList()],["qOa",openOaHome],["qTrack",()=>openTrackList()],["qWod",()=>openWodList()]]
+    .forEach(([id,fn])=>{ const el=view.querySelector("#"+id); if(el) el.onclick=fn; });
   view.querySelectorAll(".trk5").forEach(b=>b.onclick=()=>openTrackPlan(b.dataset.k));
   view.querySelectorAll("#daysRow button").forEach(b=>b.onclick=()=>{
     const d=+b.dataset.d; if(!plans5) plans5={days:[0,1,2,3,4,5,6],escalade:{on:false},muscu:{on:false},endurance:{on:false},yoga:{on:false},oa:{on:false}};
@@ -2987,6 +2998,42 @@ function resolvePoses(list){
     return {...p,...over};
   });
 }
+function P(sec,idx){ const p=LIB.find(s=>s.id===sec).poses[idx]; return {...p}; }
+const ROUTINES = [
+ {name:'Souffle du matin', badge:'RÉVEIL · ≈15 MIN',
+  desc:'Réveil du dos et du diaphragme : mobilisation synchro souffle, sphinx, torsion allongée, pont, jambes au mur.',
+  poses:[P('ext',0),P('inv',0),P('surya',0),P('surya',1),
+         P('ext',2),P('finale',10),
+         P('tor',3),P('ext',8),P('assis',1),
+         P('inv',1),
+         {sk:'Savasana',fr:'Relaxation',t:120}]},
+ {name:'Avant · Arrière', badge:'MIROIR · ≈20 MIN',
+  desc:'Alternance stricte flexion avant / extension pour compenser la dominante « avant » de la série 1 — torsions charnières, chandelle et poisson en clôture.',
+  poses:[P('surya',0),P('surya',1),P('surya',5),
+         P('debout',0),P('ext',4),
+         P('debout',2),P('debout',3),
+         P('debout',6),P('ext',7),
+         P('debout',10),P('ext',5),
+         P('assis',1),P('assis',3),
+         P('assis',6),P('ext',8),
+         P('assis',11),P('ext',6),
+         P('assis',20),P('finale',0),P('finale',1),
+         P('inv',2),P('ext',9),
+         {sk:'Savasana',fr:'Relaxation',t:180}]},
+ {name:'Grande respiration', badge:'CAPACITÉ · ≈30 MIN',
+  desc:'La cage thoracique au centre : ouvertures progressives jusqu\u2019à la roue, torsions profondes, inversions longues — chandelle, charrue, sirsasana.',
+  poses:[P('ext',0),P('surya',0),P('surya',1),P('surya',2),P('surya',5),P('surya',6),
+         P('debout',14),P('debout',5),
+         P('ext',1),P('ext',2),P('ext',3),P('ext',5),P('finale',10),
+         P('ext',6),P('tor',0),P('ext',7),P('assis',1),
+         P('ext',8),P('finale',0),P('finale',1),
+         P('tor',1),
+         P('inv',2),P('inv',3),P('ext',9),
+         P('inv',4),P('finale',10),
+         P('inv',1),
+         {sk:'Savasana',fr:'Relaxation',t:240}]},
+];
+let lastGen=null, genTheme=store.get("genTheme","recup"), genMins=store.get("genMins",20);
 const YOGA_STYLES = [["sport","Yoga & sport"],["yin","Yin"],["hatha","Hatha"],["vinyasa","Vinyasa"]];
 let yogaState = store.get("yogaState", { style:"sport" });
 function yogaCadence(){ return (settings.inspir||2) + (settings.expir||3); }
@@ -3019,22 +3066,51 @@ function openYogaList(style){
   const key = yogaState.style, menu = STYLE_MENUS[key];
   sheet(`
     <h3>Yoga & mobilité</h3>
-    <div class="sub">${esc(menu.intro||"")}</div>
+    <div class="sub">Séance sur mesure, routines composées, catalogue par style, bibliothèque des postures.</div>
+
+    <div class="card" style="margin-bottom:12px;border-color:rgba(46,127,184,.4)">
+      <div style="font-weight:800;font-size:14px;margin-bottom:8px">✨ Séance sur mesure</div>
+      <div class="field"><label>Objectif</label><div class="pills" id="ygT">
+        ${Object.entries(GEN).map(([k,o])=>`<button data-k="${k}" class="${genTheme===k?"on":""}">${esc(o.label)}</button>`).join("")}
+      </div></div>
+      <div class="field"><label>Durée</label><div class="pills" id="ygD">
+        ${[10,15,20,30,45].map(d=>`<button data-d="${d}" class="${genMins===d?"on":""}">${d} min</button>`).join("")}
+      </div></div>
+      <button class="btn btn-primary btn-block" id="ygGen">✨ Générer ma séance</button>
+    </div>
+
+    <h2 style="margin:4px 0 6px">Routines composées</h2>
+    ${ROUTINES.map((r,i2)=>`<div class="prow yg-rt" data-i="${i2}">
+      <span class="pdot" style="background:${POOL_DOT.yoga}"></span>
+      <div class="pmain"><div class="pn">${esc(r.name)} <small class="mono" style="color:var(--cool-deep);font-weight:700">${esc(r.badge||"")}</small></div>
+      <div class="ps">${esc((r.desc||"").slice(0,86))}${(r.desc||"").length>86?"…":""}</div></div>
+      <span style="color:var(--muted);font-size:18px">›</span>
+    </div>`).join("")}
+
+    <h2 style="margin:14px 0 6px">Catalogue par style</h2>
     <div class="field"><label>Style</label><div class="pills" id="ygS">
       ${YOGA_STYLES.map(([k,l])=>`<button data-k="${k}" class="${key===k?"on":""}">${l}</button>`).join("")}
     </div></div>
-    <div style="max-height:52vh;overflow:auto;margin-bottom:14px">
-      ${menu.sessions.map((s,i)=>`<div class="prow yoga-row" data-i="${i}">
+    <div style="max-height:38vh;overflow:auto;margin-bottom:12px">
+      ${menu.sessions.map((s,i2)=>`<div class="prow yoga-row" data-i="${i2}">
         <span class="pdot" style="background:${POOL_DOT.yoga}"></span>
         <div class="pmain"><div class="pn">${esc(s.name)}</div>
         <div class="ps">${yogaMin(s)} min · ${s.poses.length} postures</div></div>
         <span style="color:var(--muted);font-size:18px">›</span>
       </div>`).join("")}
     </div>
+    <button class="btn btn-ghost btn-block" id="ygLib" style="margin-bottom:8px">📖 Bibliothèque des postures</button>
     <button class="btn btn-ghost btn-block" id="ygClose">Fermer</button>
   `);
+  document.querySelectorAll("#ygT button").forEach(b=>b.onclick=()=>{ genTheme=b.dataset.k; store.set("genTheme",genTheme);
+    document.querySelectorAll("#ygT button").forEach(x=>x.classList.toggle("on",x===b)); });
+  document.querySelectorAll("#ygD button").forEach(b=>b.onclick=()=>{ genMins=+b.dataset.d; store.set("genMins",genMins);
+    document.querySelectorAll("#ygD button").forEach(x=>x.classList.toggle("on",x===b)); });
+  document.getElementById("ygGen").onclick=()=>{ lastGen=generate(genTheme, genMins, Math.random); openYogaGen(); };
+  document.querySelectorAll(".yg-rt").forEach(el=>el.onclick=()=>openYogaRoutine(+el.dataset.i));
   document.querySelectorAll("#ygS button").forEach(b=>b.onclick=()=>openYogaList(b.dataset.k));
   document.querySelectorAll(".yoga-row").forEach(el=>el.onclick=()=>openYoga(key, +el.dataset.i));
+  document.getElementById("ygLib").onclick=()=>openPoseLib("");
   document.getElementById("ygClose").onclick=closeSheet;
 }
 function openYoga(styleKey, idx){
@@ -4344,6 +4420,9 @@ function bindOnce(){
   g('ypNext').onclick=nextPose;
 }
 return {
+  picto(sk,size,color){ try{ return svgFor(sk,size||26,color); }catch(e){ return ""; } },
+  cue(sk){ try{ return cueOf(sk)||""; }catch(e){ return ""; } },
+  variant(sk){ try{ return varText(sk)||""; }catch(e){ return ""; } },
   start(poses,title,onDone,onClose){
     const sessEl=document.getElementById('session');
     if(sessEl && sessEl.classList.contains('on')){ toast('Termine d\'abord la séance en cours'); return false; }
@@ -5213,12 +5292,176 @@ function logYogaQuick(styleKey, s, mins){
     pain:0, painNote:"", notes:"" });
   saveS();
 }
-function morningYogaPick(){
-  if(trackOn("escalade")){
-    const i = STYLE_MENUS.sport.sessions.findIndex(x=>x.name==="Escalade — avant");
-    if(i>=0) return { style:"sport", idx:i };
+/* Activation du jour : 15-20 min générées depuis la bibliothèque (176 postures),
+   graine = la date → stable dans la journée, différente chaque matin. */
+function seededRng(str){
+  let h=1779033703 ^ str.length;
+  for(let i=0;i<str.length;i++){ h=Math.imul(h ^ str.charCodeAt(i), 3432918353); h=(h<<13)|(h>>>19); }
+  return function(){ h=Math.imul(h ^ (h>>>16), 2246822507); h=Math.imul(h ^ (h>>>13), 3266489909);
+    return ((h ^= h>>>16) >>> 0) / 4294967296; };
+}
+/* ---------- Générateur de séances (porté de Yoga 2.0) : structure, contre-postures, mise à l'échelle ---------- */
+const GEN={
+ mob:{label:'Mobilité & respiration',
+   warm:['Chakravakasana (chat-vache)','Surya Namaskara A — tour 1','Surya Namaskara A — tour 2','Adho Mukha Svanasana'],
+   pool:['Anahatasana','Salamba Bhujangasana','Bhujangasana','Salabhasana','Dhanurasana','Ustrasana','Setu Bandha Sarvangasana','Ardha Matsyendrasana','Bharadvajasana','Jathara Parivartanasana','Parivrtta Utkatasana','Virabhadrasana A','Urdhva Dhanurasana ×3'],
+   close:['Salamba Sarvangasana','Halasana','Matsyasana','Paschimottanasana','Viparita Karani'],
+   sava:.10},
+ jambes:{label:'Souplesse jambes & hanches',
+   warm:['Chakravakasana (chat-vache)','Surya Namaskara A — tour 1','Adho Mukha Svanasana'],
+   pool:['Anjaneyasana','Utthan Pristhasana','Ardha Hanumanasana','Eka Pada Rajakapotasana','Malasana','Gomukhasana','Prasarita Padottanasana A','Parsvottanasana','Janu Sirsasana A','Upavistha Konasana','Baddha Konasana','Supta Padangusthasana'],
+   close:['Setu Bandha Sarvangasana','Jathara Parivartanasana','Viparita Karani'],
+   sava:.10},
+ dyn:{label:'Dynamique',
+   warm:['Surya Namaskara A — tour 1','Surya Namaskara A — tour 2','Surya Namaskara B — tour 1','Surya Namaskara B — tour 2'],
+   pool:['Utkatasana','Virabhadrasana A','Virabhadrasana B','Utthita Trikonasana','Utthita Parsvakonasana','Parivrtta Utkatasana','Utthita Hasta Padangusthasana','Navasana ×5','Bhujapidasana','Urdhva Mukha Svanasana','Salabhasana','Urdhva Dhanurasana ×3'],
+   close:['Ardha Matsyendrasana','Paschimottanasana','Salamba Sarvangasana','Matsyasana'],
+   sava:.08},
+ relax:{label:'Relaxation',
+   warm:['Chakravakasana (chat-vache)','Balasana','Adho Mukha Svanasana'],
+   pool:['Anahatasana','Supta Padangusthasana','Baddha Konasana','Upavistha Konasana','Supta Konasana','Jathara Parivartanasana','Salamba Bhujangasana','Setu Bandha Sarvangasana','Gomukhasana','Eka Pada Rajakapotasana'],
+   close:['Matsyasana','Viparita Karani'],
+   sava:.18},
+ recup:{label:'Récup sport',
+   warm:['Chakravakasana (chat-vache)','Adho Mukha Svanasana'],
+   pool:['Anjaneyasana','Eka Pada Rajakapotasana','Ardha Hanumanasana','Malasana','Supta Padangusthasana','Gomukhasana','Jathara Parivartanasana','Paschimottanasana A','Baddha Konasana','Setu Bandha Sarvangasana'],
+   close:['Viparita Karani'],
+   sava:.15},
+ dos:{label:'Dos & posture',
+   warm:['Chakravakasana (chat-vache)','Adho Mukha Svanasana','Surya Namaskara A — tour 1'],
+   pool:['Salamba Bhujangasana','Balasana','Salabhasana','Bhujangasana','Apanasana','Ardha Matsyendrasana','Dhanurasana','Setu Bandha Sarvangasana','Jathara Parivartanasana','Ustrasana','Bharadvajasana','Anahatasana'],
+   close:['Supta Baddha Konasana','Viparita Karani'],
+   sava:.12},
+};
+function shuffle(a,rnd){ const R=rnd||Math.random; for(let i=a.length-1;i>0;i--){ const j=Math.floor(R()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function catOf(n){
+  if(/Setu Bandha Sarvangasana/.test(n)) return 'ar';
+  if(/Rajakapotasana|Akarna Dhanurasana/.test(n)) return 'av';
+  if(/^Sirsasana/.test(n)) return 'inv';
+  if(/Sarvangasana|Halasana|Karnapidasana|Hasta Sirsasana|Pincha|Karandavasana|Vrschikasana|Sayanasana|Viparita Karani|Urdhva Padmasana|Pindasana|Adho Mukha Svanasana/.test(n)) return 'inv';
+  if(/Parivrtta|Matsyendrasana|Bharadvaja|Jathara|Marichyasana C|Marichyasana D|Pasasana|Supta Urdhva Pada Vajrasana/.test(n)) return 'to';
+  if(/Dhanurasana|Bhujangasana|Sphinx|Ustrasana|Salabhasana|Purvattanasana|Matsyasana|Setu|Anahatasana|Uttana Padasana|Urdhva Mukha Svanasana|Chakravakasana|Anjaneyasana|Bhekasana|Kapotasana|Laghu Vajrasana|Supta Vajrasana|Viparita Dandasana|Viparita Salabhasana|Ganda Bherundasana|Natarajasana|Padangustha Dhanurasana/.test(n)) return 'ar';
+  if(/Paschimottanasana|Padangusthasana|Pada Hastasana|Parsvottanasana|Janu|Kurmasana|Baddha Konasana|Upavistha|Prasarita|Padottanasana|Triang|Balasana|Padmottanasana|Supta Konasana|Rajakapotasana|Hanumanasana|Pristhasana|Malasana|Gomukhasana|Apanasana|Eka Pada Sirsasana|Dwi Pada Sirsasana|Yoganidrasana|Krounchasana|Hanumanasana|Trivikramasana|Bhairavasana|Skandasana|Durvasana|Buddhasana|Kapilasana/.test(n)) return 'av';
+  return '';
+}
+function generate(objKey,mins,rnd){
+  const o=GEN[objKey], target=mins*60;
+  const seq=[]; let t=0;
+  const add=p=>{ if(p){ seq.push(p); t+=poseDur(p); } };
+  const sava=Math.max(o.sava>=.15?180:120, Math.round(target*o.sava/30)*30);
+
+  // Échauffement (~25 % du temps)
+  for(const n of o.warm){ if(t<target*.25) add(N(n)); }
+
+  // Clôture réservée (au moins l'essentiel si le temps est court)
+  let closeList=o.close.map(N).filter(Boolean);
+  if(mins<=15) closeList=closeList.slice(-2);
+  const closeT=closeList.reduce((a,p)=>a+poseDur(p),0);
+
+  // Corps de séance : pool mélangé, contre-posture injectée après 3 postures du même sens
+  const COUNTER={ar:['Balasana','Paschimottanasana A','Apanasana'], av:['Setu Bandha Sarvangasana','Salamba Bhujangasana','Salabhasana']};
+  let run=0, runCat='', ci={av:0,ar:0};
+  const pushSmart=p=>{
+    if(!p) return;
+    add(p);
+    const k=catOf(p.sk);
+    if(k==='av'||k==='ar'){ if(k===runCat){run++;} else {runCat=k; run=1;} }
+    // torsions, inversions et postures neutres : la série continue (elles neutralisent sans compenser)
+    if(run>=3 && runCat){
+      const list=COUNTER[runCat];
+      const c=N(list[ci[runCat]++ % list.length]);
+      if(c && t+poseDur(c)+closeT+sava<target) add(c);
+      run=0; runCat='';
+    }
+  };
+  const pool=shuffle(o.pool.slice(), rnd);
+  for(const n of pool){ if(t+closeT+sava>=target) break; pushSmart(N(n)); }
+
+  // Si la bibliothèque ne suffit pas : allonger les tenues (max ×1.8)
+  const deficit=(target-closeT-sava)/Math.max(t,1);
+  if(deficit>1.1){
+    const f=Math.min(deficit,1.8);
+    seq.forEach(p=>{ if(p.b) p.b=Math.round(p.b*f); });
+    t=seq.reduce((a,p)=>a+poseDur(p),0);
+    // deuxième passage si encore court
+    for(const n of shuffle(o.pool.slice())){
+      if(t+closeT+sava>=target) break;
+      const p=N(n); if(!p) continue;
+      if(!seq.some(q=>q.sk===p.sk)){ pushSmart(p); }
+      else { p.sk+=' — bis'; pushSmart(p); }
+    }
   }
-  return { style:"hatha", idx:0 };
+
+  // Équilibrage av/ar automatique
+  const c={av:0,ar:0,to:0,inv:0};
+  seq.forEach(p=>{ const k=catOf(p.sk); if(k in c)c[k]++; });
+  if(c.av-c.ar>=3) add(N('Setu Bandha Sarvangasana'));
+  else if(c.ar-c.av>=3) add(N('Paschimottanasana A')||N('Balasana'));
+
+  closeList.forEach(add);
+  seq.push({sk:'Savasana',fr:'Relaxation',t:sava});
+  return seq;
+}
+function scaleSession(poses,targetMin){
+  let base=poses.map(p=>({...p}));
+  if(!targetMin) return base;
+  const target=targetMin*60;
+  // séparer noyau / clôture (2 dernières si ce sont des tenues longues type mur+savasana)
+  let tail=[];
+  while(base.length>3 && base[base.length-1].t && base[base.length-1].t>=120){ tail.unshift(base.pop()); }
+  let tailT=tail.reduce((a,p)=>a+poseDur(p),0);
+  // comprimer la clôture pour qu'elle ne prenne jamais plus de 40% de la cible
+  if(tailT > target*0.4 && tail.length){
+    const tf=Math.max(.25,(target*0.4)/tailT);
+    tail.forEach(p=>{ if(p.t) p.t=Math.max(45,Math.round(p.t*tf)); });
+    tailT=tail.reduce((a,p)=>a+poseDur(p),0);
+  }
+  const budget=Math.max(target-tailT, target*0.5);
+  let bodyT=base.reduce((a,p)=>a+poseDur(p),0);
+  const f=budget/Math.max(bodyT,1);
+  // bornes de compression : plus permissives quand on réduit fortement
+  const loF = f<1 ? 0.35 : 0.6;
+  const minB = f<0.7 ? 2 : 3;
+  const minT = f<0.7 ? 20 : 30;
+  const cf=Math.max(loF,Math.min(2.2,f));
+  base.forEach(p=>{
+    if(p.b) p.b=Math.max(minB,Math.min(30,Math.round(p.b*cf)));
+    else if(p.t) p.t=Math.max(minT,Math.min(600,Math.round(p.t*cf)));
+  });
+  bodyT=base.reduce((a,p)=>a+poseDur(p),0);
+  // si trop long : retirer des postures du corps (une sur deux d'abord) avant de tomber sous la cible
+  while(base.length>3 && bodyT+tailT > target*1.15){
+    // retirer la posture la plus longue du corps pour converger vite
+    let mi=0; for(let k=1;k<base.length;k++){ if(poseDur(base[k])>poseDur(base[mi])) mi=k; }
+    bodyT-=poseDur(base[mi]); base.splice(mi,1);
+  }
+  // si encore trop court, répéter le corps
+  let guard=0;
+  while(bodyT+tailT < target*0.9 && guard<40){
+    const src=base[guard % base.length];
+    const clone={...src};
+    base.push(clone); bodyT+=poseDur(clone); guard++;
+  }
+  return [...base,...tail];
+}
+function morningActivation(dstr){
+  const key = dstr || dayKey(new Date());
+  const rnd = seededRng(key);
+  const epoch = Math.abs([...key].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7));
+  const ACT_KEYS = ["mob","dyn","jambes","dos"];      // activation : jamais relax/récup le matin
+  const objKey = ACT_KEYS[epoch % ACT_KEYS.length];
+  const mins = 15 + (epoch % 3)*2;                     // 15, 17 ou 19 min selon le jour
+  let poses = generate(objKey, mins, rnd);
+  poses = scaleSession(poses, mins);
+  const tot = poses.reduce((a,p)=>a+poseDur(p),0);
+  return { name:"Activation — "+GEN[objKey].label, objKey, poses, min:Math.max(1,Math.round(tot/60)) };
+}
+function logActivation(act, mins){
+  sessions.unshift({ id:uid(), programId:"yoga", programName:act.name, dateISO:new Date().toISOString(),
+    grip:"Activation matinale", edgeMm:0, loadKg:0, rpe:3, completedReps:act.poses.length,
+    totalReps:act.poses.length, hangTimeSec:mins*60, yogaStyle:"gen", minutes:mins,
+    pain:0, painNote:"", notes:"" });
+  saveS();
 }
 function recentlyWarm(){
   // chaud = échauffement OU vraie séance doigts dans les 90 dernières minutes
@@ -5232,14 +5475,129 @@ function warmupDoneToday(){
   return sessions.some(s=>dayKey(s.dateISO)===dayKey(new Date())
     && (s.programId==="echauffement" || s.programId==="mcx-warm"));
 }
+function openYogaGen(){
+  if(!lastGen || !lastGen.length){ lastGen = generate(genTheme, genMins, Math.random); }
+  const seq = lastGen;
+  const tot = Math.round(seq.reduce((a,p)=>a+(p.t||poseDur(p)||30),0)/60);
+  const name = `${GEN[genTheme].label} · ${genMins} min`;
+  sheet(`
+    <h3>✨ ${esc(GEN[genTheme].label)}</h3>
+    <div class="sub">${seq.length} postures · ~${tot} min réelles · générée pour toi — régénère si elle ne te parle pas</div>
+    <div style="max-height:52vh;overflow:auto;margin-bottom:12px">
+      ${seq.map((p,i)=>`<div class="prow yg-pose" data-sk="${esc(p.sk)}">
+        <span style="flex:0 0 30px;display:flex;align-items:center;justify-content:center">${YogaPlayer.picto(p.sk,26,"var(--cool-deep)")}</span>
+        <div class="pmain"><div class="pn">${esc(p.fr||p.sk)}</div>
+        <div class="ps">${esc(p.sk)} · ${p.t||poseDur(p)||30} s</div></div>
+        <span style="color:var(--muted)">›</span>
+      </div>`).join("")}
+    </div>
+    <div class="row2" style="margin-bottom:8px">
+      <button class="btn btn-ghost" id="ygRe">↻ Régénérer</button>
+      <button class="btn btn-primary" id="ygPlay">▶ Pratiquer</button>
+    </div>
+    <button class="btn btn-ghost btn-block" id="ygBack">Retour</button>
+  `);
+  document.getElementById("ygRe").onclick=()=>{ lastGen=generate(genTheme, genMins, Math.random); openYogaGen(); };
+  document.getElementById("ygPlay").onclick=()=>playCustomYoga(name, seq, ()=>openYogaGen());
+  document.getElementById("ygBack").onclick=()=>openYogaList();
+  document.querySelectorAll(".yg-pose").forEach(el=>el.onclick=()=>openPoseDetail(el.dataset.sk, ()=>openYogaGen()));
+}
+function openYogaRoutine(idx){
+  const r = ROUTINES[idx]; if(!r) return;
+  // les routines sont déjà composées d'objets postures (P() pioche directement dans la LIB)
+  const seq = r.poses.map(p => (p && typeof p==="object" && typeof p.sk==="string") ? {...p} : resolvePoses([p])[0]).filter(Boolean);
+  const tot = Math.round(seq.reduce((a,p)=>a+(p.t||poseDur(p)||30),0)/60);
+  sheet(`
+    <h3>${esc(r.name)}</h3>
+    <div class="sub">${esc(r.badge||"")} · ~${tot} min</div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 10px">${esc(r.desc||"")}</p>
+    <div style="max-height:46vh;overflow:auto;margin-bottom:12px">
+      ${seq.map(p=>`<div class="prow yg-pose" data-sk="${esc(p.sk)}">
+        <span style="flex:0 0 30px;display:flex;align-items:center;justify-content:center">${YogaPlayer.picto(p.sk,26,"var(--cool-deep)")}</span>
+        <div class="pmain"><div class="pn">${esc(p.fr||p.sk)}</div><div class="ps">${p.t||poseDur(p)||30} s</div></div>
+        <span style="color:var(--muted)">›</span>
+      </div>`).join("")}
+    </div>
+    <div class="row2">
+      <button class="btn btn-ghost" id="yrBack">Retour</button>
+      <button class="btn btn-primary" id="yrPlay">▶ Pratiquer</button>
+    </div>
+  `);
+  document.getElementById("yrPlay").onclick=()=>playCustomYoga(r.name, seq, ()=>openYogaRoutine(idx));
+  document.getElementById("yrBack").onclick=()=>openYogaList();
+  document.querySelectorAll(".yg-pose").forEach(el=>el.onclick=()=>openPoseDetail(el.dataset.sk, ()=>openYogaRoutine(idx)));
+}
+function yNorm(x){ return (x||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(); }
+let poseLibQ = "";
+function openPoseLib(q){
+  poseLibQ = q!=null ? q : poseLibQ;
+  const nq = yNorm(poseLibQ);
+  const secs = LIB.map(sec=>({ ...sec,
+    hits: sec.poses.filter(p=>!nq || yNorm(p.sk+" "+(p.fr||"")).includes(nq)) }))
+    .filter(sec=>sec.hits.length);
+  const total = secs.reduce((a,s)=>a+s.hits.length,0);
+  sheet(`
+    <h3>📖 Bibliothèque des postures</h3>
+    <div class="sub">${total} posture${total>1?"s":""} · sanskrit et français</div>
+    <input id="plQ" class="input" type="search" placeholder="Rechercher (Trikonasana, guerrier…)" value="${esc(poseLibQ)}" style="margin-bottom:10px">
+    <div id="plList" style="max-height:50vh;overflow:auto;margin-bottom:12px">
+      ${secs.map(sec=>`
+        <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800;margin:10px 0 4px">${esc(sec.name)}</div>
+        ${sec.hits.map(p=>`<div class="prow yg-pose" data-sk="${esc(p.sk)}">
+          <span style="flex:0 0 30px;display:flex;align-items:center;justify-content:center">${YogaPlayer.picto(p.sk,26,"var(--cool-deep)")}</span>
+          <div class="pmain"><div class="pn">${esc(p.fr||p.sk)}</div><div class="ps">${esc(p.sk)}</div></div>
+          <span style="color:var(--muted)">›</span>
+        </div>`).join("")}`).join("") || `<p class="hint">Aucune posture ne correspond.</p>`}
+    </div>
+    <button class="btn btn-ghost btn-block" id="plBack">Retour</button>
+  `);
+  let deb=null;
+  document.getElementById("plQ").oninput=function(){ clearTimeout(deb); const v=this.value;
+    deb=setTimeout(()=>{ poseLibQ=v; openPoseLib(null); const inp=document.getElementById("plQ"); if(inp){ inp.focus(); inp.setSelectionRange(v.length,v.length); } }, 250); };
+  document.getElementById("plBack").onclick=()=>openYogaList();
+  document.querySelectorAll(".yg-pose").forEach(el=>el.onclick=()=>openPoseDetail(el.dataset.sk, ()=>openPoseLib(null)));
+}
+function openPoseDetail(sk, back){
+  let entry=null, secName="";
+  for(const sec of LIB){ const f=sec.poses.find(p=>p.sk===sk); if(f){ entry=f; secName=sec.name; break; } }
+  const cue = YogaPlayer.cue(sk), vt = YogaPlayer.variant(sk);
+  sheet(`
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
+      <span style="flex:0 0 84px;display:flex;align-items:center;justify-content:center">${YogaPlayer.picto(sk,84,"var(--cool-deep)")}</span>
+      <div><h3 style="margin:0">${esc(entry&&entry.fr||sk)}</h3>
+      <div class="sub" style="margin:2px 0 0">${esc(sk)}${secName?` · ${esc(secName)}`:""}</div></div>
+    </div>
+    ${cue?`<div class="card" style="margin-bottom:10px"><div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:4px">Alignement</div><p style="font-size:13.5px;margin:0">${esc(cue)}</p></div>`:""}
+    ${vt?`<div class="card" style="margin-bottom:12px"><div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:4px">À ton niveau</div><p style="font-size:13.5px;margin:0">${esc(vt)}</p></div>`:""}
+    <button class="btn btn-ghost btn-block" id="pdBack">Retour</button>
+  `);
+  document.getElementById("pdBack").onclick=()=>back?back():openYogaList();
+}
+function playCustomYoga(name, poses, backFn){
+  const seq = poses.map(p=>({...p}));
+  const ok = YogaPlayer.start(seq, name,
+    (stats)=>{ sessions.unshift({ id:uid(), programId:"yoga", programName:name, dateISO:new Date().toISOString(),
+      grip:"Sur mesure", edgeMm:0, loadKg:0, rpe:3, completedReps:seq.length, totalReps:seq.length,
+      hangTimeSec:Math.max(1,stats.mins)*60, yogaStyle:"gen", minutes:stats.mins, pain:0, painNote:"", notes:"" });
+      saveS(); toast("Yoga enregistré 🧘"); },
+    ()=>{ if(backFn) backFn(); else render(); });
+  if(ok) closeSheet();
+}
+function morningYogaPick(){
+  if(trackOn("escalade")){
+    const i = STYLE_MENUS.sport.sessions.findIndex(x=>x.name==="Escalade — avant");
+    if(i>=0) return { style:"sport", idx:i };
+  }
+  return { style:"hatha", idx:0 };
+}
 function morningSteps(){
   const today = k => weekSessions().some(s=>dayKey(s.dateISO)===dayKey(new Date()) && !PREP_IDS.has(s.programId) && domainOf(s.programId)===k);
   const steps = [];
   steps.push({ k:"bolt", label:"BOLT à froid", sub:"Au réveil, assis, avant tout effort — c'est le seul qui se fait à froid",
     done: OA.boltToday() });
-  const y = morningYogaPick(), ys = STYLE_MENUS[y.style].sessions[y.idx];
-  steps.push({ k:"yoga", label:"Yoga d'activation", y, ys,
-    sub:`${ys.name} · ${yogaMin(ys)} min — réveille épaules et poignets`, done: today("yoga") });
+  const act = morningActivation();
+  steps.push({ k:"yoga", label:"Activation du jour", act,
+    sub:`${act.poses.length} postures · ${act.min} min guidées — nouvelle séquence chaque matin`, done: today("yoga") });
   if(trackOn("escalade")){
     const r = todayRec();
     const slot = (r.slots||[]).find(s=>s.domain==="doigts");
@@ -5275,8 +5633,8 @@ function morningLaunch(st){
     startSession(sug?{...st.slot.prog,addedKg:sug.kg}:st.slot.prog); return;
   }
   if(st.k==="yoga"){
-    YogaPlayer.start(resolvePoses(st.ys.poses), st.ys.name,
-      (stats)=>{ logYogaQuick(st.y.style, st.ys, stats.mins); toast("Yoga enregistré 🧘"); },
+    YogaPlayer.start(st.act.poses, st.act.name,
+      (stats)=>{ logActivation(st.act, stats.mins); toast("Activation enregistrée 🌅"); },
       ()=>render());
   }
 }
