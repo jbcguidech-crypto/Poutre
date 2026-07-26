@@ -512,7 +512,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v45"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v46"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -6158,6 +6158,12 @@ function setupInstall(){
 }
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+  // quand un nouveau service worker prend la main, on recharge une fois pour afficher la nouvelle version
+  let swReloaded=false;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{
+    if(swReloaded) return; swReloaded=true;
+    if(navigator.serviceWorker.controller) location.reload();
+  });
 }
 
 /* ---------- Navigation ---------- */
