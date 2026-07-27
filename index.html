@@ -105,6 +105,16 @@ h2:first-of-type{margin-top:8px}
 .icon-btn svg{width:18px;height:18px;stroke:var(--chalk);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ---------- Bottom nav ---------- */
+/* Bouton flottant de sauvegarde — visible sur toutes les pages */
+#fab{position:fixed;right:16px;z-index:45;
+  bottom:calc(74px + var(--safe-b));width:54px;height:54px;border-radius:50%;
+  border:1px solid var(--line);background:var(--card);color:var(--chalk);
+  box-shadow:0 6px 20px rgba(20,25,32,.16);display:flex;align-items:center;justify-content:center;
+  transition:transform .16s ease, box-shadow .16s ease}
+#fab:active{transform:scale(.93)}
+#fab svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#fab.stale{border-color:rgba(221,154,24,.7);color:var(--amber-deep)}
+#fab .dot{position:absolute;top:9px;right:9px;width:9px;height:9px;border-radius:50%;background:var(--amber);border:2px solid var(--card)}
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;
   background:rgba(250,248,243,.88);backdrop-filter:blur(18px);
   border-top:1px solid var(--line);padding:8px 12px calc(8px + var(--safe-b))}
@@ -433,6 +443,9 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
 <body>
 <div id="app"><div class="view" id="view"></div></div>
 
+<button id="fab" aria-label="Sauvegarde">
+  <svg viewBox="0 0 24 24"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11z"/><path d="M17 21v-7H7v7M7 3v5h8"/></svg>
+</button>
 <nav class="nav">
   <div class="nav-inner">
     <button data-tab="train" class="active" aria-label="Entraîner">
@@ -517,7 +530,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v60"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v61"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -1023,6 +1036,7 @@ function vibrate(ms){ if(settings.vibrate && navigator.vibrate) try{ navigator.v
    VUES
    ============================================================ */
 function render(){
+  setTimeout(fabRefresh, 0);
   document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
   if(tab==="train") renderTrain();
   else if(tab==="programs") renderPrograms();
@@ -1821,6 +1835,47 @@ async function autoBackupFile(){
     if(uri){ store.set("autoBackupDay", dayKey(new Date())); }
     return uri;
   }catch(e){ return null; }
+}
+function daysSinceExport(){
+  const iso = backupMeta && backupMeta.lastExportISO;
+  if(!iso) return null;
+  return Math.floor((Date.now()-new Date(iso).getTime())/864e5);
+}
+function fabRefresh(){
+  const f = document.getElementById("fab"); if(!f) return;
+  const d = daysSinceExport();
+  const stale = d===null || d>=14;
+  f.classList.toggle("stale", stale);
+  f.querySelector(".dot")?.remove();
+  if(stale){ const s=document.createElement("span"); s.className="dot"; f.appendChild(s); }
+  const hidden = (document.getElementById("session")||{}).classList?.contains("on")
+    || (document.getElementById("yplayer")||{}).classList?.contains("on")
+    || (document.getElementById("fwarm")||{}).classList?.contains("on")
+    || (typeof OA!=="undefined" && OA.playerOn && OA.playerOn());
+  f.style.display = hidden ? "none" : "flex";
+}
+function openBackupSheet(){
+  const d = daysSinceExport();
+  const n = sessions.length, snapLast = store.get("snapLast", null);
+  sheet(`
+    <h3>Sauvegarde</h3>
+    <div class="sub">${n} séance${n>1?"s":""} dans l'historique${d===null?" · jamais exportées":d===0?" · exportées aujourd'hui":` · dernier export il y a ${d} jour${d>1?"s":""}`}</div>
+    ${d===null||d>=14?`<p class="hint" style="text-align:left;margin:0 0 12px;color:var(--amber-deep)">Une copie hors de l'appareil te protège d'une perte ou d'un reset. L'export JSON prend deux secondes.</p>`:""}
+    <button class="btn btn-primary btn-block" id="fabExport" style="margin-bottom:8px">⬇️ Exporter le fichier JSON</button>
+    <button class="btn btn-ghost btn-block" id="fabSnap" style="margin-bottom:8px">📸 Instantané dans le coffre${snapLast?` · dernier ${relDate(snapLast).toLowerCase()}`:""}</button>
+    <button class="btn btn-ghost btn-block" id="fabList" style="margin-bottom:8px">🗄️ Voir les sauvegardes locales</button>
+    <button class="btn btn-ghost btn-block" id="fabImport" style="margin-bottom:12px">⬆️ Importer un fichier</button>
+    <input type="file" id="fabFile" accept="application/json,.json" style="display:none">
+    <button class="btn btn-ghost btn-block" id="fabClose">Fermer</button>
+  `);
+  const sh = document.querySelector(".sheet") || document;
+  sh.querySelector("#fabExport").onclick=()=>{ doExport(); closeSheet(); fabRefresh(); };
+  sh.querySelector("#fabSnap").onclick=async ()=>{ await makeSnapshot("manuel"); store.set("snapLast", new Date().toISOString()); toast("Instantané créé 📸"); closeSheet(); };
+  sh.querySelector("#fabList").onclick=()=>openSnapshots();
+  const ff = sh.querySelector("#fabFile");
+  sh.querySelector("#fabImport").onclick=()=>ff.click();
+  ff.onchange=()=>{ const file=ff.files[0]; if(file) importBackupFile(file, ()=>{ closeSheet(); fabRefresh(); }); };
+  sh.querySelector("#fabClose").onclick=closeSheet;
 }
 async function openSnapshots(){
   const all = (await DB.snapAll()) || [];
@@ -2812,8 +2867,10 @@ function bindBackup(){
   if(!ex) return;
   ex.onclick=()=>{ doExport(); render(); };
   im.onclick=()=>f.click();
-  f.onchange=()=>{
-    const file=f.files[0]; if(!file) return;
+  f.onchange=()=>{ const file=f.files[0]; if(file) importBackupFile(file); };
+}
+function importBackupFile(file, done){
+  {
     const r=new FileReader();
     r.onload=()=>{
       try{
@@ -2852,13 +2909,16 @@ function bindBackup(){
           saveBench();
         }
         if(d.plan!==undefined) plan=d.plan;
+        if(d.plans5) { plans5={...(plans5||{}),...d.plans5}; savePlans5(); }
+        if(d.trackTests && typeof d.trackTests==="object"){ trackTests={...trackTests,...d.trackTests}; saveTT(); }
         if(d.settings) settings={...settings,...d.settings};
         saveS(); saveP(); savePlan(); store.set("settings",settings);
-        f.value=""; render(); toast(addedS?`Import réussi — ${addedS} séance(s) ajoutée(s)`:"Import réussi — déjà à jour");
-      }catch(e){ f.value=""; toast("Fichier invalide"); }
+        render(); toast(addedS?`Import réussi — ${addedS} séance(s) ajoutée(s)`:"Import réussi — déjà à jour");
+        if(typeof done==="function") done();
+      }catch(e){ toast("Fichier invalide"); }
     };
     r.readAsText(file);
-  };
+  }
 }
 
 /* ============================================================
@@ -6967,6 +7027,7 @@ if("serviceWorker" in navigator){
 
 /* ---------- Navigation ---------- */
 document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; render(); });
+document.getElementById("fab").onclick=openBackupSheet;
 window.addEventListener("resize",()=>{ if(tab==="progress") requestAnimationFrame(drawChart); });
 
 render();
