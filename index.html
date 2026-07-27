@@ -512,7 +512,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v49"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v52"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -892,25 +892,47 @@ function trainDays(){ return (plans5 && plans5.days && plans5.days.length) ? pla
   TRACK5.forEach(([k])=>{ const t=plans5[k]; if(t){ t.weeks=TRACK_WEEKS; if(t.on && !t.start) t.start=new Date().toISOString(); } });
   savePlans5();
 })();
+/* Avancement des programmes : au TRAVAIL FAIT, jamais au calendrier.
+   Une semaine de programme est validée quand son quota de séances est atteint. */
+const TRACK_STEP = { escalade:3, wod:4, endurance:2, yoga:2, oa:3 }; // séances par semaine de programme
+function trackStep(k){ return TRACK_STEP[k] || 2; }
+function trackDone(k){ // séances du domaine réalisées depuis le (re)démarrage du programme
+  const t = plans5 && plans5[k]; if(!t || !t.start) return 0;
+  const from = new Date(t.start).getTime();
+  const doms = TRACK_DOMAINS[k] || [];
+  if(!doms.length) return 0;
+  return sessions.filter(s=>{
+    if(PREP_IDS.has(s.programId)) return false;
+    if(new Date(s.dateISO).getTime() < from) return false;
+    return doms.includes(domainOf(s.programId));
+  }).length;
+}
 function trackCyc(k){
   if(!trackOn(k)) return null;
   const t = plans5[k];
   if(!t.start){ t.start=new Date().toISOString(); savePlans5(); }
   t.weeks = TRACK_WEEKS;
-  if(k==="escalade"){
-    const blocks = cycleBlocks("mixte", TRACK_WEEKS);
-    const total = blocks.reduce((a,b)=>a+b.weeks,0);
-    const w = Math.floor((mondayOf(new Date()) - mondayOf(new Date(t.start)))/(7*864e5));
-    const week = ((w % total)+total)%total;
+  const step = trackStep(k), done = trackDone(k);
+  const blocks = (k==="escalade") ? cycleBlocks("mixte", TRACK_WEEKS) : null;
+  const total = blocks ? blocks.reduce((a,b)=>a+b.weeks,0) : TRACK_WEEKS;
+  const need = step * total;
+  const finished = done >= need;
+  const wIdx = Math.min(total-1, Math.floor(done/step));       // 0-based
+  const inWeek = finished ? step : done - wIdx*step;           // séances faites dans la semaine en cours
+  const base = { mode:"cycle", week:wIdx+1, total, step, done, need, inWeek, finished,
+                 pct: Math.min(100, Math.round(done/need*100)) };
+  if(blocks){
     let acc=0, cur=blocks[0], bw=0;
-    for(const b of blocks){ if(week < acc+b.weeks){ cur=b; bw=week-acc; break; } acc+=b.weeks; }
-    return { mode:"cycle", week:week+1, total, deload:cur.rot==="deload", rot:cur.rot,
+    for(const b of blocks){ if(wIdx < acc+b.weeks){ cur=b; bw=wIdx-acc; break; } acc+=b.weeks; }
+    return { ...base, deload: cur.rot==="deload" && !finished, rot:cur.rot,
       blockName:cur.name, blockWeek:bw+1, blockWeeks:cur.weeks };
   }
-  const total = t.weeks;
-  const w = Math.floor((mondayOf(new Date()) - mondayOf(new Date(t.start)))/(7*864e5));
-  const week = ((w % total)+total)%total + 1;              // 1-based, boucle
-  return { mode:"cycle", week, total, deload: week % 4 === 0 }; // décharge toutes les 4 semaines
+  return { ...base, deload: (wIdx+1) % 4 === 0 && !finished };
+}
+function trackReset(k){
+  if(!plans5 || !plans5[k]) return;
+  plans5[k].start = new Date().toISOString();
+  savePlans5();
 }
 function trackDeload(k){ const c=trackCyc(k); return !!(c && c.deload); }
 /* Migration depuis l'ancien plan unique */
@@ -1483,6 +1505,18 @@ function bindRec(r){
     });
   }
 }
+function confirmSheet(title, msg, onYes, yesLabel){
+  sheet(`
+    <h3>${esc(title)}</h3>
+    <p style="font-size:14px;color:var(--muted);margin:2px 0 16px">${msg}</p>
+    <div class="row2">
+      <button class="btn btn-ghost" id="cfNo">Non</button>
+      <button class="btn btn-primary" id="cfYes" style="background:var(--hot-deep)">${esc(yesLabel||"Oui")}</button>
+    </div>
+  `);
+  document.getElementById("cfNo").onclick=closeSheet;
+  document.getElementById("cfYes").onclick=()=>{ closeSheet(); onYes(); };
+}
 function openTrackPlan(k){
   const meta = TRACK5.find(t=>t[0]===k); if(!meta) return;
   if(!plans5) plans5 = { days:[0,1,2,3,4,5,6] };
@@ -1498,9 +1532,14 @@ function openTrackPlan(k){
       : "Un seul plan : 16 semaines, décharge automatique toutes les 4. Le plan du jour croise cette piste avec les autres et les garde-fous."}</p>
     <button class="cyctoggle ${t.on?"on":""}" id="tpOn" style="margin-bottom:12px"><span>Piste active</span><span class="sw"></span></button>
     ${t.on && c ? `<div class="card" style="margin-bottom:14px">
-      <div class="mono" style="font-size:12px">Semaine <b style="color:var(--chalk)">${c.week}/${c.total}</b>${c.blockName?` · bloc ${esc(c.blockName)} (${c.blockWeek}/${c.blockWeeks})`:""}${c.deload?" · <b style='color:var(--amber)'>décharge</b>":""}</div>
-      <button class="btn btn-ghost btn-sm" id="tpRestart" style="margin-top:8px">Recommencer le cycle aujourd'hui</button>
+      <div class="mono" style="font-size:12px">${c.finished?`<b style="color:var(--cool-deep)">Programme terminé</b> · ${c.done} séances`
+        :`Semaine <b style="color:var(--chalk)">${c.week}/${c.total}</b>${c.blockName?` · bloc ${esc(c.blockName)} (${c.blockWeek}/${c.blockWeeks})`:""}${c.deload?" · <b style='color:var(--amber)'>décharge</b>":""}`}</div>
+      <div class="mono" style="font-size:11.5px;color:var(--muted);margin-top:4px">${c.finished?"Réinitialise pour repartir d'une semaine 1."
+        :`Séance <b>${c.inWeek}/${c.step}</b> de cette semaine · ${c.done}/${c.need} au total — le programme n'avance qu'avec tes séances.`}</div>
+      <div style="height:5px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden">
+        <div style="height:100%;width:${c.pct}%;background:${c.deload?"var(--amber)":"var(--cool)"}"></div></div>
     </div>`:""}
+    <button class="btn btn-ghost btn-block" id="tpReset" style="margin-bottom:10px;color:var(--hot-deep)">↺ Réinitialiser ce programme</button>
     <div class="row2">
       <button class="btn btn-ghost" id="tpClose">Fermer</button>
       <button class="btn btn-primary" id="tpSave">Enregistrer</button>
@@ -1508,13 +1547,17 @@ function openTrackPlan(k){
   `);
   const close=()=>{ closeSheet(); render(); };
   document.getElementById("tpClose").onclick=close;
-  let on=t.on, restart=false;
+  let on=t.on;
   document.getElementById("tpOn").onclick=function(){ on=!on; this.classList.toggle("on",on); };
-  const rs=document.getElementById("tpRestart"); if(rs) rs.onclick=()=>{ restart=true; toast("Le cycle repartira de la semaine 1"); };
+  document.getElementById("tpReset").onclick=()=>confirmSheet(
+    "Réinitialiser " + meta[1] + " ?",
+    "Le programme repartira de la <b>semaine 1</b> : les séances déjà faites ne compteront plus pour son avancement. Ton historique et tes statistiques sont conservés.",
+    ()=>{ trackReset(k); toast(meta[1] + " — reparti de zéro"); openTrackPlan(k); },
+    "Oui, réinitialiser");
   document.getElementById("tpSave").onclick=()=>{
     const wasOff=!t.on;
     t.on=on; t.weeks=TRACK_WEEKS;
-    if(on && (restart || wasOff || !t.start)) t.start=new Date().toISOString();
+    if(on && (wasOff || !t.start)) t.start=new Date().toISOString();
     savePlans5(); close(); toast(on?`${meta[1]} — 16 semaines`:`${meta[1]} désactivée`);
   };
 }
@@ -1651,18 +1694,34 @@ function renderTrain(){
       <p class="rec-txt" style="margin-top:2px">Le plan du jour est adapté : ${todayEquip.list.length?esc(todayEquip.list.map(equipLabel).join(", ")):"aucun matériel"}. Ça se réinitialise demain.</p>
       <button class="btn btn-ghost btn-sm" id="eqEdit" style="margin-top:10px">Modifier</button>
     </div>`:""}
-    <h2>Séances ciblées</h2>
-    <div class="row3" style="margin-bottom:8px">
-      <button class="btn btn-ghost" id="tgtDoigts">Doigts</button>
-      <button class="btn btn-ghost" id="tgtWod2">WOD</button>
-      <button class="btn btn-ghost" id="tgtCore">Gainage</button>
-    </div>
-    <button class="btn btn-ghost btn-block" id="tgtEndu" style="margin-bottom:8px">Endurance — nage, course, vélo, ski…</button>
-    <button class="btn btn-ghost btn-block" id="tgtOa" style="margin-bottom:8px">Respiration OA — BOLT & exercices</button>
-    <button class="btn btn-ghost btn-block" id="tgtYoga" style="margin-bottom:8px">Yoga — séances, sur mesure, routines & postures</button>
-    <button class="btn btn-ghost btn-block" id="tgtTrack" style="margin-bottom:8px">Force à niveaux — ${TRACKS.length} mouvements</button>
-    <button class="btn btn-ghost btn-block" id="tgtWod" style="margin-bottom:8px">WOD — benchmarks & Hero WODs</button>
-    <p class="hint" style="margin:0 0 4px;text-align:left">Chaque bouton lance le programme le moins fait du domaine, tous outils confondus (poutre, triangles, Mini Crux, kettlebells, TRX…).</p>
+    <h2>Mes 5 programmes</h2>
+    ${TRACK5.map(([k,name,desc])=>{
+      const on = trackOn(k), c = on ? trackCyc(k) : null;
+      const cyc = c && c.mode==="cycle";
+      const pct = cyc ? c.pct : 0;
+      // la décharge ne s'applique qu'aux pistes à charge mécanique
+      const showDl = !!(cyc && c.deload && ["escalade","wod","endurance"].includes(k));
+      return `<div class="card trkcard" data-k="${k}" style="margin-bottom:8px;${on?"":"opacity:.62"}">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;font-size:15px">${name}</div>
+            <div class="mono" style="font-size:11px;color:${cyc&&showDl?"var(--amber-deep)":"var(--cool-deep)"};font-weight:700;margin-top:2px">
+              ${cyc ? (c.finished ? "PROGRAMME TERMINÉ ✓"
+                  : `SEMAINE ${c.week}/${c.total}${c.blockName?` · ${esc(c.blockName).toUpperCase()}`:""}${showDl?" · DÉCHARGE":""}`)
+                : on ? "ACTIF" : "INACTIF"}
+            </div>
+            ${cyc?`<div class="mono" style="font-size:11px;color:var(--muted);margin-top:2px">${c.finished?`${c.done} séances — terminé`:`Séance ${c.inWeek}/${c.step} de la semaine`}</div>`:""}
+          </div>
+          <button class="btn btn-primary btn-sm trk-go" data-k="${k}">Ouvrir</button>
+          <button class="icon-btn trk-set" data-k="${k}" aria-label="Réglages" style="width:34px;height:34px">
+            <svg viewBox="0 0 24 24"><path d="M4 8h10M18 8h2M4 16h4M12 16h8"/><circle cx="16" cy="8" r="2"/><circle cx="10" cy="16" r="2"/></svg>
+          </button>
+        </div>
+        ${cyc?`<div style="height:5px;border-radius:3px;background:var(--line);margin-top:9px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${showDl?"var(--amber)":"var(--cool)"}"></div></div>`:""}
+      </div>`;
+    }).join("")}
+    <p class="hint" style="margin:2px 0 10px;text-align:left">« Ouvrir » donne accès à toutes les séances du domaine, quel que soit le plan du jour.</p>
     <h2>Matériel</h2>
     <button class="btn btn-ghost btn-block" id="fwBtn" style="margin-bottom:8px">🔥 Échauffement doigts guidé</button>
     <button class="btn btn-ghost btn-block" id="eqBtn" style="margin-bottom:8px">🎒 Je n'ai pas tout mon matériel aujourd'hui</button>
@@ -1675,28 +1734,17 @@ function renderTrain(){
   bindTestBanner();
   const frg=document.getElementById("frGo"); if(frg) frg.onclick=openFreshSheet;
   const fb=document.getElementById("freeBtn"); if(fb) fb.onclick=openFreeSheet;
-  const te=document.getElementById("tgtEndu"); if(te) te.onclick=()=>openCardioSheet();
   const tw=document.getElementById("tgtWod"); if(tw) tw.onclick=openWodList;
   bindMorning();
   const fw=document.getElementById("fwBtn"); if(fw) fw.onclick=()=>startFingerWarmup();
   const eb=document.getElementById("eqBtn"); if(eb) eb.onclick=openEquipSheet;
   const ee=document.getElementById("eqEdit"); if(ee) ee.onclick=openEquipSheet;
-  const to=document.getElementById("tgtOa"); if(to) to.onclick=openOaHome;
-  const ty=document.getElementById("tgtYoga"); if(ty) ty.onclick=()=>openYogaList();
-  const tt=document.getElementById("tgtTrack"); if(tt) tt.onclick=()=>{ pendingVerdict=null; openTrackList(); };
-    const tw2=document.getElementById("tgtWod2"); if(tw2) tw2.onclick=()=>openWodList();
-  [["tgtDoigts",["doigts"]],["tgtCore",["gainage"]]].forEach(([id,pools])=>{
-    const b=document.getElementById(id); if(!b) return;
-    b.onclick=()=>{
-      const p=pickNext(pools.flatMap(k=>GENERAL_POOLS[k]));
-      if(!p){ const t=pools.map(pickTrack).find(Boolean);
-        if(t){ pendingVerdict=null; openTrack(t.id); return; }
-        toast("Rien de faisable avec le matériel du jour"); return; }
-      const launch=()=>{ const sug=loadSuggestion(p); startSession(sug?{...p,addedKg:sug.kg}:p); };
-      // les doigts passent toujours par l'échauffement guidé s'il n'a pas été fait
-      if(id==="tgtDoigts" && !warmupDoneToday()){ startFingerWarmup(launch); return; }
-      launch(); };
-  });
+    const TRACK_OPEN = { escalade:()=>openFingerHub(), wod:()=>openWodList(),
+    endurance:()=>openCardioSheet(), yoga:()=>openYogaList(), oa:()=>openOaHome() };
+  document.querySelectorAll(".trk-go").forEach(b=>b.onclick=(e)=>{ e.stopPropagation();
+    const f=TRACK_OPEN[b.dataset.k]; if(f) f(); });
+  document.querySelectorAll(".trk-set").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); openTrackPlan(b.dataset.k); });
+  document.querySelectorAll(".trkcard").forEach(c=>c.onclick=()=>{ const f=TRACK_OPEN[c.dataset.k]; if(f) f(); });
   setupInstall();
 }
 function colorOf(pid){ const p=programs.find(x=>x.id===pid); return p?p.color:"muted"; }
@@ -1747,15 +1795,19 @@ function renderPrograms(){
     </div>
     <h2>Accès rapides</h2>
     <div class="row2" style="margin-bottom:8px">
-      <button class="btn btn-ghost" id="qYoga">🧘 Yoga & postures</button>
-      <button class="btn btn-ghost" id="qOa">🌬️ Respiration OA</button>
+      <button class="btn btn-ghost" id="qFing">🤏 Doigts & tractions</button>
+      <button class="btn btn-ghost" id="qEndu">🏃 Endurance</button>
+    </div>
+    <div class="row2" style="margin-bottom:8px">
+      <button class="btn btn-ghost" id="qWod">⚡ WOD</button>
+      <button class="btn btn-ghost" id="qYoga">🧘 Yoga</button>
     </div>
     <div class="row2" style="margin-bottom:14px">
-      <button class="btn btn-ghost" id="qLib">📖 Postures yoga</button>
-      <button class="btn btn-ghost" id="qWod">⚡ WOD</button>
+      <button class="btn btn-ghost" id="qOa">🌬️ Respiration OA</button>
+      <button class="btn btn-ghost" id="qCore">🎯 Gainage</button>
     </div>
     <h2>Mes 5 programmes</h2>
-    <p class="hint" style="text-align:left;margin:0 0 4px">Chaque piste a son propre cycle 8/12/16 semaines (ou entretien). Le plan du jour croise les pistes actives avec les garde-fous.</p>
+    <p class="hint" style="text-align:left;margin:0 0 4px">Chaque programme dure 16 semaines et <b>n'avance qu'avec les séances réellement faites</b> — jamais avec le calendrier.</p>
     <div class="field" style="margin:10px 0 4px"><label>Jours d'entraînement</label><div class="days" id="daysRow">
       ${["D","L","M","M","J","V","S"].map((l,d)=>`<button data-d="${d}" class="${trainDays().includes(d)?"on":""}">${l}</button>`).join("")}
     </div></div>
@@ -1777,6 +1829,7 @@ function renderPrograms(){
         </div>
       </div>`;
     }).join("")}
+    <button class="btn btn-ghost btn-block" id="resetAll" style="margin-top:12px;color:var(--hot-deep)">↺ Réinitialiser les 5 programmes</button>
     <h2>Exercices par famille</h2>
     <p class="hint" style="text-align:left;margin:0 0 4px">Déplie une famille, tape une ligne pour la fiche complète (technique, gains, modifier), ou Go pour démarrer directement.</p>
     ${CATS.map(([cat,label])=>{
@@ -1790,9 +1843,16 @@ function renderPrograms(){
     }).join("")}
     <button class="btn btn-ghost btn-block" id="newBtn" style="margin-top:14px">+ Créer un programme</button>
   `;
-  [["qYoga",()=>openYogaList()],["qOa",openOaHome],["qLib",()=>openPoseLib("")],["qWod",()=>openWodList()]]
+  [["qFing",()=>openFingerHub()],["qEndu",()=>openCardioSheet()],["qWod",()=>openWodList()],
+   ["qYoga",()=>openYogaList()],["qOa",openOaHome],
+   ["qCore",()=>{ const p=pickNext(GENERAL_POOLS.gainage); if(p) startSession(p); else toast("Rien de faisable avec le matériel du jour"); }]]
     .forEach(([id,fn])=>{ const el=view.querySelector("#"+id); if(el) el.onclick=fn; });
   view.querySelectorAll(".trk5").forEach(b=>b.onclick=()=>openTrackPlan(b.dataset.k));
+  const ra=view.querySelector("#resetAll"); if(ra) ra.onclick=()=>confirmSheet(
+    "Réinitialiser les 5 programmes ?",
+    "Les cinq programmes repartiront de la <b>semaine 1</b>. Les séances déjà faites ne compteront plus pour leur avancement — ton historique, tes charges et tes statistiques restent intacts.",
+    ()=>{ TRACK5.forEach(([k])=>trackReset(k)); toast("Les 5 programmes sont repartis de zéro"); render(); },
+    "Oui, tout réinitialiser");
   view.querySelectorAll("#daysRow button").forEach(b=>b.onclick=()=>{
     const d=+b.dataset.d; if(!plans5) plans5={days:[0,1,2,3,4,5,6],escalade:{on:false},muscu:{on:false},endurance:{on:false},yoga:{on:false},oa:{on:false}};
     const ds=new Set(trainDays()); if(ds.has(d)){ if(ds.size>1) ds.delete(d); } else ds.add(d);
@@ -4993,6 +5053,42 @@ function pickBenchByTime(mins){
   });
   const src = pool.length ? pool : BENCH.filter(benchAvail);
   return src[Math.floor(Math.random()*src.length)] || null;
+}
+function openFingerHub(){
+  const CATS = [["poutre","Poutre & hangboard"],["triangle","Triangle YY Vertical"],
+    ["minicrux","Mini Crux"],["mcxpince","Mini Crux — Spécial pince"],["traction","Tractions"]];
+  const warm = recentlyWarm();
+  sheet(`
+    <h3>Doigts & tractions</h3>
+    <div class="sub">Tous les protocoles disponibles. ${warm?"Tu es chaud — lancement direct.":"L'échauffement guidé se lance avant toute séance chargée."}</div>
+    <div style="max-height:58vh;overflow:auto;margin-bottom:12px">
+      ${CATS.map(([c,label])=>{
+        const list = programs.filter(p=>p.cat===c);
+        if(!list.length) return "";
+        return `<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800;margin:12px 0 4px">${esc(label)}</div>
+        ${list.map(p=>{
+          const ok = progAvail(p), prep = PREP_IDS.has(p.id);
+          return `<div class="prow fh-row" data-id="${p.id}" style="${ok?"":"opacity:.42"}">
+            <span class="pdot" style="background:${POOL_DOT[domainOf(p.id)]||"var(--line-strong)"}"></span>
+            <div class="pmain"><div class="pn">${esc(p.name)}${prep?` <small style="color:var(--cool-deep);font-weight:700">échauffement</small>`:""}</div>
+            <div class="ps">${esc(p.type)} · ${p.hangSec}s ${esc(p.effortLabel?p.effortLabel.toLowerCase():"suspension")}${p.reps>1?` · ${p.reps}×`:""} · ${p.sets} série${p.sets>1?"s":""}${p.edgeMm?` · ${p.edgeMm}mm`:""} · ≈${Math.round(estDuration(p)/60)} min${ok?"":" · matériel absent"}</div></div>
+            <span style="color:var(--muted);font-size:18px">›</span>
+          </div>`;
+        }).join("")}`;
+      }).join("")}
+    </div>
+    <button class="btn btn-ghost btn-block" id="fhWarm" style="margin-bottom:8px">🔥 Échauffement doigts guidé</button>
+    <button class="btn btn-ghost btn-block" id="fhClose">Fermer</button>
+  `);
+  document.querySelectorAll(".fh-row").forEach(el=>el.onclick=()=>{
+    const p = programs.find(x=>x.id===el.dataset.id); if(!p) return;
+    if(!progAvail(p)){ toast("Matériel absent du jour — modifie le matériel si besoin"); return; }
+    closeSheet();
+    const sug = loadSuggestion(p);
+    startSession(sug ? {...p, addedKg:sug.kg} : p);   // le garde d'échauffement s'applique tout seul
+  });
+  document.getElementById("fhWarm").onclick=()=>{ closeSheet(); startFingerWarmup(()=>render()); };
+  document.getElementById("fhClose").onclick=closeSheet;
 }
 function openWodList(){
   const list = BENCH.filter(benchMatches);
