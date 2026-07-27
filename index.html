@@ -517,18 +517,128 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v58"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v59"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
+/* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
+   localStorage peut être évincé sous pression de stockage ou par un quota atteint.
+   IndexedDB offre un quota bien plus large, survit à ces évictions, et permet
+   des instantanés horodatés restaurables. Les deux sont tenus synchronisés. */
+const DB = (() => {
+  const NAME="poutre-db", VER=1;
+  let db=null, ready=null, dead=false;
+  function open(){
+    if(ready) return ready;
+    ready = new Promise(res=>{
+      let req;
+      try{ req = indexedDB.open(NAME, VER); }catch(e){ dead=true; return res(null); }
+      req.onupgradeneeded = e => {
+        const d=e.target.result;
+        if(!d.objectStoreNames.contains("kv")) d.createObjectStore("kv");
+        if(!d.objectStoreNames.contains("snap")) d.createObjectStore("snap");
+      };
+      req.onsuccess = e => { db=e.target.result; res(db); };
+      req.onerror = () => { dead=true; res(null); };
+      req.onblocked = () => res(null);
+    });
+    return ready;
+  }
+  function tx(storeName, mode, fn){
+    return open().then(d=>{
+      if(!d) return null;
+      return new Promise(res=>{
+        let t;
+        try{ t = d.transaction(storeName, mode); }catch(e){ return res(null); }
+        const s = t.objectStore(storeName);
+        let out=null;
+        try{ out = fn(s); }catch(e){}
+        t.oncomplete = () => res(out && out.result!==undefined ? out.result : out);
+        t.onerror = () => res(null);
+        t.onabort = () => res(null);
+      });
+    }).catch(()=>null);
+  }
+  return {
+    alive:()=>!dead,
+    put:(k,v)=>tx("kv","readwrite",s=>s.put(v,k)),
+    del:(k)=>tx("kv","readwrite",s=>s.delete(k)),
+    all:()=>tx("kv","readonly",s=>{
+      const out={}; const req=s.openCursor();
+      req.onsuccess=e=>{ const c=e.target.result; if(c){ out[c.key]=c.value; c.continue(); } };
+      return { get result(){ return out; } };
+    }),
+    snapPut:(id,v)=>tx("snap","readwrite",s=>s.put(v,id)),
+    snapDel:(id)=>tx("snap","readwrite",s=>s.delete(id)),
+    snapAll:()=>tx("snap","readonly",s=>{
+      const out=[]; const req=s.openCursor();
+      req.onsuccess=e=>{ const c=e.target.result; if(c){ out.push({id:c.key, ...c.value}); c.continue(); } };
+      return { get result(){ return out; } };
+    })
+  };
+})();
+
 const store = (() => {
   let mem = {}, ok = true;
   try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); }
   catch(e){ ok = false; }
+  const mirror = (k,v)=>{ try{ DB.put(k, v); }catch(e){} };
   return {
     get(k,d){ try{ if(ok){const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);} }catch(e){} return (k in mem)?mem[k]:d; },
-    set(k,v){ try{ if(ok){localStorage.setItem(k,JSON.stringify(v)); return;} }catch(e){} mem[k]=v; }
+    set(k,v){
+      mem[k]=v;
+      try{ if(ok) localStorage.setItem(k, JSON.stringify(v)); }catch(e){ ok=false; }
+      mirror(k,v);
+    },
+    remove(k){ delete mem[k]; try{ if(ok) localStorage.removeItem(k); }catch(e){} try{ DB.del(k); }catch(e){} },
+    keys(){ const out=new Set(Object.keys(mem)); try{ if(ok) for(let i=0;i<localStorage.length;i++) out.add(localStorage.key(i)); }catch(e){} return [...out]; },
+    raw(k){ try{ if(ok) return localStorage.getItem(k); }catch(e){} return (k in mem)?JSON.stringify(mem[k]):null; },
+    setRaw(k,s){ try{ if(ok) localStorage.setItem(k,s); }catch(e){} try{ mem[k]=JSON.parse(s); DB.put(k, mem[k]); }catch(e){} }
   };
 })();
+
+/* Récupération : si localStorage a été vidé mais qu'IndexedDB a survécu, on restaure. */
+async function recoverFromDB(){
+  const idb = await DB.all();
+  if(!idb) return { restored:0, mirrored:0 };
+  let restored=0, mirrored=0;
+  const lsKeys = new Set(store.keys());
+  for(const k of Object.keys(idb)){
+    if(!lsKeys.has(k)){ try{ localStorage.setItem(k, JSON.stringify(idb[k])); restored++; }catch(e){} }
+  }
+  // et inversement : tout ce qui n'est pas encore dans le coffre y va
+  for(const k of lsKeys){
+    if(k.startsWith("__")) continue;
+    if(!(k in idb)){ const v=store.get(k,null); if(v!==null){ DB.put(k,v); mirrored++; } }
+  }
+  return { restored, mirrored };
+}
+
+/* Instantanés quotidiens : 10 derniers états complets, restaurables. */
+const SNAP_MAX = 10;
+async function makeSnapshot(reason){
+  const data = {};
+  for(const k of store.keys()){ if(k.startsWith("__")) continue; const r=store.raw(k); if(r!=null) data[k]=r; }
+  const id = new Date().toISOString();
+  await DB.snapPut(id, { at:id, reason:reason||"auto", n:Object.keys(data).length, data });
+  const all = (await DB.snapAll()) || [];
+  all.sort((a,b)=>a.id<b.id?1:-1);
+  for(const s of all.slice(SNAP_MAX)) await DB.snapDel(s.id);
+  return id;
+}
+async function maybeDailySnapshot(){
+  const last = store.get("snapLast", null);
+  if(last && dayKey(new Date(last))===dayKey(new Date())) return null;
+  const id = await makeSnapshot("auto");
+  store.set("snapLast", new Date().toISOString());
+  return id;
+}
+async function restoreSnapshot(id){
+  const all = (await DB.snapAll()) || [];
+  const s = all.find(x=>x.id===id); if(!s) return false;
+  await makeSnapshot("avant-restauration");
+  for(const k of Object.keys(s.data)) store.setRaw(k, s.data[k]);
+  return true;
+}
 
 /* ---------- Vocabulaire ---------- */
 const GRIPS = ["Bac / ouvert","Réglette tendue","Réglette semi-arquée","Arqué complet","Pince","Trois doigts","Bidoigt","Mono-doigt","Corps entier"];
@@ -1640,6 +1750,42 @@ function openTrackTest(k){
     document.getElementById("ttOk").onclick=()=>{ closeSheet(); render(); };
   };
 }
+async function openSnapshots(){
+  const all = (await DB.snapAll()) || [];
+  all.sort((a,b)=>a.id<b.id?1:-1);
+  let persisted = false;
+  try{ persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false; }catch(e){}
+  const est = await (navigator.storage && navigator.storage.estimate ? navigator.storage.estimate().catch(()=>null) : Promise.resolve(null));
+  sheet(`
+    <h3>Sauvegardes locales</h3>
+    <div class="sub">Instantané complet chaque jour dans le coffre IndexedDB. Les 10 derniers sont conservés — de quoi revenir en arrière si quelque chose se passe mal.</div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="mono" style="font-size:11.5px;color:var(--muted)">
+        Coffre : <b style="color:var(--chalk)">${DB.alive()?"actif":"indisponible"}</b> ·
+        stockage persistant : <b style="color:${persisted?"var(--cool-deep)":"var(--amber-deep)"}">${persisted?"accordé":"non accordé"}</b>
+        ${est&&est.usage?`<br>Occupation : ${(est.usage/1048576).toFixed(1)} Mo${est.quota?` / ${(est.quota/1048576).toFixed(0)} Mo`:""}`:""}
+      </div>
+      ${!persisted?`<p class="hint" style="text-align:left;margin:6px 0 0">Sans permission persistante, le navigateur peut évincer les données s'il manque d'espace. Utilise aussi l'export JSON régulièrement.</p>`:""}
+    </div>
+    <button class="btn btn-primary btn-block" id="snMake" style="margin-bottom:10px">📸 Créer un instantané maintenant</button>
+    <div style="max-height:44vh;overflow:auto;margin-bottom:12px">
+      ${all.length?all.map(s=>`<div class="prow">
+        <span class="pdot" style="background:${s.reason==="auto"?"var(--cool)":"var(--amber)"}"></span>
+        <div class="pmain"><div class="pn">${relDate(s.at)} · ${new Date(s.at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div>
+        <div class="ps">${s.n} clés · ${esc(s.reason)}</div></div>
+        <button class="btn btn-ghost btn-sm sn-rest" data-id="${esc(s.id)}">Restaurer</button>
+      </div>`).join(""):`<p class="hint">Aucun instantané pour l'instant.</p>`}
+    </div>
+    <button class="btn btn-ghost btn-block" id="snClose">Fermer</button>
+  `);
+  document.getElementById("snMake").onclick=async ()=>{ await makeSnapshot("manuel"); toast("Instantané créé 📸"); openSnapshots(); };
+  document.getElementById("snClose").onclick=closeSheet;
+  document.querySelectorAll(".sn-rest").forEach(b=>b.onclick=()=>confirmSheet(
+    "Restaurer cet instantané ?",
+    "Ton état actuel sera d'abord sauvegardé, puis remplacé par celui du <b>" + relDate(b.dataset.id).toLowerCase() + "</b>. L'app va se recharger.",
+    async ()=>{ const ok=await restoreSnapshot(b.dataset.id); toast(ok?"Restauré — rechargement…":"Échec de la restauration"); if(ok) setTimeout(()=>location.reload(), 600); },
+    "Oui, restaurer"));
+}
 function confirmSheet(title, msg, onYes, yesLabel){
   sheet(`
     <h3>${esc(title)}</h3>
@@ -2112,6 +2258,7 @@ function renderProgress(){
       </div>
       <div class="field" style="margin-top:12px"><label>Check de fraîcheur (peson)</label>
       <div class="mono" style="font-size:11.5px;color:var(--muted);margin-bottom:8px">${fresh.baselineKg?`Référence : ${fresh.baselineKg} kg · ${(fresh.log||[]).length} relevé(s)`:"Non configuré — accroche un pèse-bagage au Mini Crux pour un suivi objectif des doigts."}</div>
+      <button class="btn btn-ghost btn-block" id="snapBtn" style="margin-bottom:8px">🗄️ Sauvegardes locales (coffre)</button>
       <button class="btn btn-ghost btn-block" id="prevToggle" style="margin-bottom:8px">Prévisualisation avant séance : ${store.get("noPreview",false)?"désactivée":"activée"}</button>
       <button class="btn btn-ghost btn-block" id="setFresh">${fresh.baselineKg?"Nouveau relevé":"Configurer le peson"}</button>
       ${fresh.baselineKg?`<button class="btn btn-ghost btn-block" id="setFreshReset" style="margin-top:6px;color:var(--hot-deep)">Réinitialiser la référence</button>`:""}
@@ -2174,6 +2321,7 @@ function renderProgress(){
   const ft=document.getElementById("setFtp");
   if(ft) ft.onchange=()=>{ const n=parseInt(ft.value,10); settings.ftp=(n>0?n:null); store.set("settings",settings); toast(settings.ftp?`FTP ${settings.ftp} W`:"FTP effacée"); };
   const sf=document.getElementById("setFresh"); if(sf) sf.onclick=openFreshSheet;
+  const snb=document.getElementById("snapBtn"); if(snb) snb.onclick=openSnapshots;
   const pvb=document.getElementById("prevToggle");
   if(pvb) pvb.onclick=()=>{ const v=!store.get("noPreview",false); store.set("noPreview",v); toast(v?"Prévisualisation désactivée":"Prévisualisation activée"); render(); };
   const sfr=document.getElementById("setFreshReset"); if(sfr) sfr.onclick=()=>{ if(confirm("Effacer la référence et l'historique du peson ?")){ fresh={baselineKg:0,log:[]}; saveFresh(); render(); toast("Peson réinitialisé"); } };
@@ -3360,7 +3508,11 @@ function oaJournal(name){
    Stockage sf_* d'origine · overlay #oaplayer · API : OA.*
    ============================================================ */
 const OA = (() => {
-const LS = window.localStorage;
+const LS = { // proxy vers la couche persistante de Poutre (localStorage + IndexedDB)
+  getItem:(k)=>{ try{ return store.raw(k); }catch(e){ return null; } },
+  setItem:(k,v)=>{ try{ store.setRaw(k,v); }catch(e){} },
+  removeItem:(k)=>{ try{ store.remove(k); }catch(e){} }
+};
 function load(k,d){try{const v=LS.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
 function save(k,v){try{LS.setItem(k,JSON.stringify(v))}catch(e){}}
 let boltHist=load('sf_bolt',[]);
@@ -6712,6 +6864,21 @@ document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{ tab=b.datase
 window.addEventListener("resize",()=>{ if(tab==="progress") requestAnimationFrame(drawChart); });
 
 render();
+
+/* ---------- Démarrage du coffre : persistance, récupération, instantané ---------- */
+(async function bootStorage(){
+  try{
+    if(navigator.storage && navigator.storage.persist){
+      const already = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+      if(!already) await navigator.storage.persist();   // demande à ne pas être évincé
+    }
+  }catch(e){}
+  try{
+    const r = await recoverFromDB();
+    if(r.restored>0){ toast(`Données restaurées depuis le coffre (${r.restored})`); location.reload(); return; }
+  }catch(e){}
+  try{ await maybeDailySnapshot(); }catch(e){}
+})();
 </script>
 </body>
 </html>
