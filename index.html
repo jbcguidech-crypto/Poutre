@@ -517,7 +517,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v59"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v60"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -639,6 +639,56 @@ async function restoreSnapshot(id){
   for(const k of Object.keys(s.data)) store.setRaw(k, s.data[k]);
   return true;
 }
+
+/* ---------- Couche native (Capacitor) : sans effet sur le web ----------
+   Écran maintenu allumé pendant les timers, notifications programmées,
+   export de fichier vers le stockage de l'appareil. */
+const NATIVE = (() => {
+  const cap = (typeof window!=="undefined" && window.Capacitor) ? window.Capacitor : null;
+  const isNative = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
+  const P = (name)=> (cap && cap.Plugins ? cap.Plugins[name] : null);
+  let notifOk = false;
+  async function initNotifs(){
+    const LN = P("LocalNotifications"); if(!LN) return false;
+    try{
+      const st = await LN.checkPermissions();
+      if(st.display!=="granted"){ const r=await LN.requestPermissions(); notifOk = r.display==="granted"; }
+      else notifOk = true;
+    }catch(e){ notifOk=false; }
+    return notifOk;
+  }
+  return {
+    isNative,
+    platform: cap && cap.getPlatform ? cap.getPlatform() : "web",
+    async keepAwake(on){
+      const KA = P("KeepAwake");
+      if(KA){ try{ on ? await KA.keepAwake() : await KA.allowSleep(); return true; }catch(e){} }
+      return false;
+    },
+    async init(){ if(!isNative) return; await initNotifs(); },
+    async notify(id, title, body, atDate){
+      const LN = P("LocalNotifications"); if(!LN || !notifOk) return false;
+      try{
+        await LN.schedule({ notifications:[{ id, title, body,
+          schedule: atDate ? { at: atDate, allowWhileIdle:true } : undefined,
+          smallIcon:"ic_stat_icon", channelId:"entrainements" }] });
+        return true;
+      }catch(e){ return false; }
+    },
+    async cancel(id){ const LN=P("LocalNotifications"); if(!LN) return; try{ await LN.cancel({notifications:[{id}]}); }catch(e){} },
+    async writeFile(name, text){
+      const FS = P("Filesystem"); if(!FS) return null;
+      try{
+        const r = await FS.writeFile({ path:name, data:text, directory:"DOCUMENTS", encoding:"utf8", recursive:true });
+        return r && r.uri ? r.uri : "ok";
+      }catch(e){ return null; }
+    },
+    async share(title, text, url){
+      const SH = P("Share"); if(!SH) return false;
+      try{ await SH.share({ title, text, url, dialogTitle:title }); return true; }catch(e){ return false; }
+    }
+  };
+})();
 
 /* ---------- Vocabulaire ---------- */
 const GRIPS = ["Bac / ouvert","Réglette tendue","Réglette semi-arquée","Arqué complet","Pince","Trois doigts","Bidoigt","Mono-doigt","Corps entier"];
@@ -1750,6 +1800,28 @@ function openTrackTest(k){
     document.getElementById("ttOk").onclick=()=>{ closeSheet(); render(); };
   };
 }
+async function setMorningReminder(hhmm){
+  if(!NATIVE.isNative) { toast("Disponible dans l'app installée (Android)"); return false; }
+  await NATIVE.cancel(9100);
+  if(!hhmm){ store.set("boltReminder", null); return true; }
+  const [h,m] = hhmm.split(":").map(Number);
+  const at = new Date(); at.setHours(h, m, 0, 0);
+  if(at.getTime() < Date.now()) at.setDate(at.getDate()+1);
+  const ok = await NATIVE.notify(9100, "BOLT à froid", "Avant de te lever : mesure ton BOLT, il calibre ta journée.", at);
+  store.set("boltReminder", ok ? hhmm : null);
+  return ok;
+}
+async function autoBackupFile(){
+  if(!NATIVE.isNative) return null;
+  const last = store.get("autoBackupDay", null);
+  if(last === dayKey(new Date())) return null;
+  try{
+    const blob = buildExport();                       // même contenu que l'export manuel
+    const uri = await NATIVE.writeFile("entrainements-sauvegarde.json", JSON.stringify(blob));
+    if(uri){ store.set("autoBackupDay", dayKey(new Date())); }
+    return uri;
+  }catch(e){ return null; }
+}
 async function openSnapshots(){
   const all = (await DB.snapAll()) || [];
   all.sort((a,b)=>a.id<b.id?1:-1);
@@ -2258,6 +2330,7 @@ function renderProgress(){
       </div>
       <div class="field" style="margin-top:12px"><label>Check de fraîcheur (peson)</label>
       <div class="mono" style="font-size:11.5px;color:var(--muted);margin-bottom:8px">${fresh.baselineKg?`Référence : ${fresh.baselineKg} kg · ${(fresh.log||[]).length} relevé(s)`:"Non configuré — accroche un pèse-bagage au Mini Crux pour un suivi objectif des doigts."}</div>
+      ${NATIVE.isNative?`<button class="btn btn-ghost btn-block" id="boltRem" style="margin-bottom:8px">⏰ Rappel BOLT du matin : ${store.get("boltReminder",null)||"désactivé"}</button>`:""}
       <button class="btn btn-ghost btn-block" id="snapBtn" style="margin-bottom:8px">🗄️ Sauvegardes locales (coffre)</button>
       <button class="btn btn-ghost btn-block" id="prevToggle" style="margin-bottom:8px">Prévisualisation avant séance : ${store.get("noPreview",false)?"désactivée":"activée"}</button>
       <button class="btn btn-ghost btn-block" id="setFresh">${fresh.baselineKg?"Nouveau relevé":"Configurer le peson"}</button>
@@ -2321,6 +2394,25 @@ function renderProgress(){
   const ft=document.getElementById("setFtp");
   if(ft) ft.onchange=()=>{ const n=parseInt(ft.value,10); settings.ftp=(n>0?n:null); store.set("settings",settings); toast(settings.ftp?`FTP ${settings.ftp} W`:"FTP effacée"); };
   const sf=document.getElementById("setFresh"); if(sf) sf.onclick=openFreshSheet;
+  const brm=document.getElementById("boltRem");
+  if(brm) brm.onclick=()=>{
+    const cur = store.get("boltReminder", null);
+    sheet(`
+      <h3>Rappel BOLT du matin</h3>
+      <div class="sub">Une notification au réveil, avant tout effort — c'est la seule mesure valable.</div>
+      <div class="pills" id="brPick" style="margin-bottom:14px">
+        ${["06:00","06:30","07:00","07:30","08:00"].map(h=>`<button data-h="${h}" class="${cur===h?"on":""}">${h}</button>`).join("")}
+        <button data-h="" class="${cur?"":"on"}">Aucun</button>
+      </div>
+      <button class="btn btn-ghost btn-block" id="brClose">Fermer</button>
+    `);
+    document.querySelectorAll("#brPick button").forEach(b=>b.onclick=async ()=>{
+      const ok=await setMorningReminder(b.dataset.h||null);
+      toast(b.dataset.h ? (ok?`Rappel à ${b.dataset.h}`:"Notifications refusées") : "Rappel désactivé");
+      closeSheet(); render();
+    });
+    document.getElementById("brClose").onclick=closeSheet;
+  };
   const snb=document.getElementById("snapBtn"); if(snb) snb.onclick=openSnapshots;
   const pvb=document.getElementById("prevToggle");
   if(pvb) pvb.onclick=()=>{ const v=!store.get("noPreview",false); store.set("noPreview",v); toast(v?"Prévisualisation désactivée":"Prévisualisation activée"); render(); };
@@ -2698,9 +2790,13 @@ function needBackupReminder(){
   const days = (Date.now() - new Date(backupMeta.lastExportISO))/864e5;
   return days>=14 || fresh>=6;
 }
+function buildExport(){
+  return { app:"poutre", version:APP_VERSION, exportedAt:new Date().toISOString(),
+    programs, sessions, plan, plans5, settings, tests, trackTests, fresh,
+    benchHist:benchHistAll, levels, perf, oa:OA.exportBlob() };
+}
 function doExport(){
-  const data={ app:"poutre", version:APP_VERSION, exportedAt:new Date().toISOString(),
-    programs, sessions, plan, settings, tests, fresh, benchHist:benchHistAll, levels, perf, oa:OA.exportBlob() };
+  const data=buildExport();
   const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
@@ -5784,7 +5880,8 @@ function wuGo(i, autoplay){
   if(autoplay) wuPlay();
 }
 let wuRAF=null, wuWake=null;
-function requestWakeGeneric(){ try{ if(settings.wake && "wakeLock" in navigator) navigator.wakeLock.request("screen").then(w=>wuWake=w).catch(()=>{}); }catch(e){} }
+function requestWakeGeneric(){
+  if(NATIVE.isNative){ NATIVE.keepAwake(true); return; } try{ if(settings.wake && "wakeLock" in navigator) navigator.wakeLock.request("screen").then(w=>wuWake=w).catch(()=>{}); }catch(e){} }
 function warmupLoop(t){
   if(!warmupState || !warmupState.running) return;
   const st = warmupState, cur = st.plan.steps[st.i];
@@ -6671,8 +6768,17 @@ function bindSessionControls(){
     // le compteur de reps recule si on quitte une phase d'effort déjà validée
     if(atStart && SESS.completedReps>0 && SESS.phases[target] && SESS.phases[target].kind==="hang") SESS.completedReps--;
     SESS.lastSec=null; SESS.lastT=null; updateLadder(); paintSession();
+  scheduleRestNotif();
   };
   $("#sClose").onclick=()=>{ if(confirm("Arrêter la séance ?")) abortSession(); };
+}
+function scheduleRestNotif(){
+  if(!NATIVE.isNative || !SESS || SESS.ended) return;
+  const ph = SESS.phases[SESS.i];
+  NATIVE.cancel(9001);
+  if(ph && (ph.kind==="rest"||ph.kind==="restset") && ph.dur>=90){
+    NATIVE.notify(9001, "Repos terminé", `${SESS.p.name} — c'est reparti`, new Date(Date.now()+ph.dur*1000));
+  }
 }
 function stopLoop(){ if(rafId) cancelAnimationFrame(rafId); rafId=null; }
 function abortSession(){
@@ -6866,6 +6972,16 @@ window.addEventListener("resize",()=>{ if(tab==="progress") requestAnimationFram
 render();
 
 /* ---------- Démarrage du coffre : persistance, récupération, instantané ---------- */
+(async function bootNative(){
+  try{
+    await NATIVE.init();
+    if(NATIVE.isNative){
+      const r = store.get("boltReminder", null);
+      if(r) setMorningReminder(r);
+      autoBackupFile();
+    }
+  }catch(e){}
+})();
 (async function bootStorage(){
   try{
     if(navigator.storage && navigator.storage.persist){
