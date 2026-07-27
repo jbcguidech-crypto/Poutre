@@ -517,7 +517,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v56"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v57"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -5247,6 +5247,60 @@ function openFingerHub(){
   document.getElementById("fhWarm").onclick=()=>{ closeSheet(); startFingerWarmup(()=>render()); };
   document.getElementById("fhClose").onclick=closeSheet;
 }
+/* ---------- Alternatives quand la course est impossible ----------
+   Équivalences usuelles (effort ≈ 400 m de course à allure WOD). */
+const RUN_SUBS = {
+  none:  { label:"Course", short:"course" },
+  rope:  { label:"Corde à sauter", short:"corde", per400:"60 double-unders",
+           fmt:n=>`${Math.round(60*n/5)*5} double-unders (ou ${Math.round(120*n/10)*10} sauts simples)`,
+           note:"Le plus proche de la course : cyclique, même coût cardiaque, entretient la raideur de cheville utile en montagne." },
+  step:  { label:"Step-ups box", short:"step-ups", per400:"50 montées de box (50 cm)",
+           fmt:n=>`${Math.round(50*n/5)*5} montées de box (50 cm, lestées si possible)`,
+           note:"Le plus spécifique alpinisme : du dénivelé positif, chaîne postérieure sollicitée, transfert direct à l'approche." },
+  stairs:{ label:"Escaliers", short:"escaliers", per400:"3 min d'escaliers",
+           fmt:n=>`${Math.round(3*n*10)/10} min d'escaliers en continu`,
+           note:"Excellent si tu as une cage d'escalier : mêmes contraintes que le step-up, avec la descente en prime." },
+  row:   { label:"Rameur / vélo", short:"rameur", per400:"500 m rameur ou 1000 m vélo",
+           fmt:n=>`${Math.round(500*n/50)*50} m rameur (ou ${Math.round(1000*n/50)*50} m vélo / home-trainer)`,
+           note:"Équivalent aérobie sans impact — le bon choix quand les jambes ou les articulations sont déjà chargées." },
+  burp:  { label:"Burpees", short:"burpees", per400:"30 burpees",
+           fmt:n=>`${Math.round(30*n/5)*5} burpees`,
+           note:"Monte le cardiaque très vite, mais ajoute beaucoup de poussée et d'excentrique : ça déséquilibre le WOD et fatigue les épaules avant une séance de doigts. À garder en dernier recours." },
+  shut:  { label:"Navettes 10 m", short:"navettes", per400:"40 allers-retours de 10 m",
+           fmt:n=>`${Math.round(40*n/5)*5} allers-retours de 10 m`,
+           note:"Si tu as 10 m devant toi : les changements de direction ajoutent de l'excentrique, monte progressivement." }
+};
+let runSub = store.get("runSub","none");
+function wodHasRun(b){ return (b.blocks||[]).some(x=>/course|mile|km/i.test(x)); }
+function substRun(txt){
+  const s = RUN_SUBS[runSub]; if(!s || runSub==="none" || !s.fmt) return txt;
+  const conv = meters => s.fmt(meters/400);
+  return txt
+    .replace(/([\d,\.]+)\s*km\s*(?:de\s*)?course/gi, (_,d)=>conv(parseFloat(d.replace(",","."))*1000))
+    .replace(/(\d[\d\s]*)\s*m\s*(?:de\s*)?course/gi, (_,d)=>conv(parseInt(d.replace(/\s/g,""),10)))
+    .replace(/([\d,\.]+)\s*miles?/gi, (_,d)=>conv(parseFloat(d.replace(",","."))*1609))
+    .replace(/course à reculons/gi, `${s.short} (en reculant si possible)`)
+    .replace(/\b(\d+)\s*min\s*trot\b/gi, (_,d)=>`${d} min ${s.short} facile`)
+    .replace(/\btrot\b/gi, `${s.short} facile`);
+}
+function runSubBar(){
+  return `<div class="field" style="margin-bottom:10px"><label>Course impossible ? Remplacer par</label>
+    <div class="pills" id="rsub">
+      ${Object.entries(RUN_SUBS).map(([k,v])=>`<button data-k="${k}" class="${runSub===k?"on":""}">${esc(v.label)}</button>`).join("")}
+    </div>
+    ${runSub!=="none"?`<p class="hint" style="text-align:left;margin:6px 0 0">${esc(RUN_SUBS[runSub].note)} <b>Base : 400 m ≈ ${esc(RUN_SUBS[runSub].per400)}.</b></p>`:""}
+  </div>`;
+}
+function bindRunSub(redraw){
+  document.querySelectorAll("#rsub button").forEach(b=>b.onclick=()=>{
+    runSub=b.dataset.k; store.set("runSub",runSub); redraw();
+  });
+}
+function runSubNote(){
+  if(runSub==="none") return "";
+  const s=RUN_SUBS[runSub];
+  return `<div class="card" style="margin-bottom:10px;border-color:rgba(46,127,184,.35)"><div class="mono" style="font-size:11.5px;color:var(--muted)">Substitution course active : <b style="color:var(--chalk)">${esc(s.label)}</b> — 400 m ≈ ${esc(s.per400)}. Modifiable dans chaque WOD.</div></div>`;
+}
 function wodScaleNote(){
   const t = lastTest("wod"); if(!t) return "";
   const l = t.level;
@@ -5260,6 +5314,7 @@ function openWodList(){
   sheet(`
     <h3>WOD & Hero WODs</h3>
     ${wodScaleNote()}
+    ${runSubNote()}
     <div class="sub">${BENCH.length} séances de référence, adaptées à ton matériel (kettlebells, box, medicine ball). Une seule par semaine : elles consomment ton budget d'intensité.</div>
     <div class="field"><label>Filtre</label><div class="pills" id="wfF">
       ${BENCH_FILTERS.map(([k,l])=>`<button data-k="${k}" class="${benchState.filter===k?"on":""}">${l}</button>`).join("")}
@@ -5290,19 +5345,22 @@ function openWodList(){
 }
 function openWod(id){
   const b=BENCH.find(x=>x.id===id); if(!b) return;
+  const redrawWod = ()=>openWod(id);
   const pr=benchPR(id), h=benchHist(id), isScore=BENCH_SCORE.has(id);
   const budgetUsed = weekHardUsed()>=1;
   sheet(`
     <h3>${esc(b.name)}</h3>
     <div class="sub">${b.hero?"Hero WOD":"Benchmark"} · ${esc(b.sub)} · ~${estBenchMin(b)} min${benchAvail(b)?"":" · ⚠ matériel manquant"}</div>
     ${pr?`<div class="card" style="margin-bottom:12px;border-color:rgba(221,154,24,.45)"><div class="mono" style="font-size:12px">🏆 Meilleure perf : <b style="color:var(--chalk)">${esc(pr.score)}</b> · ${relDate(pr.iso).toLowerCase()}${h.length>1?` · ${h.length} tentatives`:""}</div></div>`:""}
-    <ul class="cdblocks" style="margin-bottom:14px">${b.blocks.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+    ${wodHasRun(b)?runSubBar():""}
+    <ul class="cdblocks" style="margin-bottom:14px">${b.blocks.map(x=>`<li>${esc(substRun(x))}</li>`).join("")}</ul>
     ${budgetUsed?`<p class="hint" style="text-align:left;margin:0 0 12px">⚠ Ton budget d'intensité de la semaine est déjà consommé. Ce WOD s'ajoutera par-dessus — à toi de juger. Tes doigts ne sont pas concernés.</p>`:""}
     <div class="row2">
       <button class="btn btn-ghost" id="wdBack">Retour</button>
       <button class="btn btn-primary" id="wdDone">J'ai fait ce WOD</button>
     </div>
   `);
+  if(wodHasRun(b)) bindRunSub(redrawWod);
   document.getElementById("wdBack").onclick=openWodList;
   document.getElementById("wdDone").onclick=()=>openWodLog(b,isScore);
 }
