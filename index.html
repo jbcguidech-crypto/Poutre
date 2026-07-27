@@ -517,7 +517,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v57"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v58"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -5234,6 +5234,7 @@ function openFingerHub(){
         }).join("")}`;
       }).join("")}
     </div>
+    <button class="btn btn-ghost btn-block" id="fhMoves" style="margin-bottom:8px">🔀 Mouvements alternatifs & remplacements</button>
     <button class="btn btn-ghost btn-block" id="fhWarm" style="margin-bottom:8px">🔥 Échauffement doigts guidé</button>
     <button class="btn btn-ghost btn-block" id="fhClose">Fermer</button>
   `);
@@ -5244,6 +5245,7 @@ function openFingerHub(){
     const sug = loadSuggestion(p);
     startSession(sug ? {...p, addedKg:sug.kg} : p);   // le garde d'échauffement s'applique tout seul
   });
+  document.getElementById("fhMoves").onclick=()=>openMovesLibrary(()=>openFingerHub());
   document.getElementById("fhWarm").onclick=()=>{ closeSheet(); startFingerWarmup(()=>render()); };
   document.getElementById("fhClose").onclick=closeSheet;
 }
@@ -5295,6 +5297,122 @@ function bindRunSub(redraw){
   document.querySelectorAll("#rsub button").forEach(b=>b.onclick=()=>{
     runSub=b.dataset.k; store.set("runSub",runSub); redraw();
   });
+}
+/* ---------- Bibliothèque d'adaptation des mouvements ----------
+   Pour chaque mouvement : version plus facile, plus dure, et remplacement sans le matériel. */
+const MOVES = [
+  { id:"pull", re:/traction/i, name:"Tractions", need:["barre"],
+    easy:["Tractions élastique (bande sous les pieds)","Tractions australiennes (TRX/anneaux, pieds au sol)","Négatives 5 s à la descente"],
+    hard:["Tractions lestées (gilet ou kb entre les pieds)","Tempo 3-1-3","L-sit pull-ups","Muscle-up en négatif"],
+    sub:["Rowing TRX pieds avancés","Rowing kettlebell 1 bras (3× reps)","Tirage élastique porte/arbre","Suspensions bras tendus sur poutre + tirages sur triangles"] },
+  { id:"push", re:/pompe/i, name:"Pompes", need:[],
+    easy:["Pompes mains surélevées (box, table)","Pompes genoux au sol","Excentriques 4 s"],
+    hard:["Pompes pieds surélevés","Pompes archer ou diamant","Pompes lestées (sac à dos)","Pompes sur anneaux/TRX"],
+    sub:["Dips entre deux chaises","Pompes piquées (épaules)","Développé kettlebell debout"] },
+  { id:"squat", re:/squat(?!.*med)|air squat/i, name:"Squats", need:[],
+    easy:["Squats sur box (assis-debout)","Amplitude réduite","Appui aux TRX"],
+    hard:["Squats sautés","Goblet squat kettlebell","Fentes bulgares","Squats lestés sac à dos"],
+    sub:["Montées de box alternées","Chaise au mur (temps équivalent)"] },
+  { id:"kbs", re:/kb swing|swing/i, name:"KB swings", need:["kb"],
+    easy:["Swings russes (hauteur poitrine)","Charge plus légère, tempo régulier"],
+    hard:["Swings américains (au-dessus de la tête)","Swings 1 bras","Charge supérieure (24-32 kg)"],
+    sub:["Good mornings lestés (sac)","Soulevés de terre sac à dos","Hip thrust au sol","Deadlift medicine ball"] },
+  { id:"situp", re:/sit-?up|abdo/i, name:"Sit-ups", need:[],
+    easy:["Crunchs amplitude réduite","Pieds calés sous un meuble"],
+    hard:["Sit-ups lestés (medicine ball)","V-ups","Toes-to-bar si barre disponible"],
+    sub:["Hollow hold (3 s = 1 rep)","Relevés de jambes suspendu"] },
+  { id:"burpee", re:/burpee/i, name:"Burpees", need:[],
+    easy:["Burpees sans pompe","Burpees step-back (pas de saut)","Burpees mains sur box"],
+    hard:["Burpees box jump","Burpees sur target (frappe haute)","Burpees lestés"],
+    sub:["Squat-thrust + montée de box"] },
+  { id:"box", re:/box jump|saut.*box|mont[ée]es? de box|step-?up/i, name:"Box jumps / step-ups", need:["box"],
+    easy:["Step-ups sans saut","Hauteur réduite","Montées alternées lentes"],
+    hard:["Box jumps lestés (gilet/sac)","Saut sans contre-mouvement","Hauteur supérieure"],
+    sub:["Marches d'escalier","Fentes sautées","Squats sautés sur place"] },
+  { id:"mb", re:/med(?:icine)? ?ball|wall ?ball|lancer/i, name:"Medicine ball", need:["mb"],
+    easy:["Squat + lancer léger","Sans lancer : squat + montée bras"],
+    hard:["Ball plus lourde","Cible plus haute","Thrusters kettlebell"],
+    sub:["Thrusters kettlebell (ou sac à dos)","Squat + press sac lesté"] },
+  { id:"du", re:/double-?under|corde|saut simple/i, name:"Corde à sauter", need:[],
+    easy:["Sauts simples (×2)","Sauts sans corde (rythme)","Sauts alternés"],
+    hard:["Double-unders en séries longues","Triple-unders","Corde lestée"],
+    sub:["Sauts sur place / jumping jacks (×2)","Montées de genoux rapides"] },
+  { id:"lunge", re:/fente/i, name:"Fentes", need:[],
+    easy:["Fentes statiques, appui mural","Amplitude réduite"],
+    hard:["Fentes lestées kettlebells","Fentes sautées","Fentes bulgares"],
+    sub:["Montées de box alternées","Step-ups profonds"] },
+  { id:"carry", re:/farmer|port(er|é)|carry/i, name:"Portés lourds", need:["kb"],
+    easy:["Charge réduite, distance courte","Port 1 bras alterné"],
+    hard:["Charges lourdes 2×32 kg","Port frontal (front rack)","Sac lesté 20 kg"],
+    sub:["Sac à dos chargé (livres, eau)","Bidons d'eau 2×10 L"] },
+  { id:"dip", re:/dips?/i, name:"Dips", need:[],
+    easy:["Dips sur box, pieds au sol","Négatives lentes"],
+    hard:["Dips lestés","Dips sur anneaux"],
+    sub:["Pompes serrées","Développé kettlebell"] },
+  { id:"hspu", re:/pompe.*piqu|handstand|hspu/i, name:"Pompes piquées", need:[],
+    easy:["Pompes piquées mains sur box","Amplitude réduite"],
+    hard:["HSPU au mur","Pieds surélevés"],
+    sub:["Développé kettlebell strict","Presse épaules élastique"] },
+  { id:"superman", re:/superman|extension dorsale|good morning/i, name:"Chaîne postérieure", need:[],
+    easy:["Amplitude réduite, tempo lent"],
+    hard:["Superman lesté","Good mornings kettlebell","Hip hinge sac lourd"],
+    sub:["Hip thrust au sol","Bird-dog lent"] },
+  { id:"row", re:/rameur|rowing/i, name:"Rameur", need:[],
+    easy:["Cadence réduite, résistance moyenne"],
+    hard:["Cadence 28-30, sprints 250 m"],
+    sub:["Vélo / home-trainer (×2 distance)","Corde à sauter","Montées de box"] }
+];
+function movesIn(b){
+  const txt = (b.blocks||[]).join(" ");
+  return MOVES.filter(m=>m.re.test(txt));
+}
+function moveMissing(m){ const eq=equipSet(); return (m.need||[]).some(e=>!eq.has(e)); }
+function movesPanel(b){
+  const list = movesIn(b);
+  if(!list.length) return "";
+  return `<div class="card" style="margin-bottom:12px">
+    <div style="font-weight:800;font-size:13.5px;margin-bottom:2px">Adapter les mouvements</div>
+    <div class="mono" style="font-size:11px;color:var(--muted);margin-bottom:6px">Plus facile · plus dur · sans le matériel</div>
+    ${list.map(m=>`<div class="mv-row" data-m="${m.id}" style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--line);cursor:pointer">
+      <span class="sdot" style="background:${moveMissing(m)?"var(--hot)":"var(--cool)"};flex:0 0 auto"></span>
+      <div style="flex:1"><div style="font-weight:700;font-size:13px">${esc(m.name)}</div>
+      ${moveMissing(m)?`<div class="mono" style="font-size:11px;color:var(--hot-deep)">matériel absent — remplacement conseillé</div>`:""}</div>
+      <span style="color:var(--muted);font-size:16px">›</span>
+    </div>`).join("")}
+  </div>`;
+}
+function openMovesLibrary(back){
+  sheet(`
+    <h3>Mouvements alternatifs</h3>
+    <div class="sub">Pour chaque mouvement : version plus facile, plus dure, et remplacement sans matériel.</div>
+    <div style="max-height:56vh;overflow:auto;margin-bottom:12px">
+      ${MOVES.map(m=>`<div class="prow mvlib" data-m="${m.id}">
+        <span class="pdot" style="background:${moveMissing(m)?"var(--hot)":"var(--cool)"}"></span>
+        <div class="pmain"><div class="pn">${esc(m.name)}</div>
+        <div class="ps">${m.easy.length+m.hard.length+m.sub.length} variantes${moveMissing(m)?" · matériel absent":""}</div></div>
+        <span style="color:var(--muted)">›</span></div>`).join("")}
+    </div>
+    <button class="btn btn-ghost btn-block" id="mlBack">Retour</button>
+  `);
+  document.querySelectorAll(".mvlib").forEach(el=>el.onclick=()=>openMove(el.dataset.m, ()=>openMovesLibrary(back)));
+  document.getElementById("mlBack").onclick=()=>back?back():closeSheet();
+}
+function openMove(id, back){
+  const m = MOVES.find(x=>x.id===id); if(!m) return;
+  const miss = moveMissing(m);
+  const col = (title,items,color)=>`<div style="margin-bottom:12px">
+    <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:${color};font-weight:800;margin-bottom:4px">${title}</div>
+    ${items.map(x=>`<div style="font-size:13.5px;padding:3px 0">• ${esc(x)}</div>`).join("")}</div>`;
+  sheet(`
+    <h3>${esc(m.name)}</h3>
+    <div class="sub">${miss?"Le matériel nécessaire n'est pas dans ton matériel du jour — commence par les remplacements.":"Choisis la version qui correspond à ta forme du jour."}</div>
+    ${miss?col("Sans le matériel", m.sub, "var(--hot-deep)"):""}
+    ${col("Plus facile", m.easy, "var(--cool-deep)")}
+    ${col("Plus dur", m.hard, "var(--amber-deep)")}
+    ${!miss?col("Remplacement sans matériel", m.sub, "var(--muted)"):""}
+    <button class="btn btn-ghost btn-block" id="mvBack">Retour</button>
+  `);
+  document.getElementById("mvBack").onclick=()=>back?back():closeSheet();
 }
 function runSubNote(){
   if(runSub==="none") return "";
@@ -5353,6 +5471,7 @@ function openWod(id){
     <div class="sub">${b.hero?"Hero WOD":"Benchmark"} · ${esc(b.sub)} · ~${estBenchMin(b)} min${benchAvail(b)?"":" · ⚠ matériel manquant"}</div>
     ${pr?`<div class="card" style="margin-bottom:12px;border-color:rgba(221,154,24,.45)"><div class="mono" style="font-size:12px">🏆 Meilleure perf : <b style="color:var(--chalk)">${esc(pr.score)}</b> · ${relDate(pr.iso).toLowerCase()}${h.length>1?` · ${h.length} tentatives`:""}</div></div>`:""}
     ${wodHasRun(b)?runSubBar():""}
+    ${movesPanel(b)}
     <ul class="cdblocks" style="margin-bottom:14px">${b.blocks.map(x=>`<li>${esc(substRun(x))}</li>`).join("")}</ul>
     ${budgetUsed?`<p class="hint" style="text-align:left;margin:0 0 12px">⚠ Ton budget d'intensité de la semaine est déjà consommé. Ce WOD s'ajoutera par-dessus — à toi de juger. Tes doigts ne sont pas concernés.</p>`:""}
     <div class="row2">
@@ -5361,6 +5480,7 @@ function openWod(id){
     </div>
   `);
   if(wodHasRun(b)) bindRunSub(redrawWod);
+  document.querySelectorAll(".mv-row").forEach(el=>el.onclick=()=>openMove(el.dataset.m, redrawWod));
   document.getElementById("wdBack").onclick=openWodList;
   document.getElementById("wdDone").onclick=()=>openWodLog(b,isScore);
 }
@@ -6199,6 +6319,45 @@ function sessionOutline(p){
   if(p.sets>1 && p.restSetSec) rows.push({t:"Repos entre séries", d:`${Math.round(p.restSetSec/60*10)/10} min`, k:"rest"});
   return rows;
 }
+function programAdapt(p){
+  const dom = domainOf(p.id), cat = p.cat||"";
+  const easy=[], hard=[], sub=[];
+  if(dom==="doigts"){
+    easy.push(p.edgeMm && p.edgeMm<30 ? `Réglette plus grande (${Math.min(45,(p.edgeMm||20)+10)} mm) ou bac` : "Prise plus généreuse (bac)");
+    easy.push("Allège à l'élastique passé sous le pied, ou pieds au sol / sur box");
+    easy.push(`Raccourcis les suspensions (${Math.max(3,Math.round((p.hangSec||7)*0.7))} s au lieu de ${p.hangSec} s)`);
+    hard.push(p.edgeMm ? `Réglette plus petite (${Math.max(12,(p.edgeMm||20)-5)} mm)` : "Prise plus exigeante");
+    hard.push("Ajoute 2-5 kg de lest (gilet, kb entre les pieds)");
+    hard.push("Rallonge les suspensions de 2 s, ou retire 30 s de repos entre séries");
+    sub.push("Mini Crux : soulevés de bloc (no-hang, zéro poutre)");
+    sub.push("Triangle YY : suspensions au sol pieds en appui");
+    sub.push("Serviette passée sur une porte solide + tirages isométriques");
+    sub.push("Pince : livre épais ou plaque tenue à bout de doigts");
+  } else if(dom==="tirage"){
+    easy.push("Élastique sous les pieds, ou tractions australiennes TRX pieds au sol");
+    easy.push("Négatives lentes 5 s à la descente");
+    hard.push("Lest (gilet, sac à dos, kb entre les pieds)");
+    hard.push("Tempo 3-1-3, ou tractions archer");
+    sub.push("Rowing TRX / anneaux (3× les répétitions)");
+    sub.push("Rowing kettlebell 1 bras");
+    sub.push("Tirage élastique fixé en hauteur");
+  } else if(dom==="gainage"){
+    easy.push("Genoux au sol, ou temps réduit de 30 %");
+    easy.push("Bras d'appui plus proches du corps (bras de levier court)");
+    hard.push("Ajoute 20-30 s par position, ou un lest sur le bassin");
+    hard.push("Un appui en moins (jambe ou bras levé), ou instabilité TRX");
+    sub.push("Hollow hold et bird-dog : aucun matériel");
+    sub.push("Portés lourds (sac chargé) pour le gainage debout");
+  } else {
+    easy.push("Réduis le volume de 30 % et allonge les repos");
+    hard.push("Ajoute une série ou raccourcis les repos de 30 s");
+  }
+  return {easy, hard, sub};
+}
+function altPrograms(p){
+  const dom = domainOf(p.id);
+  return programs.filter(x=>x.id!==p.id && domainOf(x.id)===dom && progAvail(x) && !PREP_IDS.has(x.id)).slice(0,4);
+}
 function previewSession(p){
   const total = Math.round(estDuration(p)/60);
   const sug = loadSuggestion(p);
@@ -6215,6 +6374,17 @@ function previewSession(p){
       <div class="mono" style="font-size:11.5px;color:var(--muted);padding-top:8px">Total ${p.sets*p.reps} efforts · ${Math.round(p.sets*p.reps*p.hangSec)} s sous tension${sug?` · charge suggérée <b style="color:var(--chalk)">${sug.kg>0?"+":""}${sug.kg} kg</b>`:""}</div>
     </div>
     ${p.notes?`<p style="font-size:13px;color:var(--muted);margin:0 0 12px">${esc(p.notes)}</p>`:""}
+    ${(()=>{ const a=programAdapt(p), miss=!progAvail(p), alts=altPrograms(p);
+      const col=(t,items,c)=>items.length?`<div style="margin-top:8px"><div style="font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:${c};font-weight:800;margin-bottom:3px">${t}</div>${items.map(x=>`<div style="font-size:13px;padding:2px 0">• ${esc(x)}</div>`).join("")}</div>`:"";
+      return `<div class="card" style="margin-bottom:12px;${miss?"border-color:rgba(232,78,42,.45)":""}">
+        <div style="font-weight:800;font-size:13.5px">Adapter la séance</div>
+        ${miss?`<div class="mono" style="font-size:11px;color:var(--hot-deep);margin-top:3px">Matériel manquant aujourd'hui — vois les remplacements.</div>`:""}
+        ${col("Plus facile", a.easy, "var(--cool-deep)")}
+        ${col("Plus dur", a.hard, "var(--amber-deep)")}
+        ${col("Sans le matériel", a.sub, miss?"var(--hot-deep)":"var(--muted)")}
+        ${alts.length?`<div style="margin-top:10px"><div style="font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:4px">Protocoles équivalents faisables aujourd'hui</div>
+          ${alts.map(x=>`<button class="btn btn-ghost btn-sm pv-alt" data-id="${x.id}" style="margin:3px 4px 0 0">${esc(x.name)}</button>`).join("")}</div>`:""}
+      </div>`; })()}
     <div class="row2">
       <button class="btn btn-ghost" id="pvCancel">Annuler</button>
       <button class="btn btn-primary" id="pvGo">Démarrer</button>
@@ -6222,6 +6392,9 @@ function previewSession(p){
     <button id="pvNever" style="background:none;border:none;color:var(--muted);font-size:12px;font-weight:700;padding:10px;display:block;margin:6px auto 0">Ne plus prévisualiser</button>
   `);
   document.getElementById("pvCancel").onclick=closeSheet;
+  document.querySelectorAll(".pv-alt").forEach(b=>b.onclick=()=>{
+    const alt=programs.find(x=>x.id===b.dataset.id); if(alt){ closeSheet(); startSession(alt); }
+  });
   document.getElementById("pvGo").onclick=()=>{ closeSheet(); startSession(p,{skipPreview:true}); };
   document.getElementById("pvNever").onclick=()=>{ store.set("noPreview",true); toast("Prévisualisation désactivée — réactivable dans Réglages"); closeSheet(); startSession(p,{skipPreview:true}); };
 }
