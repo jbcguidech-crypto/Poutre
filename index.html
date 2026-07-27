@@ -512,7 +512,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v52"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v54"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -933,6 +933,7 @@ function trackReset(k){
   if(!plans5 || !plans5[k]) return;
   plans5[k].start = new Date().toISOString();
   savePlans5();
+  if(trackTests[k]){ delete trackTests[k]; saveTT(); }   // nouveau programme = nouveau test d'entrée
 }
 function trackDeload(k){ const c=trackCyc(k); return !!(c && c.deload); }
 /* Migration depuis l'ancien plan unique */
@@ -1505,6 +1506,135 @@ function bindRec(r){
     });
   }
 }
+/* ---------- Tests de calibration : à l'entrée du programme, puis toutes les 4 semaines ---------- */
+let trackTests = store.get("trackTests", {});
+if(!trackTests || typeof trackTests!=="object") trackTests = {};
+function saveTT(){ store.set("trackTests", trackTests); }
+function testBlockOf(week){ return Math.floor((week-1)/4); }         // 0,1,2,3 → semaines 1-4, 5-8, 9-12, 13-16
+function testDoneFor(k, block){ return (trackTests[k]||[]).some(t=>t.block===block); }
+function testDue(k){
+  const c = trackCyc(k);
+  if(!c || c.finished) return false;
+  return !testDoneFor(k, testBlockOf(c.week));
+}
+function lastTest(k){ const l = trackTests[k]||[]; return l.length ? l[l.length-1] : null; }
+function trackLevel(k){ const t = lastTest(k); return t ? t.level : 0; }
+const LVL_NAME = ["—","Découverte","Base","Confirmé","Solide","Élite"];
+
+const TEST_DEFS = {
+  escalade: {
+    name:"Test doigts & tractions", needWarm:true,
+    intro:"Après échauffement complet. Monte progressivement vers chaque max, 3 min de repos entre les essais. Mêmes conditions à chaque test pour comparer honnêtement.",
+    fields:[
+      { id:"e_hang", label:"Suspension 10 s — lest total (réglette 20 mm)", unit:"kg", def:0, min:-60, max:120, inc:1,
+        hint:"Lest max tenu 10 s propres en semi-arqué. Négatif si allégé à l'élastique." },
+      { id:"e_pull", label:"Tractions strictes — répétitions max", unit:"reps", def:8, min:0, max:60, inc:1,
+        hint:"Poids du corps, amplitude complète, sans élan." }
+    ],
+    level:v => v.e_hang>=30?5 : v.e_hang>=20?4 : v.e_hang>=10?3 : v.e_hang>=0?2 : 1,
+    adjust:v => `Travail max ciblé à <b>+${Math.round(v.e_hang*0.85)} kg</b> (85 % du test) · tractions lestées à partir de <b>${Math.max(0,Math.round(v.e_pull*0.6))} reps</b> par série. L'échauffement guidé utilisera cette référence.`
+  },
+  wod: {
+    name:"Test Baseline",
+    intro:"Le chipper de référence, chronométré : 400 m course → 40 squats → 30 sit-ups → 20 pompes → 10 tractions. Échauffe-toi 8 min avant.",
+    fields:[
+      { id:"w_min", label:"Temps total", unit:"min", def:8, min:3, max:25, inc:1, hint:"Arrondis à la minute la plus proche." },
+      { id:"w_burp", label:"Burpees en 2 min — max", unit:"reps", def:30, min:5, max:100, inc:1, hint:"Après 5 min de récup complète." }
+    ],
+    level:v => (v.w_min<=5&&v.w_burp>=45)?5 : v.w_min<=6?4 : v.w_min<=8?3 : v.w_min<=11?2 : 1,
+    adjust:v => { const l=(v.w_min<=5&&v.w_burp>=45)?5:v.w_min<=6?4:v.w_min<=8?3:v.w_min<=11?2:1;
+      return l>=4 ? "WOD en <b>Rx</b> : volumes complets, Hero WODs accessibles."
+        : l===3 ? "WOD à <b>80 % des répétitions</b> · Hero WODs longs à fractionner."
+        : "WOD à <b>60 % des répétitions</b> · privilégie les formats courts avant les Heroes."; }
+  },
+  endurance: {
+    name:"Test Cooper 12 min",
+    intro:"12 minutes à allure maximale soutenable, terrain plat ou tapis. Échauffe-toi 10 min. Note la distance parcourue.",
+    fields:[
+      { id:"c_dist", label:"Distance en 12 min", unit:"m", def:2400, min:800, max:4000, inc:50, hint:"Course. Sur vélo/HT, note la distance équivalente ou ta puissance moyenne convertie." },
+      { id:"c_hr", label:"FC max atteinte (optionnel)", unit:"bpm", def:0, min:0, max:220, inc:1, hint:"0 si tu ne mesures pas." }
+    ],
+    level:v => v.c_dist>=2800?5 : v.c_dist>=2400?4 : v.c_dist>=2000?3 : v.c_dist>=1600?2 : 1,
+    adjust:v => { const vma=v.c_dist/200; // km/h approx (distance/12min)
+      return `VMA estimée <b>${vma.toFixed(1)} km/h</b> · Z2 autour de <b>${(vma*0.65).toFixed(1)} km/h</b> (conversation possible) · intervalles durs à <b>${(vma*0.92).toFixed(1)} km/h</b>.`; }
+  },
+  yoga: {
+    name:"Test de mobilité",
+    intro:"À froid ou après une activation légère, sans forcer. Mesure honnête : c'est ton point de départ, pas une performance.",
+    fields:[
+      { id:"y_fold", label:"Flexion avant — doigts au sol", unit:"cm", def:10, min:-30, max:60, inc:1,
+        hint:"Distance doigts-sol jambes tendues. Négatif si tu poses les paumes." },
+      { id:"y_sq", label:"Squat profond talons au sol", unit:"s", def:30, min:0, max:300, inc:5, hint:"Tenue confortable, dos long." },
+      { id:"y_sh", label:"Mains dans le dos — écart", unit:"cm", def:15, min:-20, max:60, inc:1, hint:"Main haute / main basse. Négatif si les doigts se croisent." }
+    ],
+    level:v => { const s=(v.y_fold<=0?2:v.y_fold<=15?1:0)+(v.y_sq>=90?2:v.y_sq>=45?1:0)+(v.y_sh<=0?2:v.y_sh<=15?1:0);
+      return s>=6?5 : s>=5?4 : s>=3?3 : s>=1?2 : 1; },
+    adjust:v => { const s=(v.y_fold<=0?2:v.y_fold<=15?1:0)+(v.y_sq>=90?2:v.y_sq>=45?1:0)+(v.y_sh<=0?2:v.y_sh<=15?1:0);
+      return s>=5 ? "Séances <b>20-30 min</b>, styles dynamiques et yin longs accessibles."
+        : s>=3 ? "Séances <b>15-20 min</b> · priorité chaîne postérieure et hanches."
+        : "Séances <b>10-15 min</b> quotidiennes · yin doux, appuis sur supports, aucune amplitude forcée."; }
+  },
+  oa: {
+    name:"Test BOLT",
+    intro:"Au réveil, assis, avant tout effort. Expire normalement, pince le nez, arrête au premier désir défini de respirer — ce n'est pas une apnée maximale.",
+    fields:[
+      { id:"o_bolt", label:"BOLT", unit:"s", def:20, min:3, max:90, inc:1, hint:"Le lecteur BOLT peut le chronométrer pour toi depuis la piste Respiration." }
+    ],
+    level:v => v.o_bolt>=40?5 : v.o_bolt>=30?4 : v.o_bolt>=20?3 : v.o_bolt>=15?2 : 1,
+    adjust:v => v.o_bolt>=30 ? "Phase <b>C</b> : apnées à l'effort et tables accessibles."
+      : v.o_bolt>=20 ? "Phase <b>B</b> : respiration légère prolongée + rétentions modérées."
+      : "Phase <b>A</b> : respiration nasale et légère uniquement — pas d'apnée jusqu'à 20 s de BOLT."
+  }
+};
+
+function openTrackTest(k){
+  const def = TEST_DEFS[k]; if(!def) return;
+  const meta = TRACK5.find(t=>t[0]===k), c = trackCyc(k);
+  const block = c ? testBlockOf(c.week) : 0;
+  if(def.needWarm && !recentlyWarm()){
+    sheet(`
+      <h3>${esc(def.name)}</h3>
+      <div class="sub">Ce sont des efforts maximaux : les mesurer à froid, c'est le meilleur moyen de se blesser une poulie.</div>
+      <button class="btn btn-primary btn-block" id="ttWarm" style="margin-bottom:8px">🔥 Échauffement de test (guidé)</button>
+      <button class="btn btn-ghost btn-block" id="ttLater">Plus tard</button>
+    `);
+    document.getElementById("ttWarm").onclick=()=>{ closeSheet(); startFingerWarmup(()=>openTrackTest(k), {mode:"test"}); };
+    document.getElementById("ttLater").onclick=closeSheet;
+    return;
+  }
+  const prev = lastTest(k);
+  sheet(`
+    <h3>${esc(def.name)}</h3>
+    <div class="sub">${esc(def.intro)}</div>
+    ${prev?`<div class="card" style="margin-bottom:12px"><div class="mono" style="font-size:11.5px;color:var(--muted)">Dernier test : ${relDate(prev.dateISO)} · niveau <b style="color:var(--chalk)">${prev.level}/5 ${LVL_NAME[prev.level]}</b></div></div>`:""}
+    ${def.fields.map(f=>stepper(f.id, f.label, f.unit, (prev&&prev.data&&prev.data[f.id]!=null)?prev.data[f.id]:f.def, f.min, f.max, f.inc)
+      + (f.hint?`<p class="hint" style="text-align:left;margin:-6px 0 12px">${esc(f.hint)}</p>`:"")).join("")}
+    <div class="row2">
+      <button class="btn btn-ghost" id="ttCancel">Annuler</button>
+      <button class="btn btn-primary" id="ttSave">Enregistrer le test</button>
+    </div>
+  `);
+  bindSteppers();
+  document.getElementById("ttCancel").onclick=closeSheet;
+  document.getElementById("ttSave").onclick=()=>{
+    const data = {}; def.fields.forEach(f=>data[f.id]=step.val[f.id]);
+    const level = def.level(data);
+    if(!trackTests[k]) trackTests[k]=[];
+    trackTests[k].push({ block, dateISO:new Date().toISOString(), level, data });
+    saveTT();
+    // le test doigts nourrit aussi la référence de fraîcheur et l'échauffement
+    if(k==="escalade" && data.e_hang>0){ const kg=Math.round(data.e_hang); if(!fresh.baselineKg || kg>fresh.baselineKg){ fresh.baselineKg=kg; saveFresh(); } }
+    if(k==="oa" && typeof OA!=="undefined"){ /* le BOLT saisi ici reste indicatif ; le lecteur OA fait foi */ }
+    sheet(`
+      <h3>Niveau ${level}/5 · ${LVL_NAME[level]}</h3>
+      <div class="sub">${meta?meta[1]:""} — semaines ${block*4+1} à ${block*4+4}</div>
+      <div class="card" style="margin-bottom:14px"><p style="font-size:14px;margin:0">${def.adjust(data)}</p></div>
+      <p class="hint" style="text-align:left;margin:0 0 12px">Le programme est calibré sur ce résultat. Prochain test dans 4 semaines de programme.</p>
+      <button class="btn btn-primary btn-block" id="ttOk">C'est parti</button>
+    `);
+    document.getElementById("ttOk").onclick=()=>{ closeSheet(); render(); };
+  };
+}
 function confirmSheet(title, msg, onYes, yesLabel){
   sheet(`
     <h3>${esc(title)}</h3>
@@ -1539,6 +1669,14 @@ function openTrackPlan(k){
       <div style="height:5px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden">
         <div style="height:100%;width:${c.pct}%;background:${c.deload?"var(--amber)":"var(--cool)"}"></div></div>
     </div>`:""}
+    ${t.on && TEST_DEFS[k] ? `<div class="card" style="margin-bottom:12px;${testDue(k)?"border-color:rgba(232,78,42,.45)":""}">
+      <div style="font-weight:800;font-size:14px">${esc(TEST_DEFS[k].name)}</div>
+      <div class="mono" style="font-size:11.5px;color:var(--muted);margin:4px 0 8px">${
+        (()=>{ const p=lastTest(k); return testDue(k)
+          ? "À faire maintenant — il calibre les 4 prochaines semaines."
+          : `Fait ${relDate(p.dateISO)} · niveau <b style="color:var(--chalk)">${p.level}/5 ${LVL_NAME[p.level]}</b> · prochain test au bloc suivant`; })()}</div>
+      <button class="btn ${testDue(k)?"btn-primary":"btn-ghost"} btn-sm" id="tpTest">${testDue(k)?"Faire le test":"Refaire le test"}</button>
+    </div>`:""}
     <button class="btn btn-ghost btn-block" id="tpReset" style="margin-bottom:10px;color:var(--hot-deep)">↺ Réinitialiser ce programme</button>
     <div class="row2">
       <button class="btn btn-ghost" id="tpClose">Fermer</button>
@@ -1549,6 +1687,7 @@ function openTrackPlan(k){
   document.getElementById("tpClose").onclick=close;
   let on=t.on;
   document.getElementById("tpOn").onclick=function(){ on=!on; this.classList.toggle("on",on); };
+  const tt=document.getElementById("tpTest"); if(tt) tt.onclick=()=>openTrackTest(k);
   document.getElementById("tpReset").onclick=()=>confirmSheet(
     "Réinitialiser " + meta[1] + " ?",
     "Le programme repartira de la <b>semaine 1</b> : les séances déjà faites ne compteront plus pour son avancement. Ton historique et tes statistiques sont conservés.",
@@ -1674,7 +1813,6 @@ function renderTrain(){
     ${backupBanner()}
     ${testBanner()}
     ${freshCard(rec)}
-    ${recCard(rec)}
     <div class="chips" style="margin-top:12px">
       <div class="chip cool"><div class="n">${s}</div><div class="l">Semaines OK</div></div>
       <div class="chip"><div class="n">${total}</div><div class="l">Séances</div></div>
@@ -1688,7 +1826,6 @@ function renderTrain(){
           <div class="mono" style="font-size:12px;color:var(--muted);margin-top:2px">${relDate(last.dateISO)} · ${last.loadKg>0?"+":""}${last.loadKg} kg · ${last.edgeMm} mm · RPE ${last.rpe}</div>
         </div>
       </div>` : ""}
-    ${morningCardHTML()}
     ${equipRestricted()?`<div class="card" style="border-color:rgba(221,154,24,.5)">
       <div class="rec-head"><div class="rec-badge amber">Matériel réduit</div></div>
       <p class="rec-txt" style="margin-top:2px">Le plan du jour est adapté : ${todayEquip.list.length?esc(todayEquip.list.map(equipLabel).join(", ")):"aucun matériel"}. Ça se réinitialise demain.</p>
@@ -1701,6 +1838,7 @@ function renderTrain(){
       const pct = cyc ? c.pct : 0;
       // la décharge ne s'applique qu'aux pistes à charge mécanique
       const showDl = !!(cyc && c.deload && ["escalade","wod","endurance"].includes(k));
+      const due = on && testDue(k), lvl = trackLevel(k);
       return `<div class="card trkcard" data-k="${k}" style="margin-bottom:8px;${on?"":"opacity:.62"}">
         <div style="display:flex;align-items:center;gap:10px">
           <div style="flex:1;min-width:0">
@@ -1710,9 +1848,11 @@ function renderTrain(){
                   : `SEMAINE ${c.week}/${c.total}${c.blockName?` · ${esc(c.blockName).toUpperCase()}`:""}${showDl?" · DÉCHARGE":""}`)
                 : on ? "ACTIF" : "INACTIF"}
             </div>
-            ${cyc?`<div class="mono" style="font-size:11px;color:var(--muted);margin-top:2px">${c.finished?`${c.done} séances — terminé`:`Séance ${c.inWeek}/${c.step} de la semaine`}</div>`:""}
+            ${cyc?`<div class="mono" style="font-size:11px;color:var(--muted);margin-top:2px">${c.finished?`${c.done} séances — terminé`:`Séance ${c.inWeek}/${c.step} de la semaine`}${lvl?` · niveau ${lvl}/5`:""}</div>`:""}
+            ${due?`<div class="mono" style="font-size:11px;color:var(--hot-deep);font-weight:800;margin-top:3px">TEST DE CALIBRATION À FAIRE</div>`:""}
           </div>
-          <button class="btn btn-primary btn-sm trk-go" data-k="${k}">Ouvrir</button>
+          ${due?`<button class="btn btn-primary btn-sm trk-test" data-k="${k}" style="background:var(--hot-deep)">Test</button>`:""}
+          <button class="btn ${due?"btn-ghost":"btn-primary"} btn-sm trk-go" data-k="${k}">Ouvrir</button>
           <button class="icon-btn trk-set" data-k="${k}" aria-label="Réglages" style="width:34px;height:34px">
             <svg viewBox="0 0 24 24"><path d="M4 8h10M18 8h2M4 16h4M12 16h8"/><circle cx="16" cy="8" r="2"/><circle cx="10" cy="16" r="2"/></svg>
           </button>
@@ -1735,7 +1875,6 @@ function renderTrain(){
   const frg=document.getElementById("frGo"); if(frg) frg.onclick=openFreshSheet;
   const fb=document.getElementById("freeBtn"); if(fb) fb.onclick=openFreeSheet;
   const tw=document.getElementById("tgtWod"); if(tw) tw.onclick=openWodList;
-  bindMorning();
   const fw=document.getElementById("fwBtn"); if(fw) fw.onclick=()=>startFingerWarmup();
   const eb=document.getElementById("eqBtn"); if(eb) eb.onclick=openEquipSheet;
   const ee=document.getElementById("eqEdit"); if(ee) ee.onclick=openEquipSheet;
@@ -1744,6 +1883,7 @@ function renderTrain(){
   document.querySelectorAll(".trk-go").forEach(b=>b.onclick=(e)=>{ e.stopPropagation();
     const f=TRACK_OPEN[b.dataset.k]; if(f) f(); });
   document.querySelectorAll(".trk-set").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); openTrackPlan(b.dataset.k); });
+  document.querySelectorAll(".trk-test").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); openTrackTest(b.dataset.k); });
   document.querySelectorAll(".trkcard").forEach(c=>c.onclick=()=>{ const f=TRACK_OPEN[c.dataset.k]; if(f) f(); });
   setupInstall();
 }
@@ -2593,6 +2733,8 @@ function hardYesterday(){
 
 function openCardioSheet(forceInt){
   if(forceInt) cdState.int=forceInt;
+  const eT = lastTest("endurance");
+  if(eT && !cdState.userSet){ cdState.mins = eT.level>=4 ? 60 : eT.level===3 ? 45 : 30; }
   const budgetUsed = hardIntensityUsed()>=1, dayAfter = hardYesterday();
   const locked = budgetUsed || dayAfter;
   if(locked) cdState.int="facile";
@@ -3149,8 +3291,10 @@ function openYogaList(style){
   `);
   document.querySelectorAll("#ygT button").forEach(b=>b.onclick=()=>{ genTheme=b.dataset.k; store.set("genTheme",genTheme);
     document.querySelectorAll("#ygT button").forEach(x=>x.classList.toggle("on",x===b)); });
-  document.querySelectorAll("#ygD button").forEach(b=>b.onclick=()=>{ genMins=+b.dataset.d; store.set("genMins",genMins);
+  document.querySelectorAll("#ygD button").forEach(b=>b.onclick=()=>{ genMins=+b.dataset.d; store.set("genMins",genMins); store.set("genMinsUser",true);
     document.querySelectorAll("#ygD button").forEach(x=>x.classList.toggle("on",x===b)); });
+  const yT = lastTest("yoga");
+  if(yT && !store.get("genMinsUser",false)) genMins = yT.level>=4 ? 30 : yT.level===3 ? 20 : 15;
   document.getElementById("ygGen").onclick=()=>{ lastGen=generate(genTheme, genMins, Math.random); openYogaGen(); };
   document.querySelectorAll(".yg-rt").forEach(el=>el.onclick=()=>openYogaRoutine(+el.dataset.i));
   document.querySelectorAll("#ygS button").forEach(b=>b.onclick=()=>openYogaList(b.dataset.k));
@@ -5061,6 +5205,8 @@ function openFingerHub(){
   sheet(`
     <h3>Doigts & tractions</h3>
     <div class="sub">Tous les protocoles disponibles. ${warm?"Tu es chaud — lancement direct.":"L'échauffement guidé se lance avant toute séance chargée."}</div>
+    ${(()=>{ const t=lastTest("escalade"); if(!t) return "";
+      return `<div class="card" style="margin-bottom:10px"><div class="mono" style="font-size:11.5px;color:var(--muted)">Test doigts : niveau <b style="color:var(--chalk)">${t.level}/5</b> · travail max ciblé à <b style="color:var(--chalk)">+${Math.round(t.data.e_hang*0.85)} kg</b> · tractions ${Math.max(0,Math.round(t.data.e_pull*0.6))} reps/série</div></div>`; })()}
     <div style="max-height:58vh;overflow:auto;margin-bottom:12px">
       ${CATS.map(([c,label])=>{
         const list = programs.filter(p=>p.cat===c);
@@ -5090,10 +5236,19 @@ function openFingerHub(){
   document.getElementById("fhWarm").onclick=()=>{ closeSheet(); startFingerWarmup(()=>render()); };
   document.getElementById("fhClose").onclick=closeSheet;
 }
+function wodScaleNote(){
+  const t = lastTest("wod"); if(!t) return "";
+  const l = t.level;
+  const txt = l>=4 ? "Rx : volumes complets, Heroes accessibles."
+    : l===3 ? "80 % des répétitions · fractionne les Heroes longs."
+    : "60 % des répétitions · formats courts en priorité.";
+  return `<div class="card" style="margin-bottom:10px"><div class="mono" style="font-size:11.5px;color:var(--muted)">Ton test Baseline : niveau <b style="color:var(--chalk)">${l}/5</b> — ${txt}</div></div>`;
+}
 function openWodList(){
   const list = BENCH.filter(benchMatches);
   sheet(`
     <h3>WOD & Hero WODs</h3>
+    ${wodScaleNote()}
     <div class="sub">${BENCH.length} séances de référence, adaptées à ton matériel (kettlebells, box, medicine ball). Une seule par semaine : elles consomment ton budget d'intensité.</div>
     <div class="field"><label>Filtre</label><div class="pills" id="wfF">
       ${BENCH_FILTERS.map(([k,l])=>`<button data-k="${k}" class="${benchState.filter===k?"on":""}">${l}</button>`).join("")}
