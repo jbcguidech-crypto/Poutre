@@ -204,6 +204,9 @@ canvas{width:100%;display:block}
 .rung.cur{background:#fff;animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
 
+.upnext{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:0 14px 6px}
+.upnext span{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.04em;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.10);color:rgba(255,255,255,.72);white-space:nowrap}
+.upnext span.now{background:rgba(255,255,255,.92);color:#12312d}
 .sess-ctrl{display:flex;gap:12px;padding:14px 20px calc(22px + var(--safe-b))}
 .sctl{flex:1;height:56px;border-radius:16px;background:rgba(0,0,0,.24);color:#fff;font-weight:800;font-size:15px;
   display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.02em}
@@ -457,9 +460,11 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
     <div class="nextup" id="sNext"></div>
   </div>
   <div class="ladder" id="sLadder"></div>
+  <div class="upnext" id="sUp"></div>
   <div class="sess-ctrl">
-    <button class="sctl" id="sSkip"><svg viewBox="0 0 24 24"><path d="M5 4l10 8-10 8zM17 5v14" stroke-width="2"/></svg>Passer</button>
+    <button class="sctl" id="sPrev"><svg viewBox="0 0 24 24"><path d="M19 4L9 12l10 8zM7 5v14" stroke-width="2"/></svg>Retour</button>
     <button class="sctl wide" id="sPause"></button>
+    <button class="sctl" id="sSkip"><svg viewBox="0 0 24 24"><path d="M5 4l10 8-10 8zM17 5v14" stroke-width="2"/></svg>Passer</button>
   </div>
 </div>
 
@@ -512,7 +517,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v54"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v56"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 const store = (() => {
@@ -2107,6 +2112,7 @@ function renderProgress(){
       </div>
       <div class="field" style="margin-top:12px"><label>Check de fraîcheur (peson)</label>
       <div class="mono" style="font-size:11.5px;color:var(--muted);margin-bottom:8px">${fresh.baselineKg?`Référence : ${fresh.baselineKg} kg · ${(fresh.log||[]).length} relevé(s)`:"Non configuré — accroche un pèse-bagage au Mini Crux pour un suivi objectif des doigts."}</div>
+      <button class="btn btn-ghost btn-block" id="prevToggle" style="margin-bottom:8px">Prévisualisation avant séance : ${store.get("noPreview",false)?"désactivée":"activée"}</button>
       <button class="btn btn-ghost btn-block" id="setFresh">${fresh.baselineKg?"Nouveau relevé":"Configurer le peson"}</button>
       ${fresh.baselineKg?`<button class="btn btn-ghost btn-block" id="setFreshReset" style="margin-top:6px;color:var(--hot-deep)">Réinitialiser la référence</button>`:""}
       </div>
@@ -2168,6 +2174,8 @@ function renderProgress(){
   const ft=document.getElementById("setFtp");
   if(ft) ft.onchange=()=>{ const n=parseInt(ft.value,10); settings.ftp=(n>0?n:null); store.set("settings",settings); toast(settings.ftp?`FTP ${settings.ftp} W`:"FTP effacée"); };
   const sf=document.getElementById("setFresh"); if(sf) sf.onclick=openFreshSheet;
+  const pvb=document.getElementById("prevToggle");
+  if(pvb) pvb.onclick=()=>{ const v=!store.get("noPreview",false); store.set("noPreview",v); toast(v?"Prévisualisation désactivée":"Prévisualisation activée"); render(); };
   const sfr=document.getElementById("setFreshReset"); if(sfr) sfr.onclick=()=>{ if(confirm("Effacer la référence et l'historique du peson ?")){ fresh={baselineKg:0,log:[]}; saveFresh(); render(); toast("Peson réinitialisé"); } };
 }
 function histRow(s){
@@ -4532,7 +4540,10 @@ function loadStep(){
   document.getElementById('pPicto').innerHTML=svgFor(s.sk,56);
   updateVarLine();
   const nx=session.list[session.idx+1];
-  document.getElementById('pNext').innerHTML = nx? `Suivant : <b>${esc(nx.sk)}${nx.side?' — '+nx.side:''}</b>` : 'Dernière posture 🌊';
+  const nx2 = session.list[session.idx+2];
+  document.getElementById('pNext').innerHTML = nx
+    ? `Suivant : <b>${esc(nx.sk)}${nx.side?' — '+nx.side:''}</b>${nx2?` <span style="opacity:.6">· puis ${esc(nx2.sk)}</span>`:""} <span style="opacity:.5">· ${session.idx+1}/${session.list.length}</span>`
+    : `Dernière posture 🌊 <span style="opacity:.5">· ${session.idx+1}/${session.list.length}</span>`;
   document.getElementById('pProg').style.width = (session.idx/session.list.length*100)+'%';
   const orb=document.getElementById('orb');
   if(s.t){ session.left=s.t; session.mode='time'; stopOrb(orb); }
@@ -5411,13 +5422,36 @@ function startFingerWarmup(onDone, opts){
     if(slot && slot.light) mode = "light";
   }
   const plan = warmupPlan(target, mode);
-  warmupState = { plan, i:0, remain:plan.steps[0].dur, running:true, onDone:onDone||null, lastBeep:null };
+  // v55 : rien ne démarre tout seul — chaque étape attend ton appui
+  warmupState = { plan, i:0, remain:plan.steps[0].dur, running:false, onDone:onDone||null,
+    lastBeep:null, auto:store.get("wuAuto", false), last:null };
   const el = document.getElementById("fwarm");
   el.classList.add("on");
   document.body.style.overflow="hidden";
   drawWarmup();
   requestWakeGeneric();
-  warmupLoop(performance.now());
+}
+function wuPlay(){
+  const st=warmupState; if(!st || st.running) return;
+  st.running=true; st.last=null;
+  drawWarmup();
+  wuRAF=requestAnimationFrame(warmupLoop);
+}
+function wuPause(){
+  const st=warmupState; if(!st) return;
+  st.running=false; st.last=null;
+  if(wuRAF) cancelAnimationFrame(wuRAF);
+  drawWarmup();
+}
+function wuToggle(){ const st=warmupState; if(!st) return; st.running ? wuPause() : wuPlay(); }
+function wuGo(i, autoplay){
+  const st=warmupState; if(!st) return;
+  if(i<0 || i>=st.plan.steps.length) return;
+  st.i=i; st.remain=st.plan.steps[i].dur; st.lastBeep=null; st.last=null;
+  st.running=false;
+  if(wuRAF) cancelAnimationFrame(wuRAF);
+  drawWarmup();
+  if(autoplay) wuPlay();
 }
 let wuRAF=null, wuWake=null;
 function requestWakeGeneric(){ try{ if(settings.wake && "wakeLock" in navigator) navigator.wakeLock.request("screen").then(w=>wuWake=w).catch(()=>{}); }catch(e){} }
@@ -5426,19 +5460,17 @@ function warmupLoop(t){
   const st = warmupState, cur = st.plan.steps[st.i];
   if(st.last==null) st.last=t;
   const dt=(t-st.last)/1000; st.last=t;
-  if(st.running) st.remain -= dt;
-  // bips de fin de phase
+  st.remain -= dt;
   const rs=Math.ceil(st.remain);
   if(rs<=3 && rs>0 && st.lastBeep!==rs && cur.kind!=="move"){ st.lastBeep=rs; try{audio.tick&&audio.tick();}catch(e){} }
   if(st.remain<=0){
-    st.i++;
-    if(st.i>=st.plan.steps.length){ finishWarmup(true); return; }
-    st.remain=st.plan.steps[st.i].dur; st.lastBeep=null;
-    try{audio.go&&audio.go();}catch(e){}
-    drawWarmup();
-  } else {
-    updateWarmupTime();
+    try{audio.go&&audio.go();}catch(e){} try{ if(navigator.vibrate) navigator.vibrate(35); }catch(e){}
+    if(st.i+1>=st.plan.steps.length){ finishWarmup(true); return; }
+    // enchaînement auto (optionnel) ou attente d'un appui : on ne défile jamais sans toi
+    wuGo(st.i+1, st.auto);
+    return;
   }
+  updateWarmupTime();
   wuRAF=requestAnimationFrame(warmupLoop);
 }
 function drawWarmup(){
@@ -5454,20 +5486,36 @@ function drawWarmup(){
     </div>
     <div class="p-prog" style="width:100%;height:4px;background:var(--line);border-radius:2px;margin:10px 0"><i style="display:block;height:100%;width:${pct}%;background:var(--cool);border-radius:2px;transition:width .3s"></i></div>
     <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:0 10px">
-      <div style="width:180px;height:180px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 40% 35%, ${kindColor}, transparent 72%);border:2px solid ${kindColor}">
-        <span id="fwTime" style="font-size:56px;font-weight:800;font-family:var(--mono)">${Math.ceil(st.remain)}</span>
-      </div>
+      <button id="fwDial" style="width:180px;height:180px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:radial-gradient(circle at 40% 35%, ${kindColor}, transparent 72%);border:2px solid ${kindColor};cursor:pointer;padding:0">
+        <span id="fwTime" style="font-size:56px;font-weight:800;font-family:var(--mono);color:var(--chalk)">${Math.ceil(st.remain)}</span>
+        <span style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">${st.running?"appuie pour mettre en pause":"appuie pour démarrer"}</span>
+      </button>
       <div style="font-size:22px;font-weight:800">${esc(cur.phase)}</div>
       <div style="font-size:14px;color:var(--muted);max-width:32ch;line-height:1.5">${esc(cur.cue)}</div>
       <div style="font-size:11.5px;color:var(--faint)">Étape ${st.i+1}/${st.plan.steps.length}${cur.kind==="move"?" · à ton rythme":""}</div>
     </div>
-    <div style="display:flex;gap:12px;padding:8px 0 calc(10px + env(safe-area-inset-bottom))">
-      <button class="btn btn-ghost" id="fwSkipStep" style="padding:12px 20px">Étape suivante ›</button>
-      ${cur.kind==="move"?`<button class="btn btn-primary" id="fwNextMove" style="padding:12px 24px">Fait ✓</button>`:""}
+    <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:0 6px 8px">
+      ${st.plan.steps.slice(st.i, st.i+4).map((s,k)=>`<span style="font-family:var(--mono);font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;background:${k===0?"var(--chalk)":"rgba(0,0,0,.06)"};color:${k===0?"var(--paper)":"var(--muted)"}">${k===0?"▶ ":""}${esc(s.phase.slice(0,16))}${s.kind!=="move"?` ${s.dur}s`:""}</span>`).join("")}
+      ${st.i+4 < st.plan.steps.length?`<span style="font-family:var(--mono);font-size:10.5px;color:var(--faint);padding:4px 4px">+${st.plan.steps.length-st.i-4}</span>`:""}
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;justify-content:center;padding:8px 0 4px">
+      <button class="btn btn-ghost" id="fwPrev" style="padding:12px 16px" ${st.i===0?'disabled style="opacity:.35;padding:12px 16px"':""}>‹ Précédent</button>
+      <button class="btn btn-primary" id="fwPlay" style="padding:14px 26px;min-width:132px">${st.running?"⏸ Pause":(cur.kind==="move"?"▶ Chrono":"▶ Démarrer")}</button>
+      <button class="btn btn-ghost" id="fwNext" style="padding:12px 16px">${st.i+1>=st.plan.steps.length?"Terminer ✓":"Suivant ›"}</button>
+    </div>
+    <div style="display:flex;justify-content:center;padding:0 0 calc(10px + env(safe-area-inset-bottom))">
+      <button id="fwAuto" style="background:none;border:none;color:var(--muted);font-size:12px;font-weight:700;padding:6px 10px">
+        Enchaînement auto : <b style="color:${st.auto?"var(--cool-deep)":"var(--muted)"}">${st.auto?"activé":"désactivé"}</b>
+      </button>
     </div>`;
   document.getElementById("fwClose").onclick=()=>finishWarmup(false);
-  document.getElementById("fwSkipStep").onclick=()=>{ st.remain=0; };
-  const nm=document.getElementById("fwNextMove"); if(nm) nm.onclick=()=>{ st.remain=0; };
+  document.getElementById("fwPlay").onclick=wuToggle;
+  document.getElementById("fwPrev").onclick=()=>wuGo(st.i-1, false);
+  document.getElementById("fwNext").onclick=()=>{
+    if(st.i+1>=st.plan.steps.length) finishWarmup(true); else wuGo(st.i+1, false);
+  };
+  document.getElementById("fwAuto").onclick=()=>{ st.auto=!st.auto; store.set("wuAuto", st.auto); drawWarmup(); };
+  const dial=document.getElementById("fwDial"); if(dial) dial.onclick=wuToggle;
 }
 function updateWarmupTime(){ const e=document.getElementById("fwTime"); if(e) e.textContent=Math.max(0,Math.ceil(warmupState.remain)); 
   const cur=warmupState.plan.steps[warmupState.i];
@@ -6083,7 +6131,44 @@ function buildPhases(p){
 }
 const PHASE_TXT={prep:"Préparation",hang:"Suspension",restRep:"Repos",restSet:"Repos de série",done:"Terminé"};
 
-async function startSession(p){
+function sessionOutline(p){
+  // structure lisible : séries, efforts, repos, total
+  const eff = p.effortLabel || "Suspension";
+  const rows = [];
+  if(p.prepSec) rows.push({t:"Préparation", d:`${p.prepSec} s`, k:"prep"});
+  rows.push({t:`${p.sets} série${p.sets>1?"s":""} × ${p.reps} ${eff.toLowerCase()}${p.reps>1?"s":""}`,
+    d:`${p.hangSec} s d'effort${p.restRepSec?` · ${p.restRepSec} s entre les répétitions`:""}`, k:"hang"});
+  if(p.sets>1 && p.restSetSec) rows.push({t:"Repos entre séries", d:`${Math.round(p.restSetSec/60*10)/10} min`, k:"rest"});
+  return rows;
+}
+function previewSession(p){
+  const total = Math.round(estDuration(p)/60);
+  const sug = loadSuggestion(p);
+  const kg = (p.addedKg!=null?p.addedKg:0) + (sug?sug.kg-(p.addedKg||0):0);
+  sheet(`
+    <h3>${esc(p.name)}</h3>
+    <div class="sub">${esc(p.type)}${p.grip?` · ${esc(p.grip)}`:""}${p.edgeMm?` · ${p.edgeMm} mm`:""} · ≈${total} min</div>
+    <div class="card" style="margin-bottom:12px">
+      ${sessionOutline(p).map(r=>`<div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--line)">
+        <span class="sdot" style="background:${r.k==="hang"?"var(--hot)":r.k==="rest"?"var(--cool)":"var(--line-strong)"};flex:0 0 auto"></span>
+        <div style="flex:1"><div style="font-weight:700;font-size:13.5px">${esc(r.t)}</div>
+        <div class="mono" style="font-size:11.5px;color:var(--muted)">${esc(r.d)}</div></div>
+      </div>`).join("")}
+      <div class="mono" style="font-size:11.5px;color:var(--muted);padding-top:8px">Total ${p.sets*p.reps} efforts · ${Math.round(p.sets*p.reps*p.hangSec)} s sous tension${sug?` · charge suggérée <b style="color:var(--chalk)">${sug.kg>0?"+":""}${sug.kg} kg</b>`:""}</div>
+    </div>
+    ${p.notes?`<p style="font-size:13px;color:var(--muted);margin:0 0 12px">${esc(p.notes)}</p>`:""}
+    <div class="row2">
+      <button class="btn btn-ghost" id="pvCancel">Annuler</button>
+      <button class="btn btn-primary" id="pvGo">Démarrer</button>
+    </div>
+    <button id="pvNever" style="background:none;border:none;color:var(--muted);font-size:12px;font-weight:700;padding:10px;display:block;margin:6px auto 0">Ne plus prévisualiser</button>
+  `);
+  document.getElementById("pvCancel").onclick=closeSheet;
+  document.getElementById("pvGo").onclick=()=>{ closeSheet(); startSession(p,{skipPreview:true}); };
+  document.getElementById("pvNever").onclick=()=>{ store.set("noPreview",true); toast("Prévisualisation désactivée — réactivable dans Réglages"); closeSheet(); startSession(p,{skipPreview:true}); };
+}
+async function startSession(p, opts){
+  opts = opts || {};
   if(YogaPlayer.isOn()){ toast("Termine d'abord ta pratique de yoga"); return; }
   if(OA.playerOn()){ toast("Termine d'abord ton exercice de respiration"); return; }
   if(warmupState){ toast("Termine d'abord ton échauffement"); return; }
@@ -6092,6 +6177,7 @@ async function startSession(p){
     startFingerWarmup(()=>startSession(p), {target:p});
     return;
   }
+  if(!opts.skipPreview && !store.get("noPreview",false)){ previewSession(p); return; }
   audio.unlock();
   const phases=buildPhases(p);
   SESS={ p, phases, i:0, remain:phases[0].dur, running:true, lastSec:null, completedReps:0, wl:null };
@@ -6177,6 +6263,12 @@ function paintSession(){
   // prochaine phase
   const nx=SESS.phases[SESS.i+1];
   $("#sNext").textContent = nx && nx.kind!=="done" ? "Ensuite : "+(nx.kind==="hang" ? (SESS.p.effortLabel||PHASE_TXT.hang) : (PHASE_TXT[nx.kind]||""))+` ${nx.dur}s` : "";
+  // bandeau des prochaines phases : savoir où on en est et ce qui arrive
+  const up = SESS.phases.slice(SESS.i, SESS.i+5).filter(x=>x.kind!=="done");
+  $("#sUp").innerHTML = up.map((x,k)=>{
+    const lbl = x.kind==="hang" ? (SESS.p.effortLabel||"Effort").slice(0,9) : PHASE_TXT[x.kind]||"";
+    return `<span class="${k===0?"now":""}">${k===0?"▶ ":""}${esc(lbl)} ${x.dur}s</span>`;
+  }).join("");
   updateLadder();
 }
 function bindSessionControls(){
@@ -6187,6 +6279,16 @@ function bindSessionControls(){
   setPause();
   pauseBtn.onclick=()=>{ SESS.running=!SESS.running; SESS.lastT=null; if(SESS.running){audio.unlock();requestWake();} setPause(); };
   $("#sSkip").onclick=()=>{ SESS.remain=0; };
+  $("#sPrev").onclick=()=>{   // revenir à la phase précédente (erreur de manip, série à refaire…)
+    if(!SESS || SESS.ended) return;
+    const atStart = SESS.remain > SESS.phases[SESS.i].dur - 1.5;   // déjà au tout début → on remonte
+    const target = atStart ? Math.max(0, SESS.i-1) : SESS.i;
+    if(target===SESS.i && !atStart){ SESS.remain = SESS.phases[SESS.i].dur; }
+    else { SESS.i = target; SESS.remain = SESS.phases[target].dur; }
+    // le compteur de reps recule si on quitte une phase d'effort déjà validée
+    if(atStart && SESS.completedReps>0 && SESS.phases[target] && SESS.phases[target].kind==="hang") SESS.completedReps--;
+    SESS.lastSec=null; SESS.lastT=null; updateLadder(); paintSession();
+  };
   $("#sClose").onclick=()=>{ if(confirm("Arrêter la séance ?")) abortSession(); };
 }
 function stopLoop(){ if(rafId) cancelAnimationFrame(rafId); rafId=null; }
