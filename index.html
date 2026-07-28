@@ -530,7 +530,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v64"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v65"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -5904,66 +5904,69 @@ function openWodLog(b,isScore){
    activation générale (Hörst), tractions de recrutement 3-5 s (Nelson).
    ============================================================ */
 function warmupPlan(target, mode){
-  /* Protocole fondé sur la littérature (Eva López ; Schweizer 2001, Swiss Med Weekly ;
-     The Climbing Doctor ; PhysiVantage ; Unlevel Edge) : 3 temps — (1) température et
-     flux sanguin corps entier, (2) mobilité et circulation locale des doigts, (3) montée
-     en charge PROGRESSIVE des fléchisseurs, du sous-maximal vers l'intensité de travail,
-     jamais à froid, jamais à l'échec. L'escalier part de suspensions courtes (5 s) sur
-     gros bac et descend vers la prise de travail en montant la charge (≈40→50→65→80 %),
-     puis 2 amorces de recrutement (3-5 s) qui potentialisent le max sans fatiguer. */
+  /* PROTOCOLE FIXE, issu de sources publiées — aucun temps arbitraire :
+     • Eva López (protocole MaxHangs, blog et thèse) : échauffement 10-15 min
+       (mobilité épaules/coudes/poignets/doigts, puis grimpe ou suspensions faciles),
+       suivi de 3-4 séries progressives à 50-90 % de la charge de travail,
+       en augmentant le lest ou en réduisant la réglette à chaque série.
+     • Eric Hörst (trainingforclimbing.com) : activité générale pour élever la
+       fréquence cardiaque, puis tractions sur bacs et suspensions au poids du corps
+       sur différentes prises, terminées par un massage des fléchisseurs et extenseurs.
+     • Lattice Training (instructions officielles du Lattice Rung) : séries de
+       suspensions courtes progressives, même position de main du début à la fin ;
+       repos 2 min entre séries pour le protocole de test.
+     Repos fixes : 60 s en activation, 90 s dans la rampe (Lattice, séance type
+     « max hangs »), 120 s en mode test (instructions Lattice Rung). */
   const grip = target ? target.grip : "";
   const isPinch = grip==="Pince";
   const eq = (typeof equipSet==="function") ? equipSet() : new Set();
-  const noHang = !eq.has("poutre") && eq.has("minicrux"); // voyage Mini Crux : tout au sol
+  const noHang = !eq.has("poutre") && eq.has("minicrux");
+  const isTest = mode==="test";
+  const light = mode==="light";
   const baseKg = (fresh && fresh.baselineKg) ? fresh.baselineKg : null;
   const load = pct => baseKg ? ` · vise ~${Math.max(0,Math.round(baseKg*pct/100))} kg` : "";
-  const rest = (d,cue) => ({ dur:d, phase:"Repos", cue:cue||"Descends, secoue les avant-bras, respire.", kind:"rest" });
+  const RAMP_REST = isTest ? 120 : 90;          // Lattice : 2 min en test, 1 min 30 en séance
+  const ACT_REST  = 60;                          // repos d'activation
+  const rest = (d,cue) => ({ dur:d, phase:"Repos", cue:cue||`${d} s : descends, secoue les avant-bras, respire.`, kind:"rest" });
   const steps = [];
-  steps.push({ dur:180, phase:"Activation générale", kind:"move",
-    cue:"3 min pour élever la température : montées de genoux, jumping jacks ou corde à sauter, puis grands cercles de bras, épaules, coudes et poignets. Le sang doit affluer avant toute charge." });
-  steps.push({ dur:90, phase:"Mobilité des doigts", kind:"move",
-    cue:"Ouvre/ferme les poings lentement, écarte les doigts, rotations de poignets. Masse les avant-bras — fléchisseurs ET extenseurs. La chaleur locale rend les tendons plus souples et capables d'absorber plus de force." });
-  steps.push({ dur:75, phase:"Tirage facile", kind:"move",
-    cue:"3-4 tractions lentes sur bac (ou tractions d'omoplates), quelques rotations de coiffe. Réveille dorsaux et épaules avant de charger les doigts." });
-  if(isPinch){
-    steps.push({ dur:8,  phase:"Pince — contact léger", kind:"hang", cue:`Soulevé de pince ~8 s, charge très légère${load(40)}. Serrage progressif du pouce, dos droit, bras le long du corps.` });
-    steps.push(rest(45));
-    steps.push({ dur:10, phase:"Pince — montée", kind:"hang", cue:`~10 s à charge modérée${load(55)}. Marge confortable, jamais de crispation brusque.` });
-    steps.push(rest(50));
-    steps.push({ dur:10, phase:"Pince — soutenu", kind:"hang", cue:`~10 s à charge soutenue${load(70)}. Grosse marge — arrête bien avant l'échec.` });
-    steps.push(rest(60, "Repos complet. Tes pinces sont prêtes pour les séries de travail."));
-  } else if(noHang){
-    steps.push({ dur:5,  phase:"No-hang — contact", kind:"hang", cue:`Soulevé Mini Crux réglette 25 mm, ~5 s très léger${load(40)}. Demi-arqué, poignet neutre.` });
-    steps.push(rest(45));
-    steps.push({ dur:8,  phase:"No-hang — léger", kind:"hang", cue:`~8 s à charge légère${load(50)}. Montée de force lente, sans à-coup.` });
-    steps.push(rest(50));
-    steps.push({ dur:10, phase:"No-hang — modéré", kind:"hang", cue:`~10 s à charge modérée${load(65)}. Épaule et gainage engagés même au sol.` });
-    steps.push(rest(60));
-    steps.push({ dur:10, phase:"No-hang — soutenu", kind:"hang", cue:`~10 s à ${baseKg?"~80 %":"charge soutenue"}${load(80)}. Grosse marge, forme parfaite.` });
-    steps.push(rest(70, "Repos complet avant les séries de travail."));
-  } else {
-    steps.push({ dur:5,  phase:"Bac — contact", kind:"hang", cue:`Gros bac, bras fléchis, ~5 s sans forcer${load(40)}. Pieds au sol si besoin pour doser. On amorce, on ne charge pas encore.` });
-    steps.push(rest(40));
-    steps.push({ dur:10, phase:"Suspension légère", kind:"hang", cue:`Réglette 30-35 mm, ~10 s à charge très légère${load(50)}. Demi-arqué ou tendu — jamais arqué complet à froid.` });
-    steps.push(rest(60));
-    steps.push({ dur:10, phase:"Suspension modérée", kind:"hang", cue:`Même prise, ~10 s à charge modérée${load(65)}. Épaules actives (omoplates basses), gainage engagé.` });
-    steps.push(rest(60));
-    steps.push({ dur:10, phase:"Suspension soutenue", kind:"hang", cue:`Descends vers ta prise de travail, ~10 s à ${baseKg?"~80 %":"charge soutenue"}${load(80)}. Grosse marge — arrête bien avant l'échec.` });
-    steps.push(rest(75, "Repos complet — laisse les poulies se réhydrater."));
-    const isMax = mode==="test" || !target || /max|force|recrut|bloc/i.test((target.name||"")+" "+(target.type||""));
-    if(isMax){
-      steps.push({ dur:5, phase:"Recrutement", kind:"hang", cue:"Tire ~3-5 s aussi fort que possible sur une réglette fixe ou contre le pied. Fléchisseurs seuls, montée de force lente. Amorce le max sans fatiguer." });
-      steps.push(rest(40, "Change de main."));
-      steps.push({ dur:5, phase:"Recrutement — 2e main", kind:"hang", cue:"Idem ~3-5 s à fond, autre main. Puis repos complet." });
-      steps.push(rest(50, "Tes doigts sont chauds, recrutés, prêts pour le max."));
-    }
-  }
-  if(mode==="light"){ steps.forEach(s=>{ if(s.kind==="rest") s.dur=Math.round(s.dur*0.6); }); }
-  else if(mode==="test"){ steps.forEach(s=>{ if(s.kind==="rest") s.dur=Math.round(s.dur*1.15); }); }
-  return { steps, isPinch, noHang, mode: mode||"standard", totalSec: steps.reduce((a,s)=>a+s.dur,0) };
-}
 
-let warmupState = null;
+  // ---- 1. Général (Hörst : élever la fréquence cardiaque · López : mobilité articulaire)
+  steps.push({ dur:180, phase:"Cardio léger", kind:"move",
+    cue:"3 min : corde à sauter, montées de genoux ou jumping jacks. Objectif : élever la température et le flux sanguin avant toute charge (Hörst)." });
+  steps.push({ dur:120, phase:"Mobilité", kind:"move",
+    cue:"2 min : cercles d'épaules, flexions-extensions de coudes, rotations de poignets, ouverture-fermeture lente des doigts. Termine par un massage des fléchisseurs ET des extenseurs de l'avant-bras (López, Hörst)." });
+
+  // ---- 2. Activation du haut du corps (Hörst : tractions sur bacs puis suspensions au poids du corps)
+  steps.push({ dur:60, phase:"Tractions faciles", kind:"move",
+    cue:"5 tractions lentes sur bac, ou tractions d'omoplates si tu ne les enchaînes pas. Réveille dorsaux, coiffe et coudes." });
+  steps.push(rest(ACT_REST));
+  const bigHold = noHang ? "prise généreuse du Mini Crux, pieds au sol" : "bac (35-45 mm)";
+  steps.push({ dur:10, phase:"Suspension bras tendus", kind:"hang",
+    cue:`10 s sur ${bigHold}, poids du corps, épaules engagées (basses, actives). Première mise en charge des poulies.` });
+  steps.push(rest(ACT_REST));
+  steps.push({ dur:10, phase:"Suspension semi-arqué", kind:"hang",
+    cue:`10 s sur ${bigHold}, semi-arqué franc, poids du corps. Même position de main que celle de ta séance (Lattice).` });
+  steps.push(rest(ACT_REST));
+
+  // ---- 3. Rampe progressive (López : 3-4 séries à 50-90 % de la charge de travail)
+  const pcts = light ? [50, 70] : [50, 65, 80, 90];
+  const holdSec = 10;
+  pcts.forEach((p, idx) => {
+    const last = idx === pcts.length-1;
+    steps.push({ dur:holdSec, phase:`Rampe ${p} %`, kind:"hang",
+      cue: isPinch
+        ? `Soulevé de pince ${holdSec} s à ~${p} % de ta charge de travail${load(p)}. Serrage progressif, dos droit.`
+        : `${holdSec} s sur ta prise de séance, à ~${p} % de la charge de travail${load(p)}. ${last?"Dernière marche : la sensation doit être ferme mais loin de l'échec.":"Charge ou réglette augmentée d'un cran par rapport à la marche précédente (López)."}` });
+    if(!last) steps.push(rest(RAMP_REST, `${RAMP_REST} s de repos complet — la marche suivante doit partir fraîche.`));
+  });
+  steps.push(rest(RAMP_REST, isTest
+    ? `${RAMP_REST} s. Prêt pour le test : premières séries à intensité modérée, puis charge croissante, même position de main du début à la fin (Lattice).`
+    : `${RAMP_REST} s. Prêt pour la séance.`));
+
+  const totalSec = steps.reduce((a,s)=>a+s.dur, 0);
+  return { steps, totalSec, isPinch, noHang, mode: mode||"normal",
+    source:"Eva López · Eric Hörst · Lattice Training" };
+}
 function startFingerWarmup(onDone, opts){
   const sessEl=document.getElementById("session");
   if(YogaPlayer.isOn() || OA.playerOn() || (sessEl && sessEl.classList.contains("on"))){ toast("Termine d'abord l'exercice en cours"); return; }
