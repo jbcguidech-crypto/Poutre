@@ -487,6 +487,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
     <button class="sctl wide" id="sPause"></button>
     <button class="sctl" id="sSkip"><svg viewBox="0 0 24 24"><path d="M5 4l10 8-10 8zM17 5v14" stroke-width="2"/></svg>Passer</button>
   </div>
+  <button id="sRepDone" style="display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:calc(112px + env(safe-area-inset-bottom));background:#fff;color:#12312d;border:none;border-radius:999px;padding:15px 30px;font-weight:800;font-size:16px;box-shadow:0 8px 26px rgba(0,0,0,.28);z-index:3">Série faite ✓</button>
 </div>
 
 <div id="toast"></div>
@@ -538,7 +539,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v71"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v72"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -6039,8 +6040,8 @@ function warmupPlan(target, mode){
     cue:"2 min : cercles d'épaules, flexions-extensions de coudes, rotations de poignets, ouverture-fermeture lente des doigts. Termine par un massage des fléchisseurs ET des extenseurs de l'avant-bras (López, Hörst)." });
 
   // ---- 2. Activation du haut du corps (Hörst : tractions sur bacs puis suspensions au poids du corps)
-  steps.push({ dur:60, phase:"Tractions faciles", kind:"move",
-    cue:"5 tractions lentes sur bac, ou tractions d'omoplates si tu ne les enchaînes pas. Réveille dorsaux, coiffe et coudes." });
+  steps.push({ dur:0, phase:"Tractions faciles", kind:"reps", reps:5,
+    cue:"5 tractions lentes sur bac, ou tractions d'omoplates si tu ne les enchaînes pas. Réveille dorsaux, coiffe et coudes. Valide quand c'est fait." });
   steps.push(rest(ACT_REST));
   const bigHold = noHang ? "prise généreuse du Mini Crux, pieds au sol" : "bac (35-45 mm)";
   steps.push({ dur:10, phase:"Suspension bras tendus", kind:"hang",
@@ -6114,32 +6115,41 @@ const PREP_SEC = 3;   // mise en place avant chaque départ chronométré
 function wuPlay(){
   const st=warmupState; if(!st || st.running) return;
   const cur = st.plan.steps[st.i];
-  // les étapes "à ton rythme" (mobilité) démarrent sans décompte
-  if(cur.kind!=="move" && !st.prepDone){
-    st.prep = PREP_SEC; st.last=null; st.running=true;
-    drawWarmup();
-    wuRAF=requestAnimationFrame(warmupLoop);
-    return;
-  }
-  st.prep=0; st.running=true; st.last=null;
+  if(cur.kind==="reps") return;                 // série en répétitions : rien à chronométrer
+  // mise en place de 3 s au démarrage et à chaque reprise après pause
+  if(!st.started || st.wasPaused){ st.prep = PREP_SEC; st.started=true; st.wasPaused=false; }
+  st.running=true; st.last=null;
   drawWarmup();
   wuRAF=requestAnimationFrame(warmupLoop);
 }
 function wuPause(){
   const st=warmupState; if(!st) return;
-  st.running=false; st.last=null; st.prep=0;
+  st.running=false; st.last=null; st.prep=0; st.wasPaused=true;
   if(wuRAF) cancelAnimationFrame(wuRAF);
   drawWarmup();
+}
+function wuRepDone(){
+  const st=warmupState; if(!st) return;
+  try{audio.go&&audio.go();}catch(e){}
+  if(st.i+1>=st.plan.steps.length){ finishWarmup(true); return; }
+  st.started = true;
+  wuGo(st.i+1, true);
 }
 function wuToggle(){ const st=warmupState; if(!st) return; st.running ? wuPause() : wuPlay(); }
 function wuGo(i, autoplay){
   const st=warmupState; if(!st) return;
   if(i<0 || i>=st.plan.steps.length) return;
   st.i=i; st.remain=st.plan.steps[i].dur; st.lastBeep=null; st.last=null;
-  st.running=false; st.prep=0; st.prepDone=false;
+  st.running=false; st.prep=0;
   if(wuRAF) cancelAnimationFrame(wuRAF);
+  const cur = st.plan.steps[i];
   drawWarmup();
-  if(autoplay) wuPlay();
+  // une fois la séance lancée, tout s'enchaîne — sauf une série en répétitions
+  if((autoplay || (st.started && cur.kind!=="reps")) && cur.kind!=="reps"){
+    st.running=true; st.last=null;
+    wuRAF=requestAnimationFrame(warmupLoop);
+    drawWarmup();
+  }
 }
 let wuRAF=null, wuWake=null;
 function requestWakeGeneric(){
@@ -6147,6 +6157,7 @@ function requestWakeGeneric(){
 function warmupLoop(t){
   if(!warmupState || !warmupState.running) return;
   const st = warmupState, cur = st.plan.steps[st.i];
+  if(cur.kind==="reps"){ st.running=false; drawWarmup(); return; }
   if(st.last==null) st.last=t;
   const dt=(t-st.last)/1000; st.last=t;
   if(st.prep>0){                       // mise en place : 3, 2, 1
@@ -6170,8 +6181,7 @@ function warmupLoop(t){
   if(st.remain<=0){
     try{audio.go&&audio.go();}catch(e){} try{ if(navigator.vibrate) navigator.vibrate(35); }catch(e){}
     if(st.i+1>=st.plan.steps.length){ finishWarmup(true); return; }
-    // enchaînement auto (optionnel) ou attente d'un appui : on ne défile jamais sans toi
-    wuGo(st.i+1, st.auto);
+    wuGo(st.i+1, true);     // la séance déroule ; la mise en pause reste possible
     return;
   }
   updateWarmupTime();
@@ -6192,8 +6202,8 @@ function drawWarmup(){
     <div style="flex:1;display:flex;gap:8px;min-height:0">
     <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:0 4px;min-width:0">
       <button id="fwDial" style="width:180px;height:180px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:radial-gradient(circle at 40% 35%, ${kindColor}, transparent 72%);border:2px solid ${kindColor};cursor:pointer;padding:0">
-        <span id="fwTime" style="font-size:56px;font-weight:800;font-family:var(--mono);color:var(--chalk)">${st.prep>0?Math.ceil(st.prep):Math.ceil(st.remain)}</span>
-        <span style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${st.prep>0?"var(--amber-deep)":"var(--muted)"}">${st.prep>0?"mise en place…":st.running?"appuie pour mettre en pause":"appuie pour démarrer"}</span>
+        <span id="fwTime" style="font-size:${cur.kind==="reps"?42:56}px;font-weight:800;font-family:var(--mono);color:var(--chalk)">${cur.kind==="reps"?`${cur.reps}×`:(st.prep>0?Math.ceil(st.prep):Math.ceil(st.remain))}</span>
+        <span style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${st.prep>0?"var(--amber-deep)":"var(--muted)"}">${cur.kind==="reps"?"appuie quand c'est fait":st.prep>0?"mise en place…":st.running?"appuie pour mettre en pause":"appuie pour reprendre"}</span>
       </button>
       <div style="font-size:22px;font-weight:800">${esc(cur.phase)}</div>
       <div style="font-size:14px;color:var(--muted);max-width:32ch;line-height:1.5">${esc(cur.cue)}</div>
@@ -6212,23 +6222,20 @@ function drawWarmup(){
     </div>
     <div style="display:flex;gap:10px;align-items:center;justify-content:center;padding:8px 0 4px">
       <button class="btn btn-ghost" id="fwPrev" style="padding:12px 16px" ${st.i===0?'disabled style="opacity:.35;padding:12px 16px"':""}>‹ Précédent</button>
-      <button class="btn btn-primary" id="fwPlay" style="padding:14px 26px;min-width:132px">${st.running?"⏸ Pause":(cur.kind==="move"?"▶ Chrono":"▶ Démarrer")}</button>
+      <button class="btn btn-primary" id="fwPlay" style="padding:14px 26px;min-width:138px${cur.kind==="reps"?";background:var(--cool-deep)":""}">${cur.kind==="reps"?"Fait ✓":st.running?"⏸ Pause":(st.started?"▶ Reprendre":"▶ Démarrer")}</button>
       <button class="btn btn-ghost" id="fwNext" style="padding:12px 16px">${st.i+1>=st.plan.steps.length?"Terminer ✓":"Suivant ›"}</button>
     </div>
     <div style="display:flex;justify-content:center;padding:0 0 calc(10px + env(safe-area-inset-bottom))">
-      <button id="fwAuto" style="background:none;border:none;color:var(--muted);font-size:12px;font-weight:700;padding:6px 10px">
-        Enchaînement auto : <b style="color:${st.auto?"var(--cool-deep)":"var(--muted)"}">${st.auto?"activé":"désactivé"}</b>
-      </button>
+      <span style="color:var(--faint);font-size:11.5px;font-weight:700">${st.running?"La séance déroule — mets en pause quand tu veux":"En pause"}</span>
     </div>`;
   document.getElementById("fwClose").onclick=()=>finishWarmup(false);
-  document.getElementById("fwPlay").onclick=wuToggle;
+  document.getElementById("fwPlay").onclick=()=>{ cur.kind==="reps" ? wuRepDone() : wuToggle(); };
   document.getElementById("fwPrev").onclick=()=>wuGo(st.i-1, false);
   document.getElementById("fwNext").onclick=()=>{
     if(st.i+1>=st.plan.steps.length) finishWarmup(true); else wuGo(st.i+1, false);
   };
-  document.getElementById("fwAuto").onclick=()=>{ st.auto=!st.auto; store.set("wuAuto", st.auto); drawWarmup(); };
-  const dial=document.getElementById("fwDial"); if(dial) dial.onclick=wuToggle;
-  document.querySelectorAll(".fw-jump").forEach(b=>b.onclick=()=>wuGo(+b.dataset.i, false));
+  const dial=document.getElementById("fwDial"); if(dial) dial.onclick=()=>{ cur.kind==="reps" ? wuRepDone() : wuToggle(); };
+  document.querySelectorAll(".fw-jump").forEach(b=>b.onclick=()=>wuGo(+b.dataset.i, st.started));
   const rail=document.getElementById("fwRail");
   if(rail){ const curEl=rail.children[st.i]; if(curEl) curEl.scrollIntoView({block:"center"}); }
 }
@@ -6835,6 +6842,11 @@ function openFreeSheet(){
    MOTEUR DE SÉANCE
    ============================================================ */
 let SESS=null;
+/* Une série "en répétitions" ne se pilote pas au chrono : la fenêtre de temps
+   n'est qu'une indication, c'est toi qui valides quand la série est faite. */
+const REP_EFFORTS = new Set(["Tractions","Omoplates","Pompes","Extensions","Rotations",
+  "Swings","Soulevés","Squats","Développés","Rowing","Slams"]);
+function isRepSet(p){ return !!(p && (p.repSet || REP_EFFORTS.has(p.effortLabel))); }
 function buildPhases(p){
   const ph=[]; ph.push({kind:"prep",dur:p.prepSec,label:"Préparation"});
   for(let s=0;s<p.sets;s++){
@@ -7012,13 +7024,20 @@ function loop(t){
     // tics de décompte
     if(cur.dur>0 && sec!==SESS.lastSec && sec<=3 && sec>=1){ audio.tick(); vibrate(30); }
     SESS.lastSec=sec;
-    if(SESS.remain<=0){ advance(); }
+    if(SESS.remain<=0){
+      const c=SESS.phases[SESS.i];
+      if(c.kind==="hang" && isRepSet(SESS.p)){   // série en reps : on attend ta validation
+        SESS.remain=0; SESS.awaitRep=true; SESS.running=false;
+        audio.rest(); vibrate(80); paintSession();
+      } else advance();
+    }
     else paintSession();
   } else { SESS.lastT=null; }
   if(SESS && !SESS.ended) rafId=requestAnimationFrame(loop);
   else rafId=null;
 }
 function advance(){
+  SESS.awaitRep=false;
   const cur=SESS.phases[SESS.i];
   if(cur.kind==="hang") SESS.completedReps++;
   SESS.i++;
@@ -7035,7 +7054,14 @@ function paintSession(){
   const sess=$("#session");
   sess.className="on sess-bg-"+cur.kind;
   const prepping = SESS.prep>0;
+  const repSet = isRepSet(SESS.p) && cur.kind==="hang";
+  const rd = $("#sRepDone");
+  if(rd){
+    rd.style.display = (repSet || SESS.awaitRep) ? "block" : "none";
+    rd.textContent = SESS.awaitRep ? "Série faite ✓ — continuer" : "Série faite ✓";
+  }
   $("#sLabel").textContent = prepping ? "Mise en place"
+    : SESS.awaitRep ? "Série terminée ?"
     : cur.kind==="hang" ? (SESS.p.effortLabel||PHASE_TXT.hang) : (PHASE_TXT[cur.kind]||cur.label);
   const sec = prepping ? Math.ceil(SESS.prep) : Math.max(0,Math.ceil(SESS.remain));
   $("#sCount").innerHTML=`${sec}<small>s</small>`;
@@ -7082,6 +7108,12 @@ function bindSessionControls(){
     setPause(); paintSession();
   };
   $("#sSkip").onclick=()=>{ SESS.remain=0; };
+  $("#sRepDone").onclick=()=>{           // valide la série en répétitions et enchaîne
+    if(!SESS || SESS.ended) return;
+    SESS.awaitRep=false; SESS.remain=0; SESS.running=true; SESS.lastT=null;
+    advance();
+    if(!rafId) rafId=requestAnimationFrame(loop);
+  };
   $("#sPrev").onclick=()=>{   // revenir à la phase précédente (erreur de manip, série à refaire…)
     if(!SESS || SESS.ended) return;
     const atStart = SESS.remain > SESS.phases[SESS.i].dur - 1.5;   // déjà au tout début → on remonte
