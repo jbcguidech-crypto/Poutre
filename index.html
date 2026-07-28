@@ -530,7 +530,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v65"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v67"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -1704,53 +1704,110 @@ const TEST_DEFS = {
   escalade: {
     name:"Test doigts & tractions", needWarm:true,
     intro:"Après échauffement complet. Trois mesures, dans cet ordre, avec 3 min de repos entre chaque essai.",
-    modes:[["lest","Lest sur 20 mm"],["med","Réglette minimale"]],
+    modes:[["lest","Lest sur réglette"],["med","Réglette minimale"]],
     modeHint:{
-      lest:"Protocole classique : réglette fixe, on ajoute du poids. Mesure la force absolue.",
-      med:"Protocole MED (profondeur minimale) : aucun lest, on réduit la réglette. Même information, zéro charge additionnelle sur les poulies — le bon choix si tes doigts sont sensibles ou en retour de blessure."
+      lest:"Réglette de ton choix, on ajoute du poids. Note la réglette réellement utilisée : c'est elle qui définit tes charges d'entraînement.",
+      med:"Protocole MED (profondeur minimale) : aucun lest, on réduit la réglette. Même information, zéro charge additionnelle sur les poulies — le bon choix en reprise ou si tes doigts sont sensibles."
     },
-    protocol:[
-      "Réglette 20 mm, deux mains, <b>semi-arqué strict</b> — jamais arqué fermé, pouce jamais par-dessus l'index.",
-      "Montée progressive : 4 essais à ~50, 70, 85 puis 95 % — <b>3 min de repos</b> entre chaque.",
-      "<b>Charge et décharge progressives</b> : pieds sur une box, transfère le poids doucement et reprends-le de la même façon. On ne saute jamais du sol, on ne lâche jamais la poutre d'un coup.",
-      "<b>10 s exactement</b>, chronométrées.",
-      "Arrêt : dès que les doigts s'ouvrent, que les épaules montent aux oreilles ou que tu réajustes la prise — l'essai ne compte pas, c'est ta limite.",
-      "<b>3 essais maximaux au plus</b> dans la séance. Pas de test dans les 48 h qui suivent une grosse séance de doigts."
+    protocols:[
+      { t:"Doigts — suspension 10 s", src:"Eva López · Lattice Training", steps:[
+        "<b>Semi-arqué strict</b> — jamais arqué fermé, pouce jamais par-dessus l'index. Même position de main du début à la fin (Lattice).",
+        "Montée progressive : grande réglette au poids du corps → réglette réduite → puis seulement du lest. <b>3 min de repos</b> entre chaque essai.",
+        "<b>Charge et décharge progressives</b> : pieds sur une box, transfère le poids doucement et reprends-le de la même façon. On ne saute jamais du sol, on ne lâche jamais la poutre d'un coup.",
+        "<b>10 s exactement</b>, chronométrées.",
+        "Arrêt : dès que les doigts s'ouvrent, que les épaules montent aux oreilles ou que tu réajustes la prise — l'essai ne compte pas.",
+        "<b>3 essais maximaux au plus</b>. Pas de test dans les 48 h qui suivent une grosse séance de doigts.",
+        "En reprise : reste sur une réglette confortable (25-45 mm) et arrête-toi bien avant la limite. Le premier test d'un cycle est un repère, pas un record."
+      ]},
+      { t:"Traction lestée — 3RM", src:"NSCA · protocoles de recherche 1RM/3RM", steps:[
+        "<b>Série d'approche 1</b> : 5 tractions au poids du corps, faciles. <b>1 min de repos</b> (NSCA).",
+        "<b>Série d'approche 2</b> : 3 tractions à environ la moitié du lest visé. <b>2 min de repos</b> (NSCA : +5-10 % de charge sur le haut du corps entre les séries d'approche).",
+        "<b>Série d'approche 3</b> : 3 tractions à ~85 % du lest visé. <b>3 min de repos</b>.",
+        "<b>Essais 3RM</b> : 3 répétitions strictes. Si elles passent proprement, ajoute <b>2,5 kg</b> et recommence. <b>3 à 5 min de repos complet entre chaque essai</b> — c'est la durée retenue dans les protocoles de test de force publiés.",
+        "<b>5 essais maximum</b>, atteins ton 3RM dedans : au-delà, c'est la fatigue qui répond, plus la force.",
+        "Critère de validité : amplitude complète, bras tendus en bas, menton franchement au-dessus, sans élan. <b>Si la 3ᵉ répétition dégrade la technique, l'essai ne compte pas</b> — la charge précédente est ton 3RM.",
+        "Lest au baudrier ou en gilet. Jamais un kettlebell tenu entre les jambes en série lourde."
+      ]}
     ],
-    fieldsFor:(mode)=>[
-      mode==="med"
-        ? { id:"e_med", label:"Réglette minimale tenue 10 s — au poids du corps", unit:"mm", def:14, min:4, max:40, inc:1,
-            hint:"La plus petite profondeur tenue 10 s propres, sans lest, deux mains, semi-arqué. Réduis de 2 mm par essai." }
-        : { id:"e_hang", label:"Suspension 10 s — lest total (réglette 20 mm)", unit:"kg", def:0, min:-60, max:120, inc:1,
-            hint:"Lest max tenu 10 s propres en semi-arqué. Négatif si allégé à l'élastique." },
-      { id:"e_pull", label:"Tractions strictes — répétitions max", unit:"reps", def:8, min:0, max:60, inc:1,
-        hint:"Poids du corps, amplitude complète, bras tendus en bas, menton franchement au-dessus. Sans élan." },
-      { id:"e_pullkg", label:"Traction lestée — lest max sur 3 reps", unit:"kg", def:0, min:0, max:80, inc:1,
-        hint:"3 répétitions strictes, jamais un max à 1 rep : même information de force, beaucoup moins de risque pour les coudes et les épaules. Lest au baudrier ou en gilet. Si la 3ᵉ rep dégrade la technique, la charge est trop lourde. 0 si tu ne testes pas." }
-    ],
+    fieldsFor:(mode)=>{
+      const common = [
+        { id:"e_bw", label:"Poids de corps (équipé comme au test)", unit:"kg", def:70, min:35, max:140, inc:1,
+          hint:"Sert à convertir ta performance en pourcentage du poids de corps — la seule mesure comparable d'une réglette à l'autre." },
+        { id:"e_pull", label:"Tractions strictes — répétitions max", unit:"reps", def:8, min:0, max:60, inc:1,
+          hint:"Poids du corps, amplitude complète, bras tendus en bas, menton franchement au-dessus. Sans élan." },
+        { id:"e_pullkg", label:"Traction lestée — lest max sur 3 reps", unit:"kg", def:0, min:0, max:80, inc:1,
+          hint:"3 répétitions strictes, jamais un max à 1 rep : même information de force, beaucoup moins de risque pour les coudes et les épaules. 0 si tu ne testes pas." }
+      ];
+      return mode==="med"
+        ? [{ id:"e_med", label:"Réglette minimale tenue 10 s — au poids du corps", unit:"mm", def:20, min:4, max:50, inc:1,
+             hint:"La plus petite profondeur tenue 10 s propres, sans lest, deux mains, semi-arqué. Réduis de 2-3 mm par essai." }, ...common]
+        : [{ id:"e_edge", label:"Réglette utilisée", unit:"mm", def:20, min:8, max:50, inc:1,
+             hint:"45 mm = bac d'échauffement · 25-35 mm = confortable, adapté aux reprises · 20 mm = référence internationale · 15 mm et moins = travail avancé." },
+            { id:"e_hang", label:"Suspension 10 s — lest ajouté", unit:"kg", def:0, min:-40, max:120, inc:1,
+             hint:"Lest max tenu 10 s propres sur CETTE réglette. Négatif si tu t'allèges à l'élastique." },
+            ...common];
+    },
     level:v => {
-      const hp = (v.e_med!=null && v.e_med>0)
-        ? (v.e_med<=8?5 : v.e_med<=11?4 : v.e_med<=14?3 : v.e_med<=18?2 : 1)
-        : (v.e_hang>=30?5 : v.e_hang>=20?4 : v.e_hang>=10?3 : v.e_hang>=0?2 : 1);
+      const bw = v.e_bw>0 ? v.e_bw : 70;
+      const edge = (v.e_med>0) ? v.e_med : (v.e_edge>0 ? v.e_edge : 20);
+      const added = (v.e_med>0) ? 0 : (v.e_hang||0);
+      const pctBW = (bw + added) / bw * 100;
+      // équivalence approximative vers 20 mm : ±2 % de charge par mm (estimation)
+      const pct20 = pctBW * (1 - 0.02*(edge-20));
+      const hp = pct20>=145?5 : pct20>=130?4 : pct20>=115?3 : pct20>=100?2 : 1;
       const pk = v.e_pullkg||0;
-      const pp = pk>0 ? (pk>=35?5 : pk>=25?4 : pk>=15?3 : pk>=8?2 : 1)   // seuils calés sur un 3RM
+      const pp = pk>0 ? (pk>=35?5 : pk>=25?4 : pk>=15?3 : pk>=8?2 : 1)
                       : (v.e_pull>=20?5 : v.e_pull>=15?4 : v.e_pull>=10?3 : v.e_pull>=5?2 : 1);
       return Math.max(1, Math.min(5, Math.round(hp*0.6 + pp*0.4)));
     },
     adjust:v => {
+      const bw = v.e_bw>0 ? v.e_bw : 70;
+      const med = v.e_med>0;
+      const edge = med ? v.e_med : (v.e_edge||20);
+      const added = med ? 0 : (v.e_hang||0);
+      const pctBW = Math.round((bw+added)/bw*100);
+      const pct20 = Math.round(pctBW * (1 - 0.02*(edge-20)));
+      const maxKg = Math.round(added*0.9);
+      const repEdge = edge + 5;
+      const repKg = Math.max(0, Math.round(added*0.5));
+      const fingers = med
+        ? `<b>Max hangs</b> : ${edge+2} mm au poids du corps, 10 s × 5 · <b>répéteurs</b> : ${edge+6} mm, 7:3.`
+        : `<b>Max hangs</b> : ${edge} mm à <b>+${maxKg} kg</b> (90 % du test), 10 s × 5, repos 3 min · <b>répéteurs</b> : ${repEdge} mm à +${repKg} kg, 7:3.`;
       const pk = v.e_pullkg||0;
       const pull = pk>0
-        ? `tractions lestées à <b>+${Math.round(pk*0.85)} kg</b> en séries de 3 (85 % de ton 3RM)`
-        : `tractions à <b>${Math.max(1,Math.round(v.e_pull*0.65))} reps</b> par série (65 % du max), lest à ajouter dès que tu dépasses 12 reps propres`;
-      const fingers = (v.e_med!=null && v.e_med>0)
-        ? `Doigts : travail max sur <b>${v.e_med+2} mm au poids du corps</b> (2 mm de marge sur ton minimum), répéteurs sur ${v.e_med+6} mm`
-        : `Doigts : travail max ciblé à <b>+${Math.round(v.e_hang*0.85)} kg</b> (85 % du test)`;
-      return `${fingers}. Tirage : ${pull}. L'échauffement guidé utilisera ces références.`;
+        ? `tractions lestées à <b>+${Math.round(pk*0.85)} kg</b> en séries de 3 (85 % du 3RM)`
+        : `tractions à <b>${Math.max(1,Math.round(v.e_pull*0.65))} reps</b> par série (65 % du max)`;
+      return `${pctBW} % du poids de corps sur ${edge} mm${edge!==20?` — soit ≈ ${pct20} % ramené à 20 mm (estimation)`:""}.<br>${fingers}<br>Tirage : ${pull}.`;
+    },
+    onSave:(v)=>{
+      const med = v.e_med>0;
+      store.set("fingerRef", {
+        edge: med ? v.e_med+2 : (v.e_edge||20),
+        kg: med ? 0 : Math.round((v.e_hang||0)*0.9),
+        testEdge: med ? v.e_med : (v.e_edge||20),
+        testKg: med ? 0 : (v.e_hang||0),
+        bw: v.e_bw||null, med, at: new Date().toISOString()
+      });
     }
   },
   wod: {
     name:"Test condition & cuisses",
     intro:"Deux parties. 1) Baseline chronométré : 400 m course → 40 squats → 30 sit-ups → 20 pompes → 10 tractions. 2) Après 10 min de récupération complète, la force des cuisses — squat lesté OU pistols, l'un des deux suffit.",
+    protocols:[
+      { t:"Squat lesté — 5RM", src:"NSCA · protocoles de recherche", steps:[
+        "<b>Approche 1</b> : 8 squats à vide ou charge légère. <b>1 min de repos</b>.",
+        "<b>Approche 2</b> : 5 squats à ~60 % de la charge visée. <b>2 min de repos</b>.",
+        "<b>Approche 3</b> : 3 squats à ~80 %. <b>3 min de repos</b>.",
+        "<b>Essais 5RM</b> : 5 répétitions, cuisses sous la parallèle, dos long. Si elles passent, ajoute <b>5 kg</b> (jambes : incréments plus larges que le haut du corps) et recommence. <b>3 à 5 min entre les essais</b>.",
+        "<b>5 essais maximum.</b> Si la 5ᵉ répétition se fait au prix du dos, l'essai ne compte pas."
+      ]},
+      { t:"Pistols", steps:[
+        "Échauffe chevilles et hanches : 10 squats profonds, 10 fentes lentes par jambe.",
+        "2 séries d'approche de 2 pistols par jambe, avec appui léger si besoin. <b>2 min de repos</b>.",
+        "Essai max sur la jambe la plus faible, talon au sol, sans appui. <b>3 min de repos</b> avant l'autre jambe.",
+        "Note la jambe la plus faible : c'est elle qui limite en montagne."
+      ]}
+    ],
     fields:[
       { id:"w_min", label:"Baseline — temps total", unit:"min", def:8, min:3, max:25, inc:1, hint:"Arrondis à la minute la plus proche." },
       { id:"w_burp", label:"Burpees en 2 min — max", unit:"reps", def:30, min:5, max:100, inc:1, hint:"Après 5 min de récupération." },
@@ -1844,7 +1901,12 @@ function openTrackTest(k){
     ${def.modes?`<div class="field" style="margin-bottom:6px"><label>Protocole doigts</label>
       <div class="goalseg" id="ttMode">${def.modes.map(([mk,ml])=>`<button data-m="${mk}" class="${mode===mk?"on":""}">${esc(ml)}</button>`).join("")}</div>
       <p class="hint" style="text-align:left;margin:6px 0 10px">${def.modeHint[mode]}</p></div>`:""}
-    ${def.protocol?`<details style="margin-bottom:12px"><summary style="font-weight:800;font-size:13.5px;cursor:pointer;padding:6px 0">Protocole détaillé</summary>
+    ${def.protocols?def.protocols.map(p=>`<details style="margin-bottom:8px">
+      <summary style="font-weight:800;font-size:13.5px;cursor:pointer;padding:6px 0">Protocole — ${esc(p.t)}</summary>
+      <ol style="margin:6px 0 0;padding-left:20px">${p.steps.map(s=>`<li style="font-size:13px;margin-bottom:5px">${s}</li>`).join("")}</ol>
+      ${p.src?`<div class="mono" style="font-size:10.5px;color:var(--faint);margin:6px 0 0">Source : ${esc(p.src)}</div>`:""}
+      </details>`).join("")
+      :def.protocol?`<details style="margin-bottom:12px"><summary style="font-weight:800;font-size:13.5px;cursor:pointer;padding:6px 0">Protocole détaillé</summary>
       <ol style="margin:6px 0 0;padding-left:20px">${def.protocol.map(s=>`<li style="font-size:13px;margin-bottom:5px">${s}</li>`).join("")}</ol></details>`:""}
     ${prev?`<div class="card" style="margin-bottom:12px"><div class="mono" style="font-size:11.5px;color:var(--muted)">Dernier test : ${relDate(prev.dateISO)} · niveau <b style="color:var(--chalk)">${prev.level}/5 ${LVL_NAME[prev.level]}</b></div></div>`:""}
     ${fields.map(f=>stepper(f.id, f.label, f.unit, (prev&&prev.data&&prev.data[f.id]!=null)?prev.data[f.id]:f.def, f.min, f.max, f.inc)
@@ -1866,6 +1928,7 @@ function openTrackTest(k){
     if(!trackTests[k]) trackTests[k]=[];
     trackTests[k].push({ block, dateISO:new Date().toISOString(), level, data });
     saveTT();
+    if(typeof def.onSave==="function"){ try{ def.onSave(data); }catch(e){} }
     // le test doigts nourrit aussi la référence de fraîcheur et l'échauffement
     if(k==="escalade" && data.e_hang>0 && mode!=="med"){ const kg=Math.round(data.e_hang); if(!fresh.baselineKg || kg>fresh.baselineKg){ fresh.baselineKg=kg; saveFresh(); } }
     if(k==="oa" && typeof OA!=="undefined"){ /* le BOLT saisi ici reste indicatif ; le lecteur OA fait foi */ }
@@ -5589,11 +5652,10 @@ function openFingerHub(){
   sheet(`
     <h3>Doigts & tractions</h3>
     <div class="sub">Tous les protocoles disponibles. ${warm?"Tu es chaud — lancement direct.":"L'échauffement guidé se lance avant toute séance chargée."}</div>
-    ${(()=>{ const t=lastTest("escalade"); if(!t) return "";
-      const med = t.data.e_med>0;
-      const cible = med ? `<b style="color:var(--chalk)">${t.data.e_med+2} mm au poids du corps</b>` : `<b style="color:var(--chalk)">+${Math.round((t.data.e_hang||0)*0.85)} kg</b> sur 20 mm`;
-      const tir = t.data.e_pullkg>0 ? `tractions +${Math.round(t.data.e_pullkg*0.85)} kg × 3` : `tractions ${Math.max(0,Math.round((t.data.e_pull||0)*0.65))} reps/série`;
-      return `<div class="card" style="margin-bottom:10px"><div class="mono" style="font-size:11.5px;color:var(--muted)">Test doigts : niveau <b style="color:var(--chalk)">${t.level}/5</b> · travail max à ${cible} · ${tir}</div></div>`; })()}
+    ${(()=>{ const r=store.get("fingerRef",null), t=lastTest("escalade"); if(!r&&!t) return "";
+      const cible = r ? (r.med||r.kg===0 ? `<b style="color:var(--chalk)">${r.edge} mm au poids du corps</b>` : `<b style="color:var(--chalk)">${r.edge} mm à +${r.kg} kg</b>`) : "—";
+      const tir = t && t.data.e_pullkg>0 ? `tractions +${Math.round(t.data.e_pullkg*0.85)} kg × 3` : (t?`tractions ${Math.max(0,Math.round((t.data.e_pull||0)*0.65))} reps/série`:"");
+      return `<div class="card" style="margin-bottom:10px"><div class="mono" style="font-size:11.5px;color:var(--muted)">${t?`Niveau <b style="color:var(--chalk)">${t.level}/5</b> · `:""}max hangs : ${cible}${tir?` · ${tir}`:""}</div></div>`; })()}
     <div style="max-height:58vh;overflow:auto;margin-bottom:12px">
       ${CATS.map(([c,label])=>{
         const list = programs.filter(p=>p.cat===c);
@@ -5903,6 +5965,7 @@ function openWodLog(b,isScore){
    Références : suspensions progressives 40→90% (López), mobilité +
    activation générale (Hörst), tractions de recrutement 3-5 s (Nelson).
    ============================================================ */
+let warmupState = null;
 function warmupPlan(target, mode){
   /* PROTOCOLE FIXE, issu de sources publiées — aucun temps arbitraire :
      • Eva López (protocole MaxHangs, blog et thèse) : échauffement 10-15 min
@@ -5923,8 +5986,6 @@ function warmupPlan(target, mode){
   const noHang = !eq.has("poutre") && eq.has("minicrux");
   const isTest = mode==="test";
   const light = mode==="light";
-  const baseKg = (fresh && fresh.baselineKg) ? fresh.baselineKg : null;
-  const load = pct => baseKg ? ` · vise ~${Math.max(0,Math.round(baseKg*pct/100))} kg` : "";
   const RAMP_REST = isTest ? 120 : 90;          // Lattice : 2 min en test, 1 min 30 en séance
   const ACT_REST  = 60;                          // repos d'activation
   const rest = (d,cue) => ({ dur:d, phase:"Repos", cue:cue||`${d} s : descends, secoue les avant-bras, respire.`, kind:"rest" });
@@ -5948,15 +6009,35 @@ function warmupPlan(target, mode){
     cue:`10 s sur ${bigHold}, semi-arqué franc, poids du corps. Même position de main que celle de ta séance (Lattice).` });
   steps.push(rest(ACT_REST));
 
-  // ---- 3. Rampe progressive (López : 3-4 séries à 50-90 % de la charge de travail)
-  const pcts = light ? [50, 70] : [50, 65, 80, 90];
+  // ---- 3. Rampe progressive (López : on augmente la difficulté à chaque série —
+  //      d'abord en réduisant la réglette, ensuite en ajoutant le lest. Jamais un
+  //      pourcentage impossible : on ne descend pas sous le poids du corps.)
+  const ref = store.get("fingerRef", null);
+  const wEdge = target && target.edgeMm ? target.edgeMm : (ref ? ref.edge : 20);
+  const wKg   = (target && target.addedKg!=null) ? target.addedKg : (ref ? ref.kg : 0);
   const holdSec = 10;
-  pcts.forEach((p, idx) => {
-    const last = idx === pcts.length-1;
-    steps.push({ dur:holdSec, phase:`Rampe ${p} %`, kind:"hang",
-      cue: isPinch
-        ? `Soulevé de pince ${holdSec} s à ~${p} % de ta charge de travail${load(p)}. Serrage progressif, dos droit.`
-        : `${holdSec} s sur ta prise de séance, à ~${p} % de la charge de travail${load(p)}. ${last?"Dernière marche : la sensation doit être ferme mais loin de l'échec.":"Charge ou réglette augmentée d'un cran par rapport à la marche précédente (López)."}` });
+  const rungs = [];
+  if(isPinch){
+    rungs.push({ label:"Pince légère", cue:`Soulevé de pince ${holdSec} s, charge très légère. Serrage progressif du pouce, dos droit.` });
+    if(wKg>0) rungs.push({ label:`Pince +${Math.round(wKg*0.5)} kg`, cue:`Soulevé ${holdSec} s à +${Math.round(wKg*0.5)} kg — moitié de ta charge de travail.` });
+    rungs.push({ label:`Pince +${Math.round(wKg*0.85)} kg`, cue:`Soulevé ${holdSec} s à +${Math.round(wKg*0.85)} kg. Ferme mais loin de l'échec.` });
+  } else {
+    const big = noHang ? "prise généreuse Mini Crux" : "45 mm (bac)";
+    rungs.push({ label:`${big} · poids du corps`, cue:`${holdSec} s sur ${big}, poids du corps, semi-arqué franc. Première marche : ça doit être facile.` });
+    const mid = Math.min(45, wEdge + 10);
+    if(mid > wEdge) rungs.push({ label:`${mid} mm · poids du corps`, cue:`${holdSec} s sur ${mid} mm au poids du corps. On réduit la réglette avant de toucher au lest (López).` });
+    rungs.push({ label:`${wEdge} mm · poids du corps`, cue:`${holdSec} s sur ta réglette de séance (${wEdge} mm), sans lest. Sensation de référence.` });
+    if(wKg > 0){
+      if(!light) rungs.push({ label:`${wEdge} mm · +${Math.round(wKg*0.5)} kg`, cue:`${holdSec} s à +${Math.round(wKg*0.5)} kg — moitié de ta charge de travail.` });
+      rungs.push({ label:`${wEdge} mm · +${Math.round(wKg*0.85)} kg`, cue:`${holdSec} s à +${Math.round(wKg*0.85)} kg (85 % de la charge de séance). Dernière marche : ferme, mais loin de l'échec.` });
+    } else if(wKg < 0){
+      rungs.push({ label:`${wEdge} mm · allégé`, cue:`${holdSec} s sur ${wEdge} mm avec l'élastique réglé pour ta séance. Dernière marche.` });
+    }
+  }
+  const useRungs = light ? rungs.filter((_,k)=>k===0 || k===rungs.length-1) : rungs;
+  useRungs.forEach((r, idx) => {
+    const last = idx === useRungs.length-1;
+    steps.push({ dur:holdSec, phase:r.label, kind:"hang", cue:r.cue });
     if(!last) steps.push(rest(RAMP_REST, `${RAMP_REST} s de repos complet — la marche suivante doit partir fraîche.`));
   });
   steps.push(rest(RAMP_REST, isTest
