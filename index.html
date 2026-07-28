@@ -214,6 +214,13 @@ canvas{width:100%;display:block}
 .rung.cur{background:#fff;animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
 
+#sRail{position:absolute;right:8px;top:64px;bottom:120px;width:96px;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:4px;padding:2px;-webkit-overflow-scrolling:touch;z-index:2}
+#sRail button{text-align:left;border-radius:9px;padding:6px 7px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:rgba(255,255,255,.72)}
+#sRail button.now{background:rgba(255,255,255,.94);color:#12312d;border-color:transparent}
+#sRail button.done{opacity:.45}
+#sRail .t{font-size:9.5px;font-family:var(--mono);font-weight:800;letter-spacing:.04em;opacity:.85}
+#sRail .n{font-size:10.5px;font-weight:700;line-height:1.25;margin-top:1px;word-break:break-word}
+@media (max-width:380px){ #sRail{width:82px} }
 .upnext{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:0 14px 6px}
 .upnext span{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.04em;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.10);color:rgba(255,255,255,.72);white-space:nowrap}
 .upnext span.now{background:rgba(255,255,255,.92);color:#12312d}
@@ -474,6 +481,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
   </div>
   <div class="ladder" id="sLadder"></div>
   <div class="upnext" id="sUp"></div>
+  <div id="sRail"></div>
   <div class="sess-ctrl">
     <button class="sctl" id="sPrev"><svg viewBox="0 0 24 24"><path d="M19 4L9 12l10 8zM7 5v14" stroke-width="2"/></svg>Retour</button>
     <button class="sctl wide" id="sPause"></button>
@@ -530,7 +538,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v70"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v71"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -6102,15 +6110,24 @@ function startFingerWarmup(onDone, opts){
   drawWarmup();
   requestWakeGeneric();
 }
+const PREP_SEC = 3;   // mise en place avant chaque départ chronométré
 function wuPlay(){
   const st=warmupState; if(!st || st.running) return;
-  st.running=true; st.last=null;
+  const cur = st.plan.steps[st.i];
+  // les étapes "à ton rythme" (mobilité) démarrent sans décompte
+  if(cur.kind!=="move" && !st.prepDone){
+    st.prep = PREP_SEC; st.last=null; st.running=true;
+    drawWarmup();
+    wuRAF=requestAnimationFrame(warmupLoop);
+    return;
+  }
+  st.prep=0; st.running=true; st.last=null;
   drawWarmup();
   wuRAF=requestAnimationFrame(warmupLoop);
 }
 function wuPause(){
   const st=warmupState; if(!st) return;
-  st.running=false; st.last=null;
+  st.running=false; st.last=null; st.prep=0;
   if(wuRAF) cancelAnimationFrame(wuRAF);
   drawWarmup();
 }
@@ -6119,7 +6136,7 @@ function wuGo(i, autoplay){
   const st=warmupState; if(!st) return;
   if(i<0 || i>=st.plan.steps.length) return;
   st.i=i; st.remain=st.plan.steps[i].dur; st.lastBeep=null; st.last=null;
-  st.running=false;
+  st.running=false; st.prep=0; st.prepDone=false;
   if(wuRAF) cancelAnimationFrame(wuRAF);
   drawWarmup();
   if(autoplay) wuPlay();
@@ -6132,6 +6149,21 @@ function warmupLoop(t){
   const st = warmupState, cur = st.plan.steps[st.i];
   if(st.last==null) st.last=t;
   const dt=(t-st.last)/1000; st.last=t;
+  if(st.prep>0){                       // mise en place : 3, 2, 1
+    const before=Math.ceil(st.prep);
+    st.prep -= dt;
+    const now=Math.ceil(st.prep);
+    if(now!==before && now>0){ try{audio.tick&&audio.tick();}catch(e){} }
+    if(st.prep<=0){
+      st.prep=0; st.prepDone=true;
+      try{audio.go&&audio.go();}catch(e){} try{ if(navigator.vibrate) navigator.vibrate(45); }catch(e){}
+      drawWarmup();
+    } else {
+      updateWarmupTime();
+    }
+    wuRAF=requestAnimationFrame(warmupLoop);
+    return;
+  }
   st.remain -= dt;
   const rs=Math.ceil(st.remain);
   if(rs<=3 && rs>0 && st.lastBeep!==rs && cur.kind!=="move"){ st.lastBeep=rs; try{audio.tick&&audio.tick();}catch(e){} }
@@ -6157,18 +6189,26 @@ function drawWarmup(){
       <button class="p-close" id="fwClose" style="background:none;border:1px solid var(--line);border-radius:999px;padding:6px 13px;color:var(--muted);font-weight:700;font-size:12.5px">Passer</button>
     </div>
     <div class="p-prog" style="width:100%;height:4px;background:var(--line);border-radius:2px;margin:10px 0"><i style="display:block;height:100%;width:${pct}%;background:var(--cool);border-radius:2px;transition:width .3s"></i></div>
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:0 10px">
+    <div style="flex:1;display:flex;gap:8px;min-height:0">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:0 4px;min-width:0">
       <button id="fwDial" style="width:180px;height:180px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:radial-gradient(circle at 40% 35%, ${kindColor}, transparent 72%);border:2px solid ${kindColor};cursor:pointer;padding:0">
-        <span id="fwTime" style="font-size:56px;font-weight:800;font-family:var(--mono);color:var(--chalk)">${Math.ceil(st.remain)}</span>
-        <span style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">${st.running?"appuie pour mettre en pause":"appuie pour démarrer"}</span>
+        <span id="fwTime" style="font-size:56px;font-weight:800;font-family:var(--mono);color:var(--chalk)">${st.prep>0?Math.ceil(st.prep):Math.ceil(st.remain)}</span>
+        <span style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${st.prep>0?"var(--amber-deep)":"var(--muted)"}">${st.prep>0?"mise en place…":st.running?"appuie pour mettre en pause":"appuie pour démarrer"}</span>
       </button>
       <div style="font-size:22px;font-weight:800">${esc(cur.phase)}</div>
       <div style="font-size:14px;color:var(--muted);max-width:32ch;line-height:1.5">${esc(cur.cue)}</div>
       <div style="font-size:11.5px;color:var(--faint)">Étape ${st.i+1}/${st.plan.steps.length}${cur.kind==="move"?" · à ton rythme":""}</div>
     </div>
-    <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:0 6px 8px">
-      ${st.plan.steps.slice(st.i, st.i+4).map((s,k)=>`<span style="font-family:var(--mono);font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;background:${k===0?"var(--chalk)":"rgba(0,0,0,.06)"};color:${k===0?"var(--paper)":"var(--muted)"}">${k===0?"▶ ":""}${esc(s.phase.slice(0,16))}${s.kind!=="move"?` ${s.dur}s`:""}</span>`).join("")}
-      ${st.i+4 < st.plan.steps.length?`<span style="font-family:var(--mono);font-size:10.5px;color:var(--faint);padding:4px 4px">+${st.plan.steps.length-st.i-4}</span>`:""}
+    <div id="fwRail" style="flex:0 0 104px;overflow-y:auto;overflow-x:hidden;padding:2px 2px 2px 0;display:flex;flex-direction:column;gap:4px;-webkit-overflow-scrolling:touch">
+      ${st.plan.steps.map((s,k)=>{
+        const state = k<st.i ? "done" : k===st.i ? "now" : "next";
+        const col = s.kind==="hang" ? "var(--hot)" : s.kind==="rest" ? "var(--cool)" : "var(--amber)";
+        return `<button class="fw-jump" data-i="${k}" style="text-align:left;border:1px solid ${state==="now"?col:"var(--line)"};background:${state==="now"?col:state==="done"?"rgba(0,0,0,.03)":"var(--card)"};color:${state==="now"?"var(--paper)":state==="done"?"var(--faint)":"var(--chalk)"};border-radius:9px;padding:6px 7px;opacity:${state==="done"?.55:1}">
+          <div style="font-size:9.5px;font-family:var(--mono);font-weight:800;letter-spacing:.04em;opacity:.8">${state==="done"?"✓":k+1}${s.kind!=="move"?` · ${s.dur}s`:""}</div>
+          <div style="font-size:10.5px;font-weight:700;line-height:1.25;margin-top:1px;word-break:break-word">${esc(s.phase)}</div>
+        </button>`;
+      }).join("")}
+    </div>
     </div>
     <div style="display:flex;gap:10px;align-items:center;justify-content:center;padding:8px 0 4px">
       <button class="btn btn-ghost" id="fwPrev" style="padding:12px 16px" ${st.i===0?'disabled style="opacity:.35;padding:12px 16px"':""}>‹ Précédent</button>
@@ -6188,8 +6228,16 @@ function drawWarmup(){
   };
   document.getElementById("fwAuto").onclick=()=>{ st.auto=!st.auto; store.set("wuAuto", st.auto); drawWarmup(); };
   const dial=document.getElementById("fwDial"); if(dial) dial.onclick=wuToggle;
+  document.querySelectorAll(".fw-jump").forEach(b=>b.onclick=()=>wuGo(+b.dataset.i, false));
+  const rail=document.getElementById("fwRail");
+  if(rail){ const curEl=rail.children[st.i]; if(curEl) curEl.scrollIntoView({block:"center"}); }
 }
-function updateWarmupTime(){ const e=document.getElementById("fwTime"); if(e) e.textContent=Math.max(0,Math.ceil(warmupState.remain)); 
+function updateWarmupTime(){
+  const _st=warmupState;
+  if(_st && _st.prep>0){
+    const el=document.getElementById("fwTime"); if(el) el.textContent=Math.ceil(_st.prep);
+    return;
+  } const e=document.getElementById("fwTime"); if(e) e.textContent=Math.max(0,Math.ceil(warmupState.remain)); 
   const cur=warmupState.plan.steps[warmupState.i];
   const done=warmupState.plan.steps.slice(0,warmupState.i).reduce((a,s)=>a+s.dur,0)+(cur.dur-warmupState.remain);
   const bar=document.querySelector("#fwarm .p-prog i"); if(bar) bar.style.width=Math.round(100*done/warmupState.plan.totalSec)+"%";
@@ -6948,6 +6996,16 @@ function loop(t){
   if(SESS.running){
     if(SESS.lastT==null) SESS.lastT=t;
     const dt=(t-SESS.lastT)/1000; SESS.lastT=t;
+    if(SESS.prep>0){                     // mise en place avant de reprendre l'effort
+      const before=Math.ceil(SESS.prep);
+      SESS.prep-=dt;
+      const now=Math.ceil(SESS.prep);
+      if(now!==before && now>0){ audio.tick(); vibrate(30); }
+      if(SESS.prep<=0){ SESS.prep=0; audio.go(); vibrate([0,60,40,60]); }
+      paintSession();
+      if(SESS && !SESS.ended) rafId=requestAnimationFrame(loop);
+      return;
+    }
     SESS.remain-=dt;
     const sec=Math.ceil(SESS.remain);
     const cur=SESS.phases[SESS.i];
@@ -6976,8 +7034,10 @@ function paintSession(){
   const cur=SESS.phases[SESS.i];
   const sess=$("#session");
   sess.className="on sess-bg-"+cur.kind;
-  $("#sLabel").textContent = cur.kind==="hang" ? (SESS.p.effortLabel||PHASE_TXT.hang) : (PHASE_TXT[cur.kind]||cur.label);
-  const sec=Math.max(0,Math.ceil(SESS.remain));
+  const prepping = SESS.prep>0;
+  $("#sLabel").textContent = prepping ? "Mise en place"
+    : cur.kind==="hang" ? (SESS.p.effortLabel||PHASE_TXT.hang) : (PHASE_TXT[cur.kind]||cur.label);
+  const sec = prepping ? Math.ceil(SESS.prep) : Math.max(0,Math.ceil(SESS.remain));
   $("#sCount").innerHTML=`${sec}<small>s</small>`;
   const p=SESS.p;
   let sub="";
@@ -6990,6 +7050,16 @@ function paintSession(){
   $("#sNext").textContent = nx && nx.kind!=="done" ? "Ensuite : "+(nx.kind==="hang" ? (SESS.p.effortLabel||PHASE_TXT.hang) : (PHASE_TXT[nx.kind]||""))+` ${nx.dur}s` : "";
   // bandeau des prochaines phases : savoir où on en est et ce qui arrive
   const up = SESS.phases.slice(SESS.i, SESS.i+5).filter(x=>x.kind!=="done");
+  // rail vertical : toute la séance, position courante mise en avant
+  const rail = $("#sRail");
+  if(rail){
+    rail.innerHTML = SESS.phases.filter(x=>x.kind!=="done").map((x,k)=>{
+      const state = k<SESS.i ? "done" : k===SESS.i ? "now" : "";
+      const lbl = x.kind==="hang" ? (SESS.p.effortLabel||"Effort") : (PHASE_TXT[x.kind]||"");
+      return `<button class="${state}" data-i="${k}"><span class="t">${state==="done"?"✓":k+1} · ${x.dur}s</span><span class="n">${esc(lbl)}</span></button>`;
+    }).join("");
+    const cur = rail.children[SESS.i]; if(cur) cur.scrollIntoView({block:"center"});
+  }
   $("#sUp").innerHTML = up.map((x,k)=>{
     const lbl = x.kind==="hang" ? (SESS.p.effortLabel||"Effort").slice(0,9) : PHASE_TXT[x.kind]||"";
     return `<span class="${k===0?"now":""}">${k===0?"▶ ":""}${esc(lbl)} ${x.dur}s</span>`;
@@ -7002,7 +7072,15 @@ function bindSessionControls(){
     ? `<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>Pause`
     : `<svg viewBox="0 0 24 24"><path d="M7 4l12 8-12 8z"/></svg>Reprendre`; };
   setPause();
-  pauseBtn.onclick=()=>{ SESS.running=!SESS.running; SESS.lastT=null; if(SESS.running){audio.unlock();requestWake();} setPause(); };
+  pauseBtn.onclick=()=>{
+    SESS.running=!SESS.running; SESS.lastT=null;
+    if(SESS.running){
+      audio.unlock(); requestWake();
+      const ph=SESS.phases[SESS.i];
+      if(ph && ph.kind==="hang"){ SESS.prep=PREP_SEC; }   // 3 s pour se replacer sur la prise
+    } else { SESS.prep=0; }
+    setPause(); paintSession();
+  };
   $("#sSkip").onclick=()=>{ SESS.remain=0; };
   $("#sPrev").onclick=()=>{   // revenir à la phase précédente (erreur de manip, série à refaire…)
     if(!SESS || SESS.ended) return;
