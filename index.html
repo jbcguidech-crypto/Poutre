@@ -530,7 +530,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v67"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v70"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -1771,13 +1771,21 @@ const TEST_DEFS = {
       const repEdge = edge + 5;
       const repKg = Math.max(0, Math.round(added*0.5));
       const fingers = med
-        ? `<b>Max hangs</b> : ${edge+2} mm au poids du corps, 10 s × 5 · <b>répéteurs</b> : ${edge+6} mm, 7:3.`
-        : `<b>Max hangs</b> : ${edge} mm à <b>+${maxKg} kg</b> (90 % du test), 10 s × 5, repos 3 min · <b>répéteurs</b> : ${repEdge} mm à +${repKg} kg, 7:3.`;
+        ? `<b>Max hangs</b> : ${edge+2} mm au poids du corps, 10 s × 5, repos 3 min · <b>répéteurs</b> : ${edge+6} mm, 7:3.`
+        : `<b>Max hangs</b> : ${edge} mm à <b>+${maxKg} kg</b> — 90 % de tes ${added} kg, 10 s × 5, repos 3 min · <b>répéteurs</b> : ${repEdge} mm à +${repKg} kg, 7:3.`;
       const pk = v.e_pullkg||0;
       const pull = pk>0
-        ? `tractions lestées à <b>+${Math.round(pk*0.85)} kg</b> en séries de 3 (85 % du 3RM)`
-        : `tractions à <b>${Math.max(1,Math.round(v.e_pull*0.65))} reps</b> par série (65 % du max)`;
-      return `${pctBW} % du poids de corps sur ${edge} mm${edge!==20?` — soit ≈ ${pct20} % ramené à 20 mm (estimation)`:""}.<br>${fingers}<br>Tirage : ${pull}.`;
+        ? `<b>+${Math.round(pk*0.85)} kg</b> en séries de 3 — soit 85 % de ton 3RM de ${pk} kg`
+        : `<b>${Math.max(1,Math.round(v.e_pull*0.65))} reps</b> par série — soit 65 % de ton max de ${v.e_pull}`;
+      const testLine = med
+        ? `réglette minimale <b>${edge} mm</b> au poids du corps`
+        : `<b>+${added} kg</b> sur <b>${edge} mm</b>`;
+      const pullTest = pk>0 ? ` · traction lestée <b>+${pk} kg</b> au 3RM` : ` · <b>${v.e_pull} tractions</b> max`;
+      return `<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:2px">Ce que tu as réalisé</div>
+        ${testLine}${pullTest} — soit ${pctBW} % du poids de corps${edge!==20?`, ≈ ${pct20} % ramené à 20 mm (estimation)`:""}.
+        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:800;margin:10px 0 2px">Charges d'entraînement qui en découlent</div>
+        ${fingers}<br>Tirage : ${pull}.
+        <p class="hint" style="text-align:left;margin:8px 0 0">Ces charges sont volontairement <b>inférieures à ton test</b> : on s'entraîne sous le maximum pour progresser sans casser.</p>`;
     },
     onSave:(v)=>{
       const med = v.e_med>0;
@@ -1792,7 +1800,8 @@ const TEST_DEFS = {
   },
   wod: {
     name:"Test condition & cuisses",
-    intro:"Deux parties. 1) Baseline chronométré : 400 m course → 40 squats → 30 sit-ups → 20 pompes → 10 tractions. 2) Après 10 min de récupération complète, la force des cuisses — squat lesté OU pistols, l'un des deux suffit.",
+    runSub:true,
+    intro:()=>`Deux parties. 1) Baseline chronométré : ${substRun("400 m course")} → 40 squats → 30 sit-ups → 20 pompes → 10 tractions. 2) Après 10 min de récupération complète, la force des cuisses — squat lesté OU pistols, l'un des deux suffit.`,
     protocols:[
       { t:"Squat lesté — 5RM", src:"NSCA · protocoles de recherche", steps:[
         "<b>Approche 1</b> : 8 squats à vide ou charge légère. <b>1 min de repos</b>.",
@@ -1809,7 +1818,8 @@ const TEST_DEFS = {
       ]}
     ],
     fields:[
-      { id:"w_min", label:"Baseline — temps total", unit:"min", def:8, min:3, max:25, inc:1, hint:"Arrondis à la minute la plus proche." },
+      { id:"w_min", label:"Baseline — chrono du circuit complet", unit:"min", def:8, min:3, max:25, inc:1,
+        hint:()=>`« Baseline » est le circuit de référence CrossFit : ${substRun("400 m course")} → 40 squats → 30 sit-ups → 20 pompes → 10 tractions, enchaînés le plus vite possible. Note ici ton temps total, arrondi à la minute. Rien à voir avec les pistols, qui se mesurent séparément plus bas.` },
       { id:"w_burp", label:"Burpees en 2 min — max", unit:"reps", def:30, min:5, max:100, inc:1, hint:"Après 5 min de récupération." },
       { id:"w_squat", label:"Squat lesté — charge max sur 5 reps", unit:"kg", def:0, min:0, max:200, inc:5,
         hint:"Goblet kettlebell, sac à dos chargé ou barre. Charge totale portée, cuisses sous la parallèle. 0 si tu fais les pistols à la place." },
@@ -1831,7 +1841,7 @@ const TEST_DEFS = {
         : eng===3 ? "WOD à <b>80 % des répétitions</b> · Hero WODs longs à fractionner."
         : "WOD à <b>60 % des répétitions</b> · formats courts avant les Heroes.";
       let legs = "";
-      if(sq>0) legs = ` Cuisses : séries de travail à <b>${Math.round(sq*0.8/5)*5} kg</b> (80 % du 5RM) · step-ups lestés à <b>${Math.round(sq*0.35/5)*5} kg</b> pour le volume montagne.`;
+      if(sq>0) legs = ` Cuisses (5RM mesuré à ${sq} kg) : séries de travail à <b>${Math.round(sq*0.8/5)*5} kg</b>, soit 80 % · step-ups lestés à <b>${Math.round(sq*0.35/5)*5} kg</b> pour le volume montagne.`;
       else if(pi>0) legs = ` Cuisses : ${pi>=6?"pistols lestés légers ou en séries longues":`travaille les pistols en <b>${Math.max(2,pi-1)} reps</b> par jambe, ou en excentrique sur box`}. Step-ups lestés en complément.`;
       else legs = " Aucune mesure de cuisses cette fois : au prochain test, squat lesté 5RM ou pistols — c'est le déterminant des longues approches.";
       return scale + legs;
@@ -1877,6 +1887,15 @@ const TEST_DEFS = {
   }
 };
 
+function prevSubLabel(k){
+  const p = lastTest(k); if(!p || !p.data) return "";
+  const s = p.data.runSub || "none";
+  return (RUN_SUBS[s] && s!=="none") ? RUN_SUBS[s].label.toLowerCase() : "la course";
+}
+function prevSubMismatch(k){
+  const p = lastTest(k); if(!p || !p.data) return false;
+  return (p.data.runSub || "none") !== runSub;
+}
 function openTrackTest(k){
   const def = TEST_DEFS[k]; if(!def) return;
   const meta = TRACK5.find(t=>t[0]===k), c = trackCyc(k);
@@ -1895,9 +1914,12 @@ function openTrackTest(k){
   const prev = lastTest(k);
   const mode = def.modes ? store.get("testMode_"+k, def.modes[0][0]) : null;
   const fields = def.fieldsFor ? def.fieldsFor(mode) : def.fields;
+  const introTxt = (typeof def.intro==="function") ? def.intro() : def.intro;
   sheet(`
     <h3>${esc(def.name)}</h3>
-    <div class="sub">${esc(def.intro)}</div>
+    <div class="sub">${esc(introTxt)}</div>
+    ${def.runSub?runSubBar():""}
+    ${def.runSub&&runSub!=="none"&&prevSubMismatch(k)?`<p class="hint" style="text-align:left;margin:-4px 0 10px;color:var(--amber-deep)">⚠ Ton dernier test utilisait ${esc(prevSubLabel(k))}. Change de support fausse la comparaison — reprends le même si tu peux.</p>`:""}
     ${def.modes?`<div class="field" style="margin-bottom:6px"><label>Protocole doigts</label>
       <div class="goalseg" id="ttMode">${def.modes.map(([mk,ml])=>`<button data-m="${mk}" class="${mode===mk?"on":""}">${esc(ml)}</button>`).join("")}</div>
       <p class="hint" style="text-align:left;margin:6px 0 10px">${def.modeHint[mode]}</p></div>`:""}
@@ -1909,8 +1931,9 @@ function openTrackTest(k){
       :def.protocol?`<details style="margin-bottom:12px"><summary style="font-weight:800;font-size:13.5px;cursor:pointer;padding:6px 0">Protocole détaillé</summary>
       <ol style="margin:6px 0 0;padding-left:20px">${def.protocol.map(s=>`<li style="font-size:13px;margin-bottom:5px">${s}</li>`).join("")}</ol></details>`:""}
     ${prev?`<div class="card" style="margin-bottom:12px"><div class="mono" style="font-size:11.5px;color:var(--muted)">Dernier test : ${relDate(prev.dateISO)} · niveau <b style="color:var(--chalk)">${prev.level}/5 ${LVL_NAME[prev.level]}</b></div></div>`:""}
-    ${fields.map(f=>stepper(f.id, f.label, f.unit, (prev&&prev.data&&prev.data[f.id]!=null)?prev.data[f.id]:f.def, f.min, f.max, f.inc)
-      + (f.hint?`<p class="hint" style="text-align:left;margin:-6px 0 12px">${esc(f.hint)}</p>`:"")).join("")}
+    ${fields.map(f=>{ const h = (typeof f.hint==="function") ? f.hint() : f.hint;
+      return stepper(f.id, f.label, f.unit, (prev&&prev.data&&prev.data[f.id]!=null)?prev.data[f.id]:f.def, f.min, f.max, f.inc)
+        + (h?`<p class="hint" style="text-align:left;margin:-6px 0 12px">${esc(h)}</p>`:""); }).join("")}
     <div class="row2">
       <button class="btn btn-ghost" id="ttCancel">Annuler</button>
       <button class="btn btn-primary" id="ttSave">Enregistrer le test</button>
@@ -1920,10 +1943,12 @@ function openTrackTest(k){
   document.querySelectorAll("#ttMode button").forEach(b=>b.onclick=()=>{
     store.set("testMode_"+k, b.dataset.m); openTrackTest(k);
   });
+  if(def.runSub) bindRunSub(()=>openTrackTest(k));
   document.getElementById("ttCancel").onclick=closeSheet;
   document.getElementById("ttSave").onclick=()=>{
     const data = {}; fields.forEach(f=>data[f.id]=step.val[f.id]);
     if(mode) data.mode = mode;
+    if(def.runSub) data.runSub = runSub;   // support cardio utilisé : course, corde, step-ups…
     const level = def.level(data);
     if(!trackTests[k]) trackTests[k]=[];
     trackTests[k].push({ block, dateISO:new Date().toISOString(), level, data });
@@ -1936,6 +1961,7 @@ function openTrackTest(k){
       <h3>Niveau ${level}/5 · ${LVL_NAME[level]}</h3>
       <div class="sub">${meta?meta[1]:""} — semaines ${block*4+1} à ${block*4+4}</div>
       <div class="card" style="margin-bottom:14px"><p style="font-size:14px;margin:0">${def.adjust(data)}</p></div>
+      ${(def.runSub && data.runSub && data.runSub!=="none")?`<p class="hint" style="text-align:left;margin:-6px 0 12px">Test réalisé avec <b>${esc(RUN_SUBS[data.runSub].label)}</b> à la place de la course — garde le même support au prochain test pour que la comparaison tienne.</p>`:""}
       <p class="hint" style="text-align:left;margin:0 0 12px">Le programme est calibré sur ce résultat. Prochain test dans 4 semaines de programme.</p>
       <button class="btn btn-primary btn-block" id="ttOk">C'est parti</button>
     `);
@@ -5689,25 +5715,32 @@ function openFingerHub(){
 }
 /* ---------- Alternatives quand la course est impossible ----------
    Équivalences usuelles (effort ≈ 400 m de course à allure WOD). */
+/* ---------- Alternatives quand la course est impossible ----------
+   PRINCIPE : on substitue par le TEMPS, pas par un nombre de répétitions.
+   Les conversions en reps varient énormément selon l'aisance technique.
+   Référence : 400 m de course ≈ 2 min de travail continu
+   (équivalences cardio publiées : 400 m = 500 m rameur = 1000 m vélo = 500 m ski).
+   Les nombres de répétitions ne sont donnés qu'à titre indicatif, avec leur fourchette. */
 const RUN_SUBS = {
   none:  { label:"Course", short:"course" },
-  rope:  { label:"Corde à sauter", short:"corde", per400:"60 double-unders",
-           fmt:n=>`${Math.round(60*n/5)*5} double-unders (ou ${Math.round(120*n/10)*10} sauts simples)`,
-           note:"Le plus proche de la course : cyclique, même coût cardiaque, entretient la raideur de cheville utile en montagne." },
-  step:  { label:"Step-ups box", short:"step-ups", per400:"50 montées de box (50 cm)",
-           fmt:n=>`${Math.round(50*n/5)*5} montées de box (50 cm, lestées si possible)`,
-           note:"Le plus spécifique alpinisme : du dénivelé positif, chaîne postérieure sollicitée, transfert direct à l'approche." },
-  stairs:{ label:"Escaliers", short:"escaliers", per400:"3 min d'escaliers",
-           fmt:n=>`${Math.round(3*n*10)/10} min d'escaliers en continu`,
+  rope:  { label:"Corde à sauter", short:"corde", per400:"2 min de corde",
+           fmt:n=>{ const min=Math.round(2*n*10)/10;
+             return `${String(min).replace(".",",")} min de corde à sauter (≈ ${Math.round(40*n)}-${Math.round(100*n)} double-unders selon ton aisance, ou ${Math.round(150*n)}-${Math.round(200*n)} sauts simples)`; },
+           note:"Le plus proche de la course : cyclique, même coût cardiaque, entretient la raideur de cheville utile en montagne. Compte le temps, pas les sauts — le nombre varie du simple au double selon l'aisance technique." },
+  step:  { label:"Step-ups box", short:"step-ups", per400:"2 min de montées",
+           fmt:n=>`${String(Math.round(2*n*10)/10).replace(".",",")} min de montées de box (50 cm, lestées si possible — ≈ ${Math.round(45*n)} montées)`,
+           note:"Le plus spécifique alpinisme : du dénivelé positif, chaîne postérieure sollicitée, transfert direct à l'approche. Le chrono change de nature — moins cardiaque, plus musculaire local." },
+  stairs:{ label:"Escaliers", short:"escaliers", per400:"2 min d'escaliers",
+           fmt:n=>`${String(Math.round(2*n*10)/10).replace(".",",")} min d'escaliers en continu`,
            note:"Excellent si tu as une cage d'escalier : mêmes contraintes que le step-up, avec la descente en prime." },
-  row:   { label:"Rameur / vélo", short:"rameur", per400:"500 m rameur ou 1000 m vélo",
-           fmt:n=>`${Math.round(500*n/50)*50} m rameur (ou ${Math.round(1000*n/50)*50} m vélo / home-trainer)`,
-           note:"Équivalent aérobie sans impact — le bon choix quand les jambes ou les articulations sont déjà chargées." },
-  burp:  { label:"Burpees", short:"burpees", per400:"30 burpees",
-           fmt:n=>`${Math.round(30*n/5)*5} burpees`,
-           note:"Monte le cardiaque très vite, mais ajoute beaucoup de poussée et d'excentrique : ça déséquilibre le WOD et fatigue les épaules avant une séance de doigts. À garder en dernier recours." },
-  shut:  { label:"Navettes 10 m", short:"navettes", per400:"40 allers-retours de 10 m",
-           fmt:n=>`${Math.round(40*n/5)*5} allers-retours de 10 m`,
+  row:   { label:"Rameur / vélo", short:"rameur", per400:"500 m rameur",
+           fmt:n=>`${Math.round(500*n/50)*50} m rameur (ou ${Math.round(1000*n/50)*50} m vélo / home-trainer, ${Math.round(500*n/50)*50} m ski)`,
+           note:"L'équivalence la mieux établie et la plus objective : 500 m de rameur prennent le même temps que 400 m de course pour la plupart des gens. Sans impact — le bon choix quand les jambes sont chargées." },
+  burp:  { label:"Burpees", short:"burpees", per400:"≈ 18 burpees (2 min)",
+           fmt:n=>`${Math.round(18*n)} burpees (≈ ${String(Math.round(2*n*10)/10).replace(".",",")} min à cadence régulière)`,
+           note:"Attention : à cadence réaliste (9 burpees/min), 2 min ne font que ~18 burpees — bien moins que les 30 souvent avancés. Et ça ajoute beaucoup de poussée et d'excentrique, ce qui déséquilibre le WOD et fatigue les épaules avant une séance de doigts. Dernier recours." },
+  shut:  { label:"Navettes 10 m", short:"navettes", per400:"2 min de navettes",
+           fmt:n=>`${String(Math.round(2*n*10)/10).replace(".",",")} min de navettes de 10 m (≈ ${Math.round(35*n)} allers-retours)`,
            note:"Si tu as 10 m devant toi : les changements de direction ajoutent de l'excentrique, monte progressivement." }
 };
 let runSub = store.get("runSub","none");
@@ -5728,7 +5761,7 @@ function runSubBar(){
     <div class="pills" id="rsub">
       ${Object.entries(RUN_SUBS).map(([k,v])=>`<button data-k="${k}" class="${runSub===k?"on":""}">${esc(v.label)}</button>`).join("")}
     </div>
-    ${runSub!=="none"?`<p class="hint" style="text-align:left;margin:6px 0 0">${esc(RUN_SUBS[runSub].note)} <b>Base : 400 m ≈ ${esc(RUN_SUBS[runSub].per400)}.</b></p>`:""}
+    ${runSub!=="none"?`<p class="hint" style="text-align:left;margin:6px 0 0">${esc(RUN_SUBS[runSub].note)} <b>Base : 400 m de course ≈ 2 min d'effort continu ≈ ${esc(RUN_SUBS[runSub].per400)}.</b></p>`:""}
   </div>`;
 }
 function bindRunSub(redraw){
