@@ -539,7 +539,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v72"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v75"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -725,14 +725,13 @@ const PRESETS = [
     gains:"Monte tendons et poulies en température et active le système nerveux. C'est l'assurance-blessure de toute la séance : ne le saute jamais." },
   { id:"maxhangs", name:"Force max — Max hangs", type:"Force maximale", cat:"poutre", color:"hot", grip:"Réglette semi-arquée", edgeMm:20, addedKg:0,
     prepSec:15, hangSec:10, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
-    desc:"5 suspensions quasi-maximales de 10 s, 3 min de repos. Ajoute du lest pour rester à ~85–90 % de l'effort max (dernière seconde très dure).",
+    desc:"Suspensions maximales courtes : 5 à 12 s par suspension (ici 10 s), 3 à 5 suspensions par prise, 2-3 min de repos entre chaque — ou plus, l'essentiel est de repartir à 100 %. Charge réglée pour que la durée soit ton maximum absolu ; inutile d'aller au-delà de 12 s, toutes les fibres sont déjà recrutées. Gains neuromusculaires rapides. D'après les max hangs courts de Beastmaking (N. Feehally).",
     technique:"Monte en charge progressivement sur 1–2 s, corps gainé et parfaitement immobile, bras tendus. Lâche immédiatement si la prise commence à s'ouvrir : jamais d'échec réel sur les doigts.",
     gains:"Force maximale des doigts avec le meilleur ratio gain/fatigue connu. Transfert direct sur les réglettes en voie et les mouvements durs en bloc." },
   { id:"rep73", name:"Répéteurs 7:3", type:"Force-endurance", cat:"poutre", color:"cool", grip:"Réglette semi-arquée", edgeMm:20, addedKg:0,
-    prepSec:15, hangSec:7, restRepSec:3, reps:6, restSetSec:180, sets:6, builtin:true,
-    desc:"Le protocole classique : 7 s suspendu / 3 s repos, ×6 = une série, 6 séries. Vise une intensité tenable jusqu'à la dernière rep.",
-    technique:"Reprends exactement la même prise à chaque rep, remontée propre en 3 s de repos. Calibre l'intensité pour finir la dernière rep de la dernière série — brûlure oui, échec non.",
-    gains:"Force-endurance des avant-bras : la capacité à enchaîner des mouvements durs sans exploser. Le pilier de la résistance en voie." },
+    prepSec:15, hangSec:7, restRepSec:3, reps:6, restSetSec:300, sets:6, builtin:true,
+    desc:"Le pilier de la poutre : 7 s suspendu / 3 s de repos, ×6 = une série d'une minute, puis 5 min de repos complet. Structure conseillée : 1 à 2 séries par type de prise, 3 types de prise maximum par séance (ici 6 séries = 2 × 3 prises). Règle l'intensité pour lutter vraiment sur les 2 dernières suspensions et viser l'échec sur la 6ᵉ. D'après le protocole répéteurs de Beastmaking (N. Feehally).",
+    technique:"Reprends exactement la même prise à chaque rep. Les dernières suspensions deviennent brouillonnes quand tu fatigues — c'est LE moment à risque : si le doute s'installe, baisse l'intensité et privilégie la qualité. Variantes de progression : 6:4 ou 5:5, lest, séries en plus, prises plus petites" },
   { id:"rep105", name:"Répéteurs 10:5", type:"Force-endurance", cat:"poutre", color:"cool", grip:"Réglette semi-arquée", edgeMm:20, addedKg:0,
     prepSec:15, hangSec:10, restRepSec:5, reps:6, restSetSec:180, sets:3, builtin:true,
     desc:"Suspensions plus longues 10 s / 5 s. Un peu plus dur que le 7:3, bon pour la continuité de force.",
@@ -827,6 +826,66 @@ const PRESETS = [
     desc:"Suspendu à la barre ou aux triangles (bacs) : enchaîne un maximum de relevés de genoux propres pendant 20 s, puis 40 s de repos.",
     technique:"Épaules actives, zéro balancier : monte les genoux vers la poitrine par les abdos, redescends contrôlé. Si tu te balances, ralentis. Version dure : jambes tendues jusqu'à l'horizontale.",
     gains:"Gainage spécifique en suspension — exactement la tension qu'exigent les replacements de pieds en dévers et les toits. Bonus : endurance de préhension sur les bacs." },
+  { id:"bm-longmax", name:"Max hangs longs — 20 s", type:"Force maximale", cat:"poutre", color:"hot", grip:"Réglette semi-arquée", edgeMm:25, addedKg:0,
+    prepSec:15, hangSec:20, restRepSec:0, reps:1, restSetSec:240, sets:4, builtin:true,
+    desc:"Suspensions de 20 s, charge réglée pour que 20 s soit ton maximum absolu — chez toi : autour du poids du corps sur 25 mm, nettement moins que ton max 10 s. 3 à 5 suspensions (ici 4), 3 à 5 min de repos entre chaque. Développe le volume musculaire de l'avant-bras : gains plus lents mais plus durables que les max hangs courts. D'après les max hangs longs de Beastmaking (N. Feehally).",
+    technique:"Repars à 100 % ou attends davantage. Une seule prise peut suffire, jusqu'à 5 types au maximum. Progression : lest, suspensions supplémentaires, prises plus petites. Toujours frais et reposé." },
+  { id:"bm-tendon", name:"Suspensions tendon — 30-45 s", type:"Santé tendineuse", cat:"poutre", color:"cool", grip:"Bac / réglette large", edgeMm:35, addedKg:-10,
+    prepSec:15, hangSec:40, restRepSec:0, reps:1, restSetSec:300, sets:3, builtin:true,
+    desc:"Suspensions très longues de 30 à 45 s, charge réglée pour échouer vers 45 s — chez toi : réglette large (35-45 mm) ou allégé à l'élastique. 3 suspensions par prise, 5 min de repos entre chaque, 3 séries au total maximum. Augmente la raideur tendineuse — donc la force de contact, la capacité à saisir vite — et entretient la santé du tissu conjonctif. D'après les tendon hangs de Beastmaking (N. Feehally).",
+    technique:"Le protocole le plus adapté à une reprise : intensité basse, temps sous tension long, exactement ce qui remodèle le tendon. Épaules engagées du début à la fin. Progression : lest, puis prises plus petites." },
+  { id:"bm-endlong", name:"Endurance longue — répéteurs 7:3", type:"Endurance doigts", cat:"poutre", color:"cool", grip:"Réglette tendue", edgeMm:25, addedKg:0, effortLabel:"Suspension",
+    prepSec:15, hangSec:7, restRepSec:3, reps:6, restSetSec:60, sets:10, builtin:true,
+    desc:"Répéteurs 7:3 sur réglette confortable, 6 suspensions par série puis 1 min de repos, 10 séries — soit 10 min de suspension par bloc. 1 à 3 blocs selon le temps, 10 min de repos entre blocs. Charge réduite à 30-40 % de ton max sur cette réglette : chez toi ≈ 25-32 kg de charge TOTALE → pieds au sol sur les triangles ou gros élastique. But : rester longtemps à un niveau de pompe très bas (3/10 max). D'après le protocole d'endurance longue de Beastmaking (N. Feehally).",
+    technique:"Intensité volontairement très basse — si ça brûle, allège. Progression : réduis l'assistance. 2 séances/semaine, 8 à 16 semaines. Toujours APRÈS la grimpe ou en fin de journée, jamais avant une séance de force." },
+  { id:"bm-endshort", name:"Endurance courte — répéteurs 7:3", type:"Endurance doigts", cat:"poutre", color:"hot", grip:"Réglette tendue", edgeMm:25, addedKg:-12, effortLabel:"Suspension",
+    prepSec:15, hangSec:7, restRepSec:3, reps:6, restSetSec:180, sets:6, builtin:true,
+    desc:"Répéteurs 7:3, 6 suspensions par série, 3 min de repos entre séries, 6 séries — 6 min de suspension au total, un seul bloc car l'intensité est très haute. Charge à 70-80 % de ton max sur la réglette : chez toi ≈ allégé de 8 à 16 kg à l'élastique sur 25 mm. Tu dois lutter fort, et probablement lâcher sur les dernières suspensions des 2 dernières séries. D'après le protocole d'endurance courte de Beastmaking (N. Feehally).",
+    technique:"Exercice dur : prévois un JOUR DE REPOS derrière. 2 séances/semaine si c'est ta priorité, 1 seule si tu travailles la force en parallèle. Au moins 6 semaines pour voir l'effet. Progression : moins d'assistance, puis du lest." },
+  { id:"bm-otm", name:"Tractions à la minute (EMOM)", type:"Force générale", cat:"traction", color:"cool", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Tractions", repSet:false,
+    prepSec:12, hangSec:60, restRepSec:0, reps:1, restSetSec:0, sets:10, builtin:true,
+    desc:"Au début de chaque minute, fais ton nombre de tractions choisi (1 à 10 selon ton niveau — commence à 3-4), puis repose-toi le reste de la minute. 10 minutes au total. La minute tourne, à toi de tenir la cadence. Progression : augmente le nombre de tractions par minute. Travaille l'endurance de force plus que la force pure. D'après Beastmaking (N. Feehally).",
+    technique:"Amplitude complète : bras tendus en bas, menton au-dessus — une répétition = la montée ET la descente contrôlée. Ajoute des pompes dans la minute si tu veux corser." },
+  { id:"bm-maxpull", name:"Tractions max — 1 à 3 reps", type:"Force max", cat:"traction", color:"hot", grip:"Bac / ouvert", edgeMm:0, addedKg:28, effortLabel:"Tractions",
+    prepSec:15, hangSec:25, restRepSec:0, reps:1, restSetSec:240, sets:5, builtin:true,
+    desc:"Trouve le lest (baudrier/poulie ou gilet) où 1 à 3 tractions sont ton maximum absolu — d'après ton test, autour de +33 kg et plus. 5 séries à cette charge maximale, 3 à 5 min de repos entre chaque pour préserver la qualité. D'après Beastmaking (N. Feehally).",
+    technique:"La force pure exige du repos complet : repars seulement quand tu te sens entièrement récupéré. Qualité avant tout — si la forme se dégrade, la séance est finie. Bloc de 8-10 séances sur 5-6 semaines, puis coupe : les bras progressent vite et se blessent vite." },
+  { id:"bm-pyramid", name:"Pyramide lestée 6-4-2-1-2-4-6", type:"Force max", cat:"traction", color:"hot", grip:"Bac / ouvert", edgeMm:0, addedKg:15, effortLabel:"Tractions",
+    prepSec:15, hangSec:45, restRepSec:0, reps:1, restSetSec:180, sets:7, builtin:true,
+    desc:"7 séries de tractions lestées : 6 → 4 → 2 → 1 → 2 → 4 → 6 répétitions. Le lest augmente quand les répétitions descendent, et redescend ensuite (ex. chez toi : +12 → +20 → +26 → +30 → +26 → +20 → +12 kg). 3 min de repos entre les séries. D'après Beastmaking (N. Feehally).",
+    technique:"Chaque série s'arrête AVANT l'échec. Amplitude complète, descente contrôlée. Valide chaque série quand elle est faite — c'est toi qui comptes." },
+  { id:"bm-negatives", name:"Tractions négatives", type:"Force max", cat:"traction", color:"amber", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Tractions",
+    prepSec:15, hangSec:12, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
+    desc:"Pars menton au-dessus de la barre (monte depuis une box), puis descends LE PLUS LENTEMENT possible. Règle la charge (lest ou allègement) pour ne pas pouvoir descendre beaucoup plus lentement que 8 secondes. 5 séries, 3 min de repos. À deux bras, ou à un bras pour casser un plateau. D'après Beastmaking (N. Feehally).",
+    technique:"L'excentrique est plus fort que le concentrique : c'est le levier anti-plateau. Descente fluide, sans à-coup — les coudes n'aiment pas les saccades. Ne combine pas avec une grosse séance de doigts le même jour." },
+  { id:"bm-offset", name:"Tractions décalées (vers 1 bras)", type:"Force max", cat:"traction", color:"amber", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Tractions",
+    prepSec:15, hangSec:30, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
+    desc:"Une main sur la barre, l'autre sur une sangle, une corde ou un élastique plus bas : le bras haut porte l'essentiel. 2 à 4 répétitions par côté et par série, 5 séries, 3 min de repos. Réduis progressivement l'aide du bras bas. La marche vers la traction à un bras. D'après Beastmaking (N. Feehally).",
+    technique:"Alterne les côtés à chaque série. Épaule engagée avant de tirer, jamais de départ relâché sur un seul bras. Exercice de force : repos complet entre les séries." },
+  { id:"fl-wipers", name:"Essuie-glaces", type:"Gainage barre", cat:"gainage", color:"amber", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Essuie-glaces",
+    prepSec:12, hangSec:40, restRepSec:0, reps:1, restSetSec:120, sets:3, builtin:true, repSet:true,
+    desc:"Suspendu, dos parallèle au sol, jambes pliées à 90° pointant vers le haut. Descends d'un côté jusqu'à l'horizontale, remonte au centre, descends de l'autre. 6 à 10 passages par côté, jambes tendues si tu peux. D'après Beastmaking (N. Feehally).",
+    technique:"Jambes tendues idéalement — si tu n'y arrives pas, travaille les ischio-jambiers. Le mouvement vient du tronc, pas d'un balancement des épaules." },
+  { id:"fl-tuck", name:"Front lever groupé", type:"Gainage barre", cat:"gainage", color:"hot", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Maintien",
+    prepSec:15, hangSec:10, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
+    desc:"Suspendu bras tendus, genoux groupés à la poitrine, bassin et dos remontés jusqu'à l'horizontale. 5 maintiens de 10 s, 3 min de repos. Passe au niveau suivant quand tu tiens 4-5 séries de 12-15 s propres sur deux séances de suite.",
+    technique:"Bas du dos droit, jamais enroulé. Tire les omoplates en arrière — ne reste pas pendu dans les épaules (Feehally). Bras strictement tendus." },
+  { id:"fl-adv", name:"Front lever groupé ouvert", type:"Gainage barre", cat:"gainage", color:"hot", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Maintien",
+    prepSec:15, hangSec:8, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
+    desc:"Comme le groupé, mais cuisses à la verticale et genoux fléchis à 90° — le bras de levier augmente nettement. 5 maintiens de 8 s, 3 min de repos.",
+    technique:"Les hanches ne descendent pas : pense à pousser le bassin vers le plafond. Omoplates verrouillées en arrière." },
+  { id:"fl-oneleg", name:"Front lever une jambe", type:"Gainage barre", cat:"gainage", color:"hot", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Maintien",
+    prepSec:15, hangSec:8, restRepSec:0, reps:1, restSetSec:180, sets:4, builtin:true,
+    desc:"Position groupée, mais une jambe tendue à l'horizontale. Alterne la jambe à chaque série. 4 maintiens de 8 s, 3 min de repos.",
+    technique:"La jambe tendue reste parallèle au sol, pas plus haute. Alterne systématiquement pour ne pas creuser d'asymétrie." },
+  { id:"fl-full", name:"Front lever complet", type:"Gainage barre", cat:"gainage", color:"hot", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Maintien",
+    prepSec:15, hangSec:6, restRepSec:0, reps:1, restSetSec:180, sets:4, builtin:true,
+    desc:"Deux jambes tendues, corps et dos parallèles au sol, le plus longtemps possible en forme parfaite. 4 maintiens de 6 s, 3 min de repos. Lestes les chevilles quand c'est devenu facile.",
+    technique:"Jambes ET dos parallèles au sol — dès que le bassin s'affaisse, la série est finie. Ne cherche pas le maximum à chaque série (risque tendineux)." },
+  { id:"fl-raise", name:"Montées en front lever", type:"Gainage barre", cat:"gainage", color:"amber", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Montées",
+    prepSec:12, hangSec:45, restRepSec:0, reps:1, restSetSec:150, sets:4, builtin:true, repSet:true,
+    desc:"Depuis la suspension, monte le corps en position de front lever puis redescends lentement et en contrôle. 3 à 6 répétitions par série, 2 min 30 de repos. Version dynamique du même geste.",
+    technique:"La descente est la partie utile : 3 s minimum, sans à-coup. Groupe les jambes autant que nécessaire pour garder le dos horizontal." },
   { id:"core-lsit", name:"L-sit / Tuck lever", type:"Gainage", cat:"gainage", color:"hot", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Maintien",
     prepSec:12, hangSec:8, restRepSec:45, reps:5, restSetSec:120, sets:2, builtin:true,
     desc:"Suspendu, jambes tendues à l'horizontale (L-sit) ou genoux groupés remontés vers la poitrine, bassin basculé (tuck lever). 5 maintiens de 8 s.",
@@ -1150,6 +1209,11 @@ const GAINAGE_IDS = ["core-sol","core-dorsal","core-hollow","core-susp","core-ls
 const ANTAGO_IDS = ["anta-ext","anta-pompes","anta-pike","anta-poignets","anta-coiffe"];
 /* Matériel requis par programme (tout est requis ; les alternatives sont d'autres programmes) */
 const PROG_NEED = {
+  "bm-longmax":["poutre"], "bm-tendon":["poutre"],
+  "bm-endlong":["poutre"], "bm-endshort":["poutre","elastique"],
+  "bm-otm":["barre"], "bm-maxpull":["barre"], "bm-pyramid":["barre"], "bm-negatives":["barre","box"], "bm-offset":["barre"],
+  "fl-tuck":["barre"], "fl-adv":["barre"], "fl-oneleg":["barre"], "fl-full":["barre"],
+  "fl-wipers":["barre"], "fl-raise":["barre"],
   echauffement:["poutre"], maxhangs:["poutre"], rep73:["poutre"], rep105:["poutre"], density:["poutre"],
   minedge:["poutre"], endurance:["poutre"], submax:["poutre"], force5:["poutre"], rep1515:["poutre"],
   eco3030:["poutre"], bidoigt:["poutre"], pince:["poutre"],
@@ -1223,11 +1287,11 @@ function shouldAntago(p){ return p && p.id!=="cardio" && p.id!=="wod" && p.id!==
 
 /* ---- Pools du programme général & des séances ciblées ---- */
 const GENERAL_POOLS = {
-  doigts:  ["maxhangs","rep73","force5","minedge","tri-nohang","tri-susp","tri-rep","mcx-lift","mcx-pinch-max","mcx-pinch-rep"],
-  tirage:  ["pull-simple","pull-weight","pull-frenchies","pull-scap","trx-row"],
+  doigts:  ["maxhangs","rep73","bm-longmax","bm-tendon","force5","minedge","bm-endlong","bm-endshort","tri-nohang","tri-susp","tri-rep","mcx-lift","mcx-pinch-max","mcx-pinch-rep"],
+  tirage:  ["pull-simple","pull-weight","bm-maxpull","bm-pyramid","bm-otm","bm-negatives","bm-offset","pull-frenchies","pull-scap","trx-row"],
   poussee: ["anta-pompes","anta-pike","kb-press","mb-slam"],
   jambes:  ["kb-jambes","kb-sdt","kb-swing"],
-  gainage: ["core-sol","core-dorsal","core-hollow","core-susp","core-lsit","trx-core"]
+  gainage: ["fl-tuck","fl-adv","fl-wipers","fl-raise","fl-oneleg","fl-full","core-lsit","core-susp","core-sol","core-hollow","core-dorsal","trx-core"]
 };
 const MUSCLE_KEYS = ["tirage","poussee","jambes"];
 const POOL_TXT = { doigts:"Doigts", tirage:"Tirage", poussee:"Poussée", jambes:"Jambes", gainage:"Gainage", endurance:"Endurance", wod:"WOD", yoga:"Yoga", oa:"Respiration" };
@@ -6845,8 +6909,12 @@ let SESS=null;
 /* Une série "en répétitions" ne se pilote pas au chrono : la fenêtre de temps
    n'est qu'une indication, c'est toi qui valides quand la série est faite. */
 const REP_EFFORTS = new Set(["Tractions","Omoplates","Pompes","Extensions","Rotations",
-  "Swings","Soulevés","Squats","Développés","Rowing","Slams"]);
-function isRepSet(p){ return !!(p && (p.repSet || REP_EFFORTS.has(p.effortLabel))); }
+  "Swings","Soulevés","Squats","Développés","Rowing","Slams","Essuie-glaces","Montées"]);
+function isRepSet(p){
+  if(!p) return false;
+  if(p.repSet !== undefined) return !!p.repSet;      // override explicite (ex. EMOM : la minute tourne)
+  return REP_EFFORTS.has(p.effortLabel);
+}
 function buildPhases(p){
   const ph=[]; ph.push({kind:"prep",dur:p.prepSec,label:"Préparation"});
   for(let s=0;s<p.sets;s++){
