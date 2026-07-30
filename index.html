@@ -539,7 +539,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v75"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v76"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -988,6 +988,22 @@ const PRESETS = [
     desc:"5 séries de 5 soulevés de terre à la kettlebell de 32 kg (ou 24+8 en valise, une dans chaque main). Fenêtre de 20 s, 2 min de repos.",
     technique:"KB entre les pieds, hanches basses, dos plat, bras tendus. Pousse le sol avec les jambes, la barre... la kettlebell reste collée près du corps. Verrouille debout — fessiers serrés — sans cambrer. Descente contrôlée.",
     gains:"Force brute de la chaîne postérieure et du grip. Version valise (une KB par main) : ajoute le gainage anti-inclinaison et double le travail de préhension." },
+  { id:"me-gym", name:"ME jambes — circuit montée", type:"Endurance musculaire", cat:"jambes", color:"amber", grip:"Corps + box", edgeMm:0, addedKg:0, effortLabel:"Circuit", repSet:true,
+    prepSec:15, hangSec:150, restRepSec:60, reps:3, restSetSec:120, sets:2, builtin:true,
+    desc:"La séance de référence pour monter plus vite plus longtemps, d'après le protocole d'endurance musculaire d'Uphill Athlete. Trois exercices, dans l'ordre, toutes les séries de l'un avant de passer au suivant : montées de box (6×10 par jambe), fentes avant (6×10 par jambe), squats sautés fendus (6×10 par jambe). Tempo régulier 1 rep/1-2 s, repos 60 s entre séries (30 s sur les unilatéraux). Ici : chaque fenêtre = un exercice complet d'une jambe, valide quand c'est fait. 1 séance/semaine suffit.",
+    technique:"Paliers de progression : séances 1-2 au poids du corps (courbatures garanties sinon) ; palier 2 : 7 séries, repos 45 s ; palier 3 : +10 % du poids de corps en gilet ou sac, retour à 5×10. Les jambes doivent brûler mais la conversation rester possible — si c'est le souffle qui limite, ralentis le tempo, n'allège pas." },
+  { id:"me-heavy", name:"ME lourde — montées lestées", type:"Endurance musculaire", cat:"jambes", color:"hot", grip:"Box + sac lesté", edgeMm:0, addedKg:16, effortLabel:"Montées", repSet:true,
+    prepSec:15, hangSec:300, restRepSec:0, reps:1, restSetSec:180, sets:4, builtin:true,
+    desc:"Montées de box avec sac lourd : 15 à 25 % du poids de corps (chez toi 11-18 kg — tes kettlebells dans le sac). 4 blocs de 5 min de montées continues à cadence régulière, 3 min de repos. La charge doit rendre TES JAMBES limitantes, jamais le souffle : c'est le critère central du travail ME (Uphill Athlete). À programmer quand le palier 3 du circuit ME est acquis.",
+    technique:"Jambe entière posée sur la box, pousse par le talon, redescends contrôlé. Alterne les jambes. Si tu t'essouffles, la charge est trop légère ou la cadence trop haute — c'est du muscle, pas du cardio. Phase de 8 à 16 semaines maximum, les gains plafonnent ensuite." },
+  { id:"me-ecc", name:"Excentrique descente — step-downs", type:"Endurance musculaire", cat:"jambes", color:"cool", grip:"Box", edgeMm:0, addedKg:0, effortLabel:"Descentes", repSet:true,
+    prepSec:12, hangSec:120, restRepSec:45, reps:3, restSetSec:120, sets:3, builtin:true,
+    desc:"Le versant oublié : la descente. Debout sur la box, descends une jambe vers le sol en 3-5 s de contrôle total, effleure, remonte. 3 séries de 3 fenêtres : step-downs 8/jambe, squats tempo 5 s de descente ×8, fentes arrière lentes 8/jambe. Les quadriceps encaissent en excentrique — exactement ce qui lâche dans les longues descentes si on ne l'a jamais travaillé (Uphill Athlete : monter fort ne suffit pas, la descente est une qualité distincte).",
+    technique:"La lenteur est le but : si tu tombes sur la dernière portion, réduis la hauteur. Lestable au sac quand 3×8 devient propre. Attends-toi à des courbatures les 2 premières fois — c'est la signature de l'excentrique." },
+  { id:"me-ischio", name:"Ischios & fessiers — plaquettes", type:"Chaîne postérieure", cat:"jambes", color:"cool", grip:"Plaquettes au sol", edgeMm:0, addedKg:0, effortLabel:"Séries", repSet:true,
+    prepSec:12, hangSec:120, restRepSec:45, reps:3, restSetSec:120, sets:3, builtin:true,
+    desc:"Sur le dos, talons sur les plaquettes de glissement : monte le bassin en pont, puis étends et ramène les jambes en gardant les hanches hautes — le leg curl glissé, l'un des meilleurs exercices d'ischios sans machine. 3 séries de 3 fenêtres : leg curls glissés ×8-12, hip thrust épaules surélevées ×12 (lestable kettlebell sur le bassin), pont une jambe ×8/jambe. Ischios et fessiers propulsent la montée et protègent les genoux en descente.",
+    technique:"Le bassin ne descend JAMAIS pendant le curl — s'il coule, réduis l'amplitude ou passe en excentrique seul (ramène à deux jambes, étends sur une). Progression : excentrique 5 s, puis une jambe. Chaussettes sur parquet en dépannage." },
   { id:"kb-jambes", name:"KB Jambes — goblet & box", type:"Renfo", cat:"renfo", color:"amber", grip:"Corps entier", edgeMm:0, addedKg:16, effortLabel:"Squats",
     prepSec:12, hangSec:30, restRepSec:20, reps:2, restSetSec:75, sets:3, builtin:true,
     desc:"Chaque série : rep 1 = goblet squats (KB 16-24 kg tenue contre la poitrine), rep 2 = montées sur la box en alternant les jambes (KB 8-16 kg). 30 s par exercice.",
@@ -1120,12 +1136,12 @@ function savePlan(){ store.set("plan", plan); }
 /* ---------- 5 pistes indépendantes (v33) ---------- */
 const TRACK5 = [
   ["escalade","Escalade","Doigts, tractions, antagonistes — cycle mixte 16 semaines"],
-  ["wod","Condition alpinisme","WOD type CrossFit utiles en montagne + gainage quotidien"],
+  ["wod","Condition alpinisme","3 séances jambes ME + 1 WOD par semaine, + gainage"],
   ["endurance","Endurance","Nage, course, vélo, ski, brick, corde"],
   ["yoga","Yoga","Récupération & mobilité guidées — jamais dans le budget d'intensité"],
   ["oa","Respiration OA","BOLT, journée guidée, altitude & apnée"]
 ];
-const TRACK_DOMAINS = { escalade:["doigts","tirage"], wod:["wod","gainage"],
+const TRACK_DOMAINS = { escalade:["doigts","tirage"], wod:["wod","gainage","jambes"],
   endurance:["endurance"], yoga:["yoga"], oa:[] };
 const TRACK_WEEKS = 16; // un seul format : 16 semaines, décharge toutes les 4
 let plans5 = store.get("plans5", null);
@@ -1209,6 +1225,7 @@ const GAINAGE_IDS = ["core-sol","core-dorsal","core-hollow","core-susp","core-ls
 const ANTAGO_IDS = ["anta-ext","anta-pompes","anta-pike","anta-poignets","anta-coiffe"];
 /* Matériel requis par programme (tout est requis ; les alternatives sont d'autres programmes) */
 const PROG_NEED = {
+  "me-gym":["box"], "me-heavy":["box"], "me-ecc":["box"], "me-ischio":["sliders"],
   "bm-longmax":["poutre"], "bm-tendon":["poutre"],
   "bm-endlong":["poutre"], "bm-endshort":["poutre","elastique"],
   "bm-otm":["barre"], "bm-maxpull":["barre"], "bm-pyramid":["barre"], "bm-negatives":["barre","box"], "bm-offset":["barre"],
@@ -1290,7 +1307,7 @@ const GENERAL_POOLS = {
   doigts:  ["maxhangs","rep73","bm-longmax","bm-tendon","force5","minedge","bm-endlong","bm-endshort","tri-nohang","tri-susp","tri-rep","mcx-lift","mcx-pinch-max","mcx-pinch-rep"],
   tirage:  ["pull-simple","pull-weight","bm-maxpull","bm-pyramid","bm-otm","bm-negatives","bm-offset","pull-frenchies","pull-scap","trx-row"],
   poussee: ["anta-pompes","anta-pike","kb-press","mb-slam"],
-  jambes:  ["kb-jambes","kb-sdt","kb-swing"],
+  jambes:  ["me-gym","me-heavy","me-ecc","me-ischio","kb-jambes","kb-sdt","kb-swing"],
   gainage: ["fl-tuck","fl-adv","fl-wipers","fl-raise","fl-oneleg","fl-full","core-lsit","core-susp","core-sol","core-hollow","core-dorsal","trx-core"]
 };
 const MUSCLE_KEYS = ["tirage","poussee","jambes"];
@@ -5675,6 +5692,8 @@ const BENCH=[
  {id:'karen',name:'Karen (med ball)',sub:'150 reps · for time',need:['mb'],blocks:['Échauffement 8 min + squats progressifs','150 lancers-squat med ball (squat complet, lancer vertical ou contre un mur)','Fractionne : 15×10 ou 10×15 — les jambes vont chauffer','Note ton temps (référence : 8-14 min)']},
  {id:'murph',name:'Murph',hero:true,sub:'Hero WOD · le classique',need:['barre'],blocks:['Échauffement 12 min','1,6 km course → 100 tractions + 200 pompes + 300 squats (partitionne : 20 tours de 5/10/15) → 1,6 km course','Gilet lesté pour la version fidèle — sinon poids du corps, c\'est déjà sérieux','Note ton temps (référence : 45-70 min)']},
  {id:'chad',name:'Chad',hero:true,sub:'Hero WOD · 1000 step-ups',need:['box','gilet'],blocks:['Échauffement 10 min hanches + mollets','1000 montées de box (50 cm) avec gilet lesté','L\'hommage qui te parle : c\'est une ascension. Rythme régulier, fractionne par 50 ou 100','Note ton temps (référence : 60-90 min) — prévois la journée légère derrière']},
+ {id:'chad500',name:'Chad 500 (division allégée)',hero:true,sub:'Hero WOD · 500 step-ups',need:['box'],blocks:['Échauffement 10 min hanches + mollets','500 montées de box (50 cm) — division officielle allégée de CHAD1000X : sans lest, ou sac 9-14 kg (intermédiaire)','Fractionne par 50, cadence régulière ~15-17/min','Note ton temps (référence : 30-45 min)']},
+ {id:'shaul1000',name:'Benchmark ME — 1000 montées sac 11 kg',hero:false,sub:'Test montagne · presse spécialisée',need:['box'],blocks:['Échauffement 10 min','1000 montées de box en CONTINU avec sac ~11 kg — le standard d\'entrée des plans alpins avancés (R. Shaul / Mountain Athletics)','Sans pause assise : ralentis au besoin, mais ne t\'arrête pas','Note ton temps — la référence à viser en fin de bloc ME']},
  {id:'michael',name:'Michael',hero:true,sub:'Hero WOD · 3 rounds',blocks:['Échauffement 10 min','3 tours : 800 m course → 50 supermans (extensions dorsales) → 50 sit-ups','Chaîne postérieure + tronc entre les courses','Note ton temps (référence : 22-30 min)']},
  {id:'loredo',name:'Loredo',hero:true,sub:'Hero WOD · 6 rounds',blocks:['Échauffement 10 min','6 tours : 24 squats → 24 pompes → 24 fentes marchées → 400 m course','100 % poids du corps — parfait en déplacement','Note ton temps (référence : 28-38 min)']},
  {id:'kelly',name:'Kelly (adaptée)',sub:'5 rounds · for time',need:['box','mb'],blocks:['Échauffement 10 min','5 tours : 400 m course → 30 sauts sur box → 30 lancers-squat med ball','Long et cardio — allure régulière dès le tour 1','Note ton temps (référence : 25-35 min)']},
@@ -5694,8 +5713,8 @@ const BENCH_SCORE = new Set(["cindy","fgb","chief","deathby"]);
 const BENCH_FILTERS = [["all","Tous"],["bench","Benchmarks"],["hero","Heroes"],["court","Courts < 20 min"],["long","Longs ≥ 30 min"]];
 const EQUIP_ALL = [["poutre","Poutre / hangboard"],["triangle","Triangles YY"],["minicrux","Mini Crux"],
   ["barre","Barre de traction"],["kb","Kettlebells"],["box","Box / step"],["mb","Medicine ball"],
-  ["trx","TRX"],["elastique","Élastiques"],["anneaux","Anneaux"],["gilet","Gilet lesté"]];
-const EQUIP_DEFAULT = ["poutre","triangle","minicrux","barre","kb","box","mb","trx","elastique"];
+  ["trx","TRX"],["elastique","Élastiques"],["anneaux","Anneaux"],["gilet","Gilet lesté"],["sliders","Plaquettes de glissement"]];
+const EQUIP_DEFAULT = ["poutre","triangle","minicrux","barre","kb","box","mb","trx","elastique","sliders"];
 let benchState = store.get("benchState", { filter:"all", mins:30 });
 let benchHistAll = store.get("benchHist", {});
 function saveBench(){ store.set("benchState", benchState); store.set("benchHist", benchHistAll); }
