@@ -539,7 +539,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v76"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v77"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -742,11 +742,6 @@ const PRESETS = [
     desc:"4 suspensions de 20 s à charge modérée, 2 min de repos. Développe la robustesse des tendons sans intensité maximale.",
     technique:"Charge modérée (~60–70 % de ton max), position tendue stricte, épaules stables. Aucune rep ne doit approcher l'échec.",
     gains:"Volume tendineux : rigidité et robustesse des tissus conjonctifs sans stress maximal. Idéal en base de saison ou en reprise." },
-  { id:"minedge", name:"Réglette minimale", type:"Force maximale", cat:"poutre", color:"hot", grip:"Réglette semi-arquée", edgeMm:10, addedKg:0,
-    prepSec:15, hangSec:10, restRepSec:0, reps:1, restSetSec:150, sets:5, builtin:true,
-    desc:"5 suspensions de 10 s sur la plus petite réglette que tu tiens au poids du corps. Réduis la profondeur plutôt que d'ajouter du lest.",
-    technique:"Semi-arqué strict, phalanges alignées, pas de réajustement en cours de suspension. Si tu tiens 10 s facilement, descends d'une taille de réglette plutôt que d'ajouter du poids.",
-    gains:"Recrutement spécifique sur micro-prises et confiance sur les petites réglettes — très proche des conditions réelles du rocher." },
   { id:"endurance", name:"Endurance longue", type:"Endurance", cat:"poutre", color:"cool", grip:"Bac / ouvert", edgeMm:30, addedKg:0,
     prepSec:12, hangSec:60, restRepSec:0, reps:1, restSetSec:120, sets:3, builtin:true,
     desc:"3 suspensions longues de 60 s sur prise confortable. Travaille la capacité et la tolérance à l'effort prolongé.",
@@ -757,11 +752,6 @@ const PRESETS = [
     desc:"Suspensions faciles à ~40–60 % (allège avec un élastique ou les pieds au sol). Faisable tous les jours, même les jours de repos : conditionne les tendons sans fatiguer. Inspiré du protocole d'Emil Abrahamsson.",
     technique:"La règle d'or : ça doit rester facile. Zéro douleur, zéro brûlure, zéro effort mental. Élastique sous les pieds ou pieds au sol pour alléger.",
     gains:"Conditionnement tendineux par le flux sanguin et la charge légère fréquente. Redoutablement efficace contre les doigts fragiles ou douloureux." },
-  { id:"force5", name:"Force courte 5 s", type:"Force maximale", cat:"poutre", color:"hot", grip:"Réglette semi-arquée", edgeMm:18, addedKg:0,
-    prepSec:15, hangSec:5, restRepSec:0, reps:1, restSetSec:60, sets:6, builtin:true,
-    desc:"6 suspensions très intenses de 5 s, 1 min de repos. Recrutement maximal avec peu de fatigue métabolique — ajoute du lest ou réduis la réglette pour que 5 s soit vraiment dur.",
-    technique:"Engage les épaules et gaine AVANT de charger les doigts. 5 s à fond puis arrêt net — la qualité de chaque seconde compte plus que la durée.",
-    gains:"Recrutement nerveux maximal : de la force pure avec une récupération rapide. Parfait avant une phase de projets durs." },
   { id:"rep1515", name:"Répéteurs longs 15:15", type:"Force-endurance", cat:"poutre", color:"cool", grip:"Réglette tendue", edgeMm:22, addedKg:0,
     prepSec:15, hangSec:15, restRepSec:15, reps:5, restSetSec:180, sets:3, builtin:true,
     desc:"15 s suspendu / 15 s repos, ×5 par série. Travaille la continuité sur voies longues : cherche une intensité tenable, brûlure gérable jusqu'au bout.",
@@ -784,16 +774,6 @@ const PRESETS = [
     gains:"Force de pince (pouce et éminence thénar), décisive sur les arêtes, les dévers et le bloc moderne." },
 
   /* ===== TRIANGLE YY VERTICAL ===== */
-  { id:"tri-susp", name:"Triangle — suspensions max", type:"Force maximale", cat:"triangle", color:"hot", grip:"Réglette semi-arquée", edgeMm:20, addedKg:0,
-    prepSec:15, hangSec:10, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
-    desc:"Triangles suspendus à une barre ou une branche par leurs sangles. 5 suspensions de 10 s sur la réglette 20 mm (tourne vers 15 mm pour durcir).",
-    technique:"Les triangles bougent : engage les épaules et gaine tout le corps pour stabiliser AVANT de charger les doigts. Sangles de même longueur, mains symétriques. Le système 360° te laisse changer de prise entre les séries.",
-    gains:"Même force maximale qu'une poutre, plus le travail des stabilisateurs d'épaule et du gainage dû à l'instabilité des sangles — très proche de la grimpe réelle." },
-  { id:"tri-nohang", name:"Triangle — soulevés lestés", type:"Force maximale", cat:"triangle", color:"hot", grip:"Réglette semi-arquée", edgeMm:20, addedKg:20, effortLabel:"Tirage",
-    prepSec:15, hangSec:7, restRepSec:0, reps:1, restSetSec:60, sets:6, builtin:true,
-    desc:"Sans se suspendre : relie la sangle du triangle à une charge posée au sol (haltère, kettlebell, sac lesté) et soulève-la d'un bras, dos droit. 7 s de tenue, 6 tirages par main.",
-    technique:"Position de soulevé de terre : dos plat, charge près du corps, monte la charge de quelques centimètres seulement et tiens 7 s. La charge se règle au kilo près — c'est tout l'intérêt. Alterne main gauche / main droite à chaque tirage.",
-    gains:"Force de doigts isolée, dosable précisément et sans stress d'épaule : parfait pour progresser finement, travailler un bras faible, ou continuer à charger quand la suspension complète est trop intense." },
   { id:"tri-foot", name:"Triangle — traction contre le pied", type:"Force maximale", cat:"triangle", color:"amber", grip:"Réglette semi-arquée", edgeMm:20, addedKg:0, effortLabel:"Tirage",
     prepSec:12, hangSec:7, restRepSec:30, reps:3, restSetSec:120, sets:3, builtin:true,
     desc:"Debout, la sangle passée sous le pied : tire le triangle vers le haut, bras tendu, contre ta propre jambe. Effort isométrique à ~80 % de ton max, sans aucun matériel d'ancrage.",
@@ -804,11 +784,6 @@ const PRESETS = [
     desc:"Triangle relié à un élastique ancré bas (pied de meuble, arbre) : tirages légers et contrôlés de 10 s. La version mobile du sous-max quotidien.",
     technique:"Choisis un élastique qui rend l'effort FACILE (~40–50 %). Tire lentement, tiens 10 s, relâche lentement. Varie les prises grâce au 360° : bac, 25, 20 mm. Zéro douleur tolérée.",
     gains:"Flux sanguin et conditionnement des tendons sans fatigue — récupération active les jours de repos, échauffement des doigts avant une session, rééducation douce après une gêne." },
-  { id:"tri-rep", name:"Triangle — répéteurs 7:3", type:"Force-endurance", cat:"triangle", color:"cool", grip:"Réglette semi-arquée", edgeMm:20, addedKg:0,
-    prepSec:15, hangSec:7, restRepSec:3, reps:6, restSetSec:180, sets:4, builtin:true,
-    desc:"Le protocole 7:3 suspendu aux triangles. L'instabilité des sangles ajoute une couche de gainage au travail d'endurance de force.",
-    technique:"Pendant les 3 s de repos, garde les mains sur les prises pour éviter le ballant des triangles. Corps gainé en permanence — si tu oscilles, c'est le gainage qui lâche, pas les doigts.",
-    gains:"Force-endurance des avant-bras + endurance de gainage et de stabilité d'épaule : la combinaison exacte qu'exige une voie déversante." },
 
   /* ===== GAINAGE ===== */
   { id:"core-sol", name:"Gainage au sol — 3 faces", type:"Gainage", cat:"gainage", color:"amber", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Gainage",
@@ -842,26 +817,10 @@ const PRESETS = [
     prepSec:15, hangSec:7, restRepSec:3, reps:6, restSetSec:180, sets:6, builtin:true,
     desc:"Répéteurs 7:3, 6 suspensions par série, 3 min de repos entre séries, 6 séries — 6 min de suspension au total, un seul bloc car l'intensité est très haute. Charge à 70-80 % de ton max sur la réglette : chez toi ≈ allégé de 8 à 16 kg à l'élastique sur 25 mm. Tu dois lutter fort, et probablement lâcher sur les dernières suspensions des 2 dernières séries. D'après le protocole d'endurance courte de Beastmaking (N. Feehally).",
     technique:"Exercice dur : prévois un JOUR DE REPOS derrière. 2 séances/semaine si c'est ta priorité, 1 seule si tu travailles la force en parallèle. Au moins 6 semaines pour voir l'effet. Progression : moins d'assistance, puis du lest." },
-  { id:"bm-otm", name:"Tractions à la minute (EMOM)", type:"Force générale", cat:"traction", color:"cool", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Tractions", repSet:false,
-    prepSec:12, hangSec:60, restRepSec:0, reps:1, restSetSec:0, sets:10, builtin:true,
-    desc:"Au début de chaque minute, fais ton nombre de tractions choisi (1 à 10 selon ton niveau — commence à 3-4), puis repose-toi le reste de la minute. 10 minutes au total. La minute tourne, à toi de tenir la cadence. Progression : augmente le nombre de tractions par minute. Travaille l'endurance de force plus que la force pure. D'après Beastmaking (N. Feehally).",
-    technique:"Amplitude complète : bras tendus en bas, menton au-dessus — une répétition = la montée ET la descente contrôlée. Ajoute des pompes dans la minute si tu veux corser." },
-  { id:"bm-maxpull", name:"Tractions max — 1 à 3 reps", type:"Force max", cat:"traction", color:"hot", grip:"Bac / ouvert", edgeMm:0, addedKg:28, effortLabel:"Tractions",
-    prepSec:15, hangSec:25, restRepSec:0, reps:1, restSetSec:240, sets:5, builtin:true,
-    desc:"Trouve le lest (baudrier/poulie ou gilet) où 1 à 3 tractions sont ton maximum absolu — d'après ton test, autour de +33 kg et plus. 5 séries à cette charge maximale, 3 à 5 min de repos entre chaque pour préserver la qualité. D'après Beastmaking (N. Feehally).",
-    technique:"La force pure exige du repos complet : repars seulement quand tu te sens entièrement récupéré. Qualité avant tout — si la forme se dégrade, la séance est finie. Bloc de 8-10 séances sur 5-6 semaines, puis coupe : les bras progressent vite et se blessent vite." },
-  { id:"bm-pyramid", name:"Pyramide lestée 6-4-2-1-2-4-6", type:"Force max", cat:"traction", color:"hot", grip:"Bac / ouvert", edgeMm:0, addedKg:15, effortLabel:"Tractions",
-    prepSec:15, hangSec:45, restRepSec:0, reps:1, restSetSec:180, sets:7, builtin:true,
-    desc:"7 séries de tractions lestées : 6 → 4 → 2 → 1 → 2 → 4 → 6 répétitions. Le lest augmente quand les répétitions descendent, et redescend ensuite (ex. chez toi : +12 → +20 → +26 → +30 → +26 → +20 → +12 kg). 3 min de repos entre les séries. D'après Beastmaking (N. Feehally).",
-    technique:"Chaque série s'arrête AVANT l'échec. Amplitude complète, descente contrôlée. Valide chaque série quand elle est faite — c'est toi qui comptes." },
   { id:"bm-negatives", name:"Tractions négatives", type:"Force max", cat:"traction", color:"amber", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Tractions",
     prepSec:15, hangSec:12, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
     desc:"Pars menton au-dessus de la barre (monte depuis une box), puis descends LE PLUS LENTEMENT possible. Règle la charge (lest ou allègement) pour ne pas pouvoir descendre beaucoup plus lentement que 8 secondes. 5 séries, 3 min de repos. À deux bras, ou à un bras pour casser un plateau. D'après Beastmaking (N. Feehally).",
     technique:"L'excentrique est plus fort que le concentrique : c'est le levier anti-plateau. Descente fluide, sans à-coup — les coudes n'aiment pas les saccades. Ne combine pas avec une grosse séance de doigts le même jour." },
-  { id:"bm-offset", name:"Tractions décalées (vers 1 bras)", type:"Force max", cat:"traction", color:"amber", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Tractions",
-    prepSec:15, hangSec:30, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
-    desc:"Une main sur la barre, l'autre sur une sangle, une corde ou un élastique plus bas : le bras haut porte l'essentiel. 2 à 4 répétitions par côté et par série, 5 séries, 3 min de repos. Réduis progressivement l'aide du bras bas. La marche vers la traction à un bras. D'après Beastmaking (N. Feehally).",
-    technique:"Alterne les côtés à chaque série. Épaule engagée avant de tirer, jamais de départ relâché sur un seul bras. Exercice de force : repos complet entre les séries." },
   { id:"fl-wipers", name:"Essuie-glaces", type:"Gainage barre", cat:"gainage", color:"amber", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Essuie-glaces",
     prepSec:12, hangSec:40, restRepSec:0, reps:1, restSetSec:120, sets:3, builtin:true, repSet:true,
     desc:"Suspendu, dos parallèle au sol, jambes pliées à 90° pointant vers le haut. Descends d'un côté jusqu'à l'horizontale, remonte au centre, descends de l'autre. 6 à 10 passages par côté, jambes tendues si tu peux. D'après Beastmaking (N. Feehally).",
@@ -898,11 +857,6 @@ const PRESETS = [
     desc:"L'échauffement de poche, au pied des voies ou au bureau : tirages légers à l'élastique ou avec un petit poids, en descendant 25 → 20 → 15 mm au fil des reps.",
     technique:"Assis ou debout, dos droit. Élastique sous le pied ou petit poids au sol. Tire lentement jusqu'à tension légère, tiens 10 s, relâche en contrôle. Change de main à chaque rep, descends de réglette toutes les 2-3 reps.",
     gains:"Doigts chauds en 5 minutes n'importe où — la meilleure prévention des blessures du premier essai à froid en falaise." },
-  { id:"mcx-lift", name:"Mini Crux — soulevés max", type:"Force maximale", cat:"minicrux", color:"hot", grip:"Réglette semi-arquée", edgeMm:20, addedKg:25, effortLabel:"Tirage",
-    prepSec:15, hangSec:7, restRepSec:0, reps:1, restSetSec:60, sets:6, builtin:true,
-    desc:"Le protocole no-hang de référence : Mini Crux relié à une charge lourde au sol (disques, kettlebell), soulevé d'un bras sur la réglette 20 mm. 7 s de tenue, alterne les mains.",
-    technique:"Position de soulevé de terre : hanches basses, dos plat, épaule engagée. Décolle la charge de 2-3 cm seulement et tiens 7 s sans à-coup. La charge cible : très dur mais jamais d'ouverture de doigts. Alterne G/D à chaque tirage.",
-    gains:"Force maximale des doigts dosable au kilo près, chaque main travaillée séparément (révèle et corrige les déséquilibres), sans aucune contrainte d'épaule. Résistance de l'agrès : 120 kg." },
   { id:"mcx-edge10", name:"Mini Crux — micro 10 mm", type:"Force maximale", cat:"minicrux", color:"hot", grip:"Réglette semi-arquée", edgeMm:10, addedKg:10, effortLabel:"Tirage",
     prepSec:15, hangSec:10, restRepSec:0, reps:1, restSetSec:90, sets:5, builtin:true,
     desc:"Soulevés légers sur la réglette de 10 mm : la précision de contact avant la force brute. Charge modérée, tenue parfaite.",
@@ -915,16 +869,6 @@ const PRESETS = [
     desc:"Le cœur du travail de pince : Mini Crux saisi par sa pince large (~50 mm), relié à une charge, soulevé d'un bras. 7 s de serrage max, alterne les mains.",
     technique:"Le pouce s'oppose franchement aux doigts — c'est LUI le moteur. Poignet neutre, avant-bras vertical au-dessus de la charge. Serre AVANT de décoller, monte 2-3 cm, tiens. Si le bloc glisse ou pivote, la charge est trop lourde.",
     gains:"Force de pince pure (pouce, éminence thénar, fléchisseurs) — la préhension la moins entraînable sur poutre classique et pourtant décisive sur arêtes, colonnettes et blocs modernes." },
-  { id:"mcx-pinch-rep", name:"Pince — répéteurs 7:3", type:"Force-endurance", cat:"mcxpince", color:"cool", grip:"Pince", edgeMm:50, addedKg:8, effortLabel:"Serrage",
-    prepSec:12, hangSec:7, restRepSec:3, reps:6, restSetSec:120, sets:3, builtin:true,
-    desc:"Le protocole 7:3 appliqué à la pince : 6 serrages de 7 s par série, charge modérée. Une série par main, en alternance.",
-    technique:"Charge à ~60 % de ton max de pince. Pendant les 3 s de repos, pose la charge sans lâcher le bloc pour garder le placement. Fais la série complète d'une main, puis change — note la différence G/D dans tes notes.",
-    gains:"Endurance de serrage : la capacité à tenir des pinces sur la durée d'une voie, pas juste un mouvement. Le pouce se fatigue différemment des doigts — il faut l'entraîner spécifiquement." },
-  { id:"mcx-pinch-end", name:"Pince — tenues longues", type:"Endurance", cat:"mcxpince", color:"amber", grip:"Pince", edgeMm:50, addedKg:10, effortLabel:"Serrage",
-    prepSec:12, hangSec:30, restRepSec:60, reps:3, restSetSec:0, sets:2, builtin:true,
-    desc:"3 tenues de 30 s en pince à charge légère-modérée, 1 min de repos. Marche aussi en portage : le Mini Crux tenu en pince, charge suspendue, en marchant sur place (farmer walk).",
-    technique:"Charge qui permet 30 s propres avec ~10 s de marge. Le poignet reste neutre du début à la fin — s'il casse, c'est terminé. Version farmer : marche lentement, épaule basse, sans balancer la charge.",
-    gains:"Capacité de la pince sous fatigue prolongée + endurance du poignet et de l'avant-bras — le fond de commerce des longues sections à colonnettes et des dévers à plats." },
   /* ===== TRACTIONS ===== */
   { id:"pull-simple", name:"Tractions — séries simples", type:"Force générale", cat:"traction", color:"cool", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Tractions",
     prepSec:12, hangSec:30, restRepSec:0, reps:1, restSetSec:120, sets:5, builtin:true,
@@ -942,7 +886,7 @@ const PRESETS = [
     technique:"Chaque blocage est TENU immobile — pas de tremblement toléré, sinon écourte. Les angles comptent : bras cassés en haut, coudes à l'équerre à 90°, presque tendus à 120°. Épaules basses en permanence. Si 3 cycles passent facilement, ajoute un blocage ou du lest léger.",
     gains:"Force de blocage à tous les angles — exactement ce qui te tient sur une prise pendant que l'autre main avance. Le meilleur exercice de tirage spécifique escalade, et le plus redoutablement fatigant." },
   /* ===== ANTAGONISTES ===== */
-  { id:"anta-ext", name:"Extensions de doigts — élastique", type:"Antagonistes", cat:"antago", color:"cool", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Extensions",
+  { id:"anta-ext", name:"Extenseurs de doigts — élastique", type:"Prévention", cat:"poutre", color:"cool", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Extensions",
     prepSec:5, hangSec:30, restRepSec:15, reps:2, restSetSec:45, sets:3, builtin:true,
     desc:"Élastique (ou gros élastique de bureau) autour du bout des doigts : ouvre la main en grand contre la résistance, en rythme lent. Chaque série = 30 s main gauche (rep 1) puis main droite (rep 2).",
     technique:"L'élastique se place sur les dernières phalanges, pouce inclus. Ouvre COMPLÈTEMENT — les doigts s'écartent et s'étendent à fond — puis referme en freinant. ~15-20 ouvertures par fenêtre de 30 s. Ça doit chauffer le dos de l'avant-bras, jamais faire mal.",
@@ -957,6 +901,10 @@ const PRESETS = [
     desc:"Avant-bras posé sur la cuisse ou une table, paume vers le bas, petit poids (1-3 kg) ou élastique en main : lève le dos de la main vers le haut, lentement. 30 s par côté, rep 1 = gauche, rep 2 = droite.",
     technique:"Seul le poignet bouge, l'avant-bras reste plaqué. Monte en 1 s, redescends en 2-3 s en freinant — l'excentrique est la partie qui compte. Charge légère : 12-15 reps par fenêtre avec une brûlure douce, jamais de douleur vive.",
     gains:"Extenseurs du poignet solides = poignet stable sur les réglettes, les pinces et les plats. Le complément direct des extensions de doigts pour des coudes en bonne santé sur le long terme." },
+  { id:"anta-lest", name:"Pompes lestées", type:"Antagonistes", cat:"antago", color:"hot", grip:"Corps + sac", edgeMm:0, addedKg:10, effortLabel:"Pompes",
+    prepSec:10, hangSec:40, restRepSec:0, reps:1, restSetSec:150, sets:4, builtin:true,
+    desc:"Pompes strictes avec sac à dos lesté (commence à 8-10 kg) : 4 séries de 6-10 répétitions, 2 min 30 de repos. La poussée lourde qui équilibre ton volume de tirage — dos gainé, poitrine au sol, coudes à ~45°.",
+    technique:"Le sac plaqué haut entre les omoplates, pas sur les lombaires. Si la 10ᵉ rep passe facilement, ajoute 2-3 kg. Amplitude complète, jamais de mi-pompes lestées." },
   { id:"anta-pike", name:"Pompes piquées — épaules", type:"Antagonistes", cat:"antago", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Pompes",
     prepSec:8, hangSec:30, restRepSec:0, reps:1, restSetSec:75, sets:3, builtin:true,
     desc:"3 fenêtres de 30 s en position de V inversé (fesses hautes, jambes tendues) : plie les coudes pour amener le sommet du crâne vers le sol entre les mains, puis pousse. La poussée verticale du grimpeur — le geste du mantle.",
@@ -967,11 +915,6 @@ const PRESETS = [
     desc:"Le miroir de la planche : chaque série = planche inversée (rep 1, face au plafond, appui talons-mains), pont fessier tenu haut (rep 2), superman bras-jambes décollés (rep 3). 35 s d'effort, 20 s de transition.",
     technique:"Planche inversée : corps aligné épaules-chevilles, hanches POUSSÉES vers le haut, épaules basses. Pont : serre les fessiers au sommet, ne creuse pas les lombaires — version dure sur une jambe. Superman : décolle bras et cuisses ensemble, nuque longue, regard au sol.",
     gains:"Fessiers, ischios et érecteurs du rachis : la chaîne qui verrouille les talons (heel hooks), plaque les hanches au mur en dévers et tient la tension du corps pieds-mains. Le complément indispensable de la planche — la plupart des grimpeurs ne travaillent que la face avant." },
-  { id:"pull-scap", name:"Tractions d'omoplates", type:"Force générale", cat:"traction", color:"cool", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Omoplates",
-    prepSec:12, hangSec:20, restRepSec:0, reps:1, restSetSec:60, sets:4, builtin:true,
-    desc:"Suspendu bras TENDUS à la barre ou aux triangles : abaisse et rapproche les omoplates pour hausser le corps de quelques centimètres, sans plier les coudes. 6-10 reps lentes par fenêtre de 20 s.",
-    technique:"Les coudes restent verrouillés tendus tout du long — seules les omoplates bougent. Monte en 1-2 s (épaules qui s'éloignent des oreilles), tiens 1 s en haut, redescends en contrôle jusqu'à la suspension passive. Si tu plies les coudes, c'est raté.",
-    gains:"L'engagement scapulaire : le geste qui protège l'épaule sur chaque prise et chaque suspension. La fondation de toute la force de tirage — et l'exercice le plus rentable qui soit pour les épaules du grimpeur, débutant comme confirmé." },
   { id:"anta-coiffe", name:"Coiffe des rotateurs — élastique", type:"Antagonistes", cat:"antago", color:"cool", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Rotations",
     prepSec:5, hangSec:30, restRepSec:15, reps:3, restSetSec:45, sets:2, builtin:true,
     desc:"Élastique ancré à hauteur du coude : rotations externes coude au corps (rep 1 bras gauche, rep 2 bras droit), puis tirage-visage (face pull) à deux mains (rep 3). 30 s par exercice, tempo lent.",
@@ -1009,21 +952,6 @@ const PRESETS = [
     desc:"Chaque série : rep 1 = goblet squats (KB 16-24 kg tenue contre la poitrine), rep 2 = montées sur la box en alternant les jambes (KB 8-16 kg). 30 s par exercice.",
     technique:"Goblet : coudes entre les genoux en bas, talons au sol, buste droit. Box : pousse UNIQUEMENT sur la jambe du haut (l'autre ne donne pas d'élan), genou aligné avec le pied, descente freinée.",
     gains:"Force des jambes et stabilité unilatérale : les pieds qui poussent fort et précis, la base des placements hauts et des rétablissements. La grimpe se gagne aussi par le bas." },
-  { id:"kb-press", name:"KB Développé unilatéral", type:"Renfo", cat:"renfo", color:"cool", grip:"Corps entier", edgeMm:0, addedKg:8, effortLabel:"Développés",
-    prepSec:12, hangSec:25, restRepSec:15, reps:2, restSetSec:75, sets:3, builtin:true,
-    desc:"Développé militaire d'un bras, KB de 8 puis 16 kg : rep 1 = bras gauche, rep 2 = bras droit, 25 s par côté (~6-8 reps).",
-    technique:"KB en position rack (posée sur l'avant-bras, coude devant), gaine fort, pousse verticalement jusqu'au bras tendu SANS cambrer — le gainage fait la moitié du travail. Descente lente en 2-3 s.",
-    gains:"Poussée verticale chargée et stabilité d'épaule au-dessus de la tête : le grand équilibrage du tirage permanent, avec un travail anti-rotation du tronc offert par l'unilatéral." },
-  { id:"trx-row", name:"TRX Rowing horizontal", type:"Renfo", cat:"renfo", color:"cool", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Rowing",
-    prepSec:10, hangSec:30, restRepSec:0, reps:1, restSetSec:60, sets:4, builtin:true,
-    desc:"4 fenêtres de 30 s de rowing au TRX, corps incliné. Plus tu es horizontal, plus c'est dur — règle la difficulté avec l'angle des pieds.",
-    technique:"Corps rigide en planche de la tête aux talons, omoplates qui se serrent EN PREMIER, coudes qui frôlent les flancs, poitrine vers les poignées. Descente contrôlée sans casser la ligne du corps.",
-    gains:"Tirage horizontal — l'angle que la grimpe verticale ne travaille presque jamais : arrière d'épaule, rhomboïdes, milieu du dos. Corrige la posture enroulée du grimpeur et blinde les épaules." },
-  { id:"mb-slam", name:"Medicine ball — slams", type:"Renfo", cat:"renfo", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Slams",
-    prepSec:10, hangSec:20, restRepSec:0, reps:1, restSetSec:60, sets:4, builtin:true,
-    desc:"4 fenêtres de 20 s de slams : monte la balle bras tendus au-dessus de la tête, extension complète, et projette-la au sol de toutes tes forces. Ramasse, répète.",
-    technique:"Extension TOTALE au sommet (sur la pointe des pieds), puis tout le corps participe à la projection — abdos, épaules, hanches. Réceptionne la balle en squat, dos plat. Rythme soutenu mais chaque slam est complet.",
-    gains:"Puissance du tronc et des épaules en chaîne complète, plus une décharge nerveuse et cardio courte. Le pont entre la force construite et l'explosivité des jetés." },
   { id:"trx-core", name:"TRX Gainage — fallouts & pikes", type:"Gainage", cat:"gainage", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Gainage",
     prepSec:10, hangSec:30, restRepSec:20, reps:2, restSetSec:75, sets:3, builtin:true,
     desc:"Chaque série au TRX : rep 1 = fallouts (en planche mains dans les poignées, laisse glisser les bras vers l'avant puis reviens), rep 2 = pikes (pieds dans les sangles, monte les fesses en V inversé). 30 s par exercice.",
@@ -1135,14 +1063,13 @@ let plan = store.get("plan", null);
 function savePlan(){ store.set("plan", plan); }
 /* ---------- 5 pistes indépendantes (v33) ---------- */
 const TRACK5 = [
-  ["escalade","Escalade","Doigts, tractions, antagonistes — cycle mixte 16 semaines"],
+  ["escalade","Escalade","Doigts (tous supports), tractions, antagonistes, gainage"],
   ["wod","Condition alpinisme","3 séances jambes ME + 1 WOD par semaine, + gainage"],
-  ["endurance","Endurance","Nage, course, vélo, ski, brick, corde"],
-  ["yoga","Yoga","Récupération & mobilité guidées — jamais dans le budget d'intensité"],
-  ["oa","Respiration OA","BOLT, journée guidée, altitude & apnée"]
+  ["endurance","Endurance","Course & home-trainer — durée et intensité réglables"],
+  ["oa","Apnée","Tables CO₂/O₂, apnea walks, VHL — versant performance"]
 ];
-const TRACK_DOMAINS = { escalade:["doigts","tirage"], wod:["wod","gainage","jambes"],
-  endurance:["endurance"], yoga:["yoga"], oa:[] };
+const TRACK_DOMAINS = { escalade:["doigts","tirage","poussee","gainage"], wod:["wod","jambes"],
+  endurance:["endurance"], oa:[] };
 const TRACK_WEEKS = 16; // un seul format : 16 semaines, décharge toutes les 4
 let plans5 = store.get("plans5", null);
 function savePlans5(){ store.set("plans5", plans5); }
@@ -1157,7 +1084,7 @@ function trainDays(){ return (plans5 && plans5.days && plans5.days.length) ? pla
 })();
 /* Avancement des programmes : au TRAVAIL FAIT, jamais au calendrier.
    Une semaine de programme est validée quand son quota de séances est atteint. */
-const TRACK_STEP = { escalade:3, wod:4, endurance:2, yoga:2, oa:3 }; // séances par semaine de programme
+const TRACK_STEP = { escalade:3, wod:4, endurance:2, oa:3 }; // séances par semaine de programme
 function trackStep(k){ return TRACK_STEP[k] || 2; }
 function trackDone(k){ // séances du domaine réalisées depuis le (re)démarrage du programme
   const t = plans5 && plans5[k]; if(!t || !t.start) return 0;
@@ -1304,9 +1231,9 @@ function shouldAntago(p){ return p && p.id!=="cardio" && p.id!=="wod" && p.id!==
 
 /* ---- Pools du programme général & des séances ciblées ---- */
 const GENERAL_POOLS = {
-  doigts:  ["maxhangs","rep73","bm-longmax","bm-tendon","force5","minedge","bm-endlong","bm-endshort","tri-nohang","tri-susp","tri-rep","mcx-lift","mcx-pinch-max","mcx-pinch-rep"],
-  tirage:  ["pull-simple","pull-weight","bm-maxpull","bm-pyramid","bm-otm","bm-negatives","bm-offset","pull-frenchies","pull-scap","trx-row"],
-  poussee: ["anta-pompes","anta-pike","kb-press","mb-slam"],
+  doigts:  ["maxhangs","rep73","bm-longmax","bm-tendon","bm-endlong","bm-endshort","mcx-pinch-max","anta-ext"],
+  tirage:  ["pull-simple","pull-weight","pull-frenchies","bm-negatives"],
+  poussee: ["anta-pompes","anta-lest","anta-pike"],
   jambes:  ["me-gym","me-heavy","me-ecc","me-ischio","kb-jambes","kb-sdt","kb-swing"],
   gainage: ["fl-tuck","fl-adv","fl-wipers","fl-raise","fl-oneleg","fl-full","core-lsit","core-susp","core-sol","core-hollow","core-dorsal","trx-core"]
 };
@@ -1325,6 +1252,11 @@ function domainOf(pid){
     const t=TRACKS.find(x=>x.id===pid.slice(6));
     return t ? trackDomain(t) : null;
   }
+  const LEGACY = { "force5":"doigts","minedge":"doigts","tri-nohang":"doigts","tri-susp":"doigts",
+    "tri-rep":"doigts","mcx-lift":"doigts","mcx-pinch-rep":"doigts","mcx-pinch-end":"doigts",
+    "pull-scap":"tirage","trx-row":"tirage","bm-otm":"tirage","bm-maxpull":"tirage",
+    "bm-pyramid":"tirage","bm-offset":"tirage","kb-press":"poussee","mb-slam":"poussee" };
+  if(LEGACY[pid]) return LEGACY[pid];
   for(const [k,ids] of Object.entries(GENERAL_POOLS)) if(ids.includes(pid)) return k;
   const c = progCat(pid);
   if(["poutre","triangle","minicrux","mcxpince"].includes(c)) return "doigts";
@@ -2462,10 +2394,9 @@ function renderPrograms(){
     </div>
     <div class="row2" style="margin-bottom:8px">
       <button class="btn btn-ghost" id="qWod">⚡ WOD</button>
-      <button class="btn btn-ghost" id="qYoga">🧘 Yoga</button>
+      <button class="btn btn-ghost" id="qOa">🌬️ Apnée</button>
     </div>
     <div class="row2" style="margin-bottom:14px">
-      <button class="btn btn-ghost" id="qOa">🌬️ Respiration OA</button>
       <button class="btn btn-ghost" id="qCore">🎯 Gainage</button>
     </div>
     <h2>Mes 5 programmes</h2>
@@ -2506,7 +2437,7 @@ function renderPrograms(){
     <button class="btn btn-ghost btn-block" id="newBtn" style="margin-top:14px">+ Créer un programme</button>
   `;
   [["qFing",()=>openFingerHub()],["qEndu",()=>openCardioSheet()],["qWod",()=>openWodList()],
-   ["qYoga",()=>openYogaList()],["qOa",openOaHome],
+   ["qOa",openOaHome],
    ["qCore",()=>{ const p=pickNext(GENERAL_POOLS.gainage); if(p) startSession(p); else toast("Rien de faisable avec le matériel du jour"); }]]
     .forEach(([id,fn])=>{ const el=view.querySelector("#"+id); if(el) el.onclick=fn; });
   view.querySelectorAll(".trk5").forEach(b=>b.onclick=()=>openTrackPlan(b.dataset.k));
@@ -3180,11 +3111,11 @@ function closeSheet(){ $("#sheet-root").innerHTML=""; }
 /* ============================================================
    ENDURANCE — générateur sensation-first (porté d'Endurance 2.0)
    ============================================================ */
-const CD_DISCS=[["nage","Nage"],["course","Course"],["ht","Home trainer"],["brick","Brick swimrun"],
-  ["rando","Rando rapide"],["velo","Vélo route"],["skirando","Ski de rando"],["corde","Corde à sauter"]];
+const CD_DISCS=[["course","Course"],["ht","Home trainer"]];
 const CD_TIMES=[20,30,45,60,75,90];
 const CD_LBL=Object.fromEntries(CD_DISCS);
 let cdState = store.get("cdState", { disc:"course", int:"facile", mins:45, brick:"nage" });
+if(!["course","ht"].includes(cdState.disc)) cdState.disc="course";
 function saveCd(){ store.set("cdState", cdState); }
 function pw(lo,hi){ const f=settings.ftp; if(!f) return "";
   const a=Math.round(f*lo/100), b=Math.round(f*hi/100); return ` (${lo===hi?a:a+"-"+b} W)`; }
@@ -3974,14 +3905,11 @@ function beep(f,d){f=f||660;d=d||0.12;
 }
 function vibe(ms){if(oaSet.vibe&&navigator.vibrate)try{navigator.vibrate(ms)}catch(e){}}
 const CATS=[
-  {id:'eval', name:'Évaluer', ic:'◔', col:'#2db6a4', desc:'Mesures & repères'},
-  {id:'co2', name:'Tolérance CO₂', ic:'⬡', col:'#e0922f', desc:'Le cœur de la méthode'},
-  {id:'reg', name:'Réguler · Nez', ic:'∿', col:'#2db6a4', desc:'Calme, sommeil, NO'},
-  {id:'mov', name:'Apnée en mouvement', ic:'⚡', col:'#d65a40', desc:'Avancé · prudence'},
-  {id:'found', name:'Fondations', ic:'⌂', col:'#2db6a4', desc:'Habitudes nasales'},
-  {id:'band', name:'Bande costale', ic:'◍', col:'#2db6a4', desc:'Feedback diaphragme'},
-  {id:'mob', name:'Souplesse', ic:'✳', col:'#2db6a4', desc:'Diaphragme & côtes'},
+  {id:'eval', name:'Évaluer', ic:'◔', col:'#2db6a4', desc:'BOLT, rétentions max, MBT'},
+  {id:'co2', name:'Tables & marches', ic:'⬡', col:'#e0922f', desc:'CO₂, O₂, apnea walks'},
+  {id:'mov', name:'Apnée en mouvement', ic:'⚡', col:'#d65a40', desc:'VHL, Shark Fit, efforts en apnée'},
 ];
+const PERF_HIDE = new Set(['light','unblock','unblock_sq']);   // versant confort retiré de l'app
 const EX=[
  {id:'bolt',cat:'eval',name:'Test BOLT',benefit:'Tolérance au CO₂ & qualité du souffle',
   freq:'1×/jour, au réveil', dose:'1 mesure', nowatch:'Compte les secondes jusqu’au 1er désir',
@@ -4213,7 +4141,7 @@ const EXPLAIN={
  recovwalk:"De petites tenues confortables en marchant freinent la sur-respiration qui suit l’effort et laissent remonter le CO₂ en douceur (effet Bohr) — ça aide à revenir au nasal et peut limiter le resserrement des voies aériennes (asthme d’effort). Le nasal réchauffe et humidifie l’air, ce qui protège davantage. À garder léger : au-delà d’une faim d’air légère tu bascules dans le stimulus hypoxique, contre-productif en récup. Effet réel sur les symptômes, mais pas un traitement — avis médical si asthme d’effort avéré."
 };
 function exById(id){return EX.find(e=>e.id===id);}
-function exByCat(c){return EX.filter(e=>e.cat===c);}
+function exByCat(c){return EX.filter(e=>e.cat===c && !PERF_HIDE.has(e.id));}
 
 let cur='home';let showDone=false;let showAdjust=false;
 function doneMap(){var t=todayISO(),m={};oaSessions.forEach(function(s){if((s.t||'').slice(0,10)===t)m[s.name]=1;});return m;}
@@ -5764,12 +5692,12 @@ function pickBenchByTime(mins){
   return src[Math.floor(Math.random()*src.length)] || null;
 }
 function openFingerHub(){
-  const CATS = [["poutre","Poutre & hangboard"],["triangle","Triangle YY Vertical"],
-    ["minicrux","Mini Crux"],["mcxpince","Mini Crux — Spécial pince"],["traction","Tractions"]];
+  const CATS = [["poutre","Doigts — support au choix"],["mcxpince","Pince"],
+    ["traction","Tractions"],["antago","Antagonistes — pompes"]];
   const warm = recentlyWarm();
   sheet(`
     <h3>Doigts & tractions</h3>
-    <div class="sub">Tous les protocoles disponibles. ${warm?"Tu es chaud — lancement direct.":"L'échauffement guidé se lance avant toute séance chargée."}</div>
+    <div class="sub">Le protocole fait la séance, pas l'outil : poutre, triangles ou Mini Crux au choix pour les doigts. ${warm?"Tu es chaud — lancement direct.":"L'échauffement guidé se lance avant toute séance chargée."}</div>
     ${(()=>{ const r=store.get("fingerRef",null), t=lastTest("escalade"); if(!r&&!t) return "";
       const cible = r ? (r.med||r.kg===0 ? `<b style="color:var(--chalk)">${r.edge} mm au poids du corps</b>` : `<b style="color:var(--chalk)">${r.edge} mm à +${r.kg} kg</b>`) : "—";
       const tir = t && t.data.e_pullkg>0 ? `tractions +${Math.round(t.data.e_pullkg*0.85)} kg × 3` : (t?`tractions ${Math.max(0,Math.round((t.data.e_pull||0)*0.65))} reps/série`:"");
@@ -6748,7 +6676,7 @@ function openOaHome(){
     const dm = OA.doneMap();
     const plan = OA.dayPlan();
     sheet(`
-      <h3>Respiration — Oxygen Advantage</h3>
+      <h3>Apnée — performance</h3>
       <div class="sub">${esc(r.msg)}</div>
       <div class="card" style="margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:12px">
