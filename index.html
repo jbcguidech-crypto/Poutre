@@ -539,7 +539,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v80"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v82"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -884,6 +884,10 @@ const PRESETS = [
     gains:"Recrutement et confiance sur micro-prises, avec un risque bien moindre qu'en suspension complète : la charge partielle permet un volume de qualité sur petite réglette." },
 
   /* ===== MINI CRUX — SPÉCIAL PINCE ===== */
+  { id:"duo-poches", name:"Poches bidoigt — Duo YY", type:"Force maximale", cat:"poutre", color:"hot", grip:"Poche 25 mm", edgeMm:25, addedKg:12,
+    prepSec:15, hangSec:7, restRepSec:53, reps:3, restSetSec:300, sets:3, builtin:true,
+    desc:"Soulevés de poche au Duo (50 g, poche bidoigt 25 mm) : cordelette reliée à un kettlebell posé au sol, saisis la poche à DEUX doigts, soulève et tiens 7 s, repose — 53 s de repos, chaque couple dure 1 min (structure 7-53 de Hörst, celle qu'il prescrit pour les poches). 3 tenues par série, une série par équipe de doigts dans cet ordre : majeur+annulaire (la plus forte), index+majeur, puis annulaire+auriculaire si tout est propre. 5 min entre les séries. Alterne les mains à chaque tenue. Charge de départ : 8-12 kg, monte de 2 kg quand les 3 tenues passent à 9/10 sans douleur.",
+    technique:"Le soulevé depuis le sol est LA version reprise : la charge est exacte, réglable au kilo, et tu lâches instantanément au moindre signal. Doigts en position tendue-ouverte, jamais arqués dans une poche. Progression long terme : soulevés plus lourds → suspension à la dégaine avec élastique → suspension complète. Le trou mono reste en soulevé LÉGER (2-6 kg, majeur seul) en toute fin de séance, jamais en suspension — c'est l'exercice le plus poulies-agressif qui existe. Compte dans tes 2 jours de poutre hebdomadaires." },
   { id:"mcx-pinch-max", name:"Pince max — soulevés", type:"Force maximale", cat:"mcxpince", color:"hot", grip:"Pince", edgeMm:50, addedKg:15, effortLabel:"Serrage",
     prepSec:15, hangSec:7, restRepSec:53, reps:3, restSetSec:240, sets:3, builtin:true,
     desc:"Soulevés de pince au Mini Crux en structure 7-53 (Hörst) : 7 s de serrage maximal, 53 s de repos — chaque couple dure exactement 1 min. 3 soulevés par série, 3 à 5 min de repos entre séries, 2 séries au départ, jusqu'à 5 en progressant. La pince mobilise le pouce et les muscles intrinsèques de la main, presque jamais travaillés autrement : 2 séances/semaine produisent des gains nets. Progression : charge, puis pince plus large.",
@@ -1184,6 +1188,7 @@ const GAINAGE_IDS = ["core-sol","core-dorsal","core-hollow","core-susp","core-ls
 const ANTAGO_IDS = ["anta-ext","anta-pompes","anta-pike","anta-poignets","anta-coiffe"];
 /* Matériel requis par programme (tout est requis ; les alternatives sont d'autres programmes) */
 const PROG_NEED = {
+  "duo-poches":["duo","kb"],
   "hx-minedge":["poutre"], "hx-753":["poutre"], "hx-scap":["barre"],
   "ho-knees":["barre"], "kb-snatch":["kb"],
   "me-gym":["box"], "me-heavy":["box"], "me-ecc":["box"], "me-ischio":["sliders"],
@@ -1265,7 +1270,7 @@ function shouldAntago(p){ return p && p.id!=="cardio" && p.id!=="wod" && p.id!==
 
 /* ---- Pools du programme général & des séances ciblées ---- */
 const GENERAL_POOLS = {
-  doigts:  ["maxhangs","hx-minedge","hx-753","rep73","bm-longmax","bm-tendon","bm-endlong","bm-endshort","mcx-pinch-max","hx-widepinch","anta-ext"],
+  doigts:  ["maxhangs","hx-minedge","hx-753","rep73","bm-longmax","bm-tendon","bm-endlong","bm-endshort","mcx-pinch-max","hx-widepinch","duo-poches","anta-ext"],
   tirage:  ["pull-simple","pull-weight","pull-frenchies","bm-negatives","hx-scap"],
   poussee: ["anta-pompes","anta-lest","anta-pike"],
   jambes:  ["me-gym","me-heavy","me-ecc","me-ischio","kb-snatch","kb-jambes","kb-sdt","kb-swing"],
@@ -5799,7 +5804,7 @@ const BENCH_SCORE = new Set(["cindy","fgb","chief","deathby"]);
 const BENCH_FILTERS = [["all","Tous"],["bench","Benchmarks"],["hero","Heroes"],["court","Courts < 20 min"],["long","Longs ≥ 30 min"]];
 const EQUIP_ALL = [["poutre","Poutre / hangboard"],["triangle","Triangles YY"],["minicrux","Mini Crux"],
   ["barre","Barre de traction"],["kb","Kettlebells"],["box","Box / step"],["mb","Medicine ball"],
-  ["trx","TRX"],["elastique","Élastiques"],["anneaux","Anneaux"],["gilet","Gilet lesté"],["sliders","Plaquettes de glissement"]];
+  ["trx","TRX"],["elastique","Élastiques"],["anneaux","Anneaux"],["gilet","Gilet lesté"],["sliders","Plaquettes de glissement"],["duo","Duo YY (bidoigt)"]];
 const EQUIP_DEFAULT = ["poutre","triangle","minicrux","barre","kb","box","mb","trx","elastique","sliders"];
 let benchState = store.get("benchState", { filter:"all", mins:30 });
 let benchHistAll = store.get("benchHist", {});
@@ -5862,7 +5867,7 @@ function openFingerHub(){
       return `<div class="card" style="margin-bottom:10px"><div class="mono" style="font-size:11.5px;color:var(--muted)">${t?`Niveau <b style="color:var(--chalk)">${t.level}/5</b> · `:""}max hangs : ${cible}${tir?` · ${tir}`:""}</div></div>`; })()}
     <div style="max-height:58vh;overflow:auto;margin-bottom:12px">
       ${CATS.map(([c,label])=>{
-        const list = programs.filter(p=>p.cat===c);
+        const list = programs.filter(p=>p.cat===c && progAvail(p));
         if(!list.length) return "";
         return `<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800;margin:12px 0 4px">${esc(label)}</div>
         ${list.map(p=>{
@@ -6204,7 +6209,7 @@ function warmupPlan(target, mode){
 
   // ---- 1. Général (Hörst : élever la fréquence cardiaque · López : mobilité articulaire)
   steps.push({ dur:180, phase:"Cardio léger", kind:"move",
-    cue:"3 min : corde à sauter, montées de genoux ou jumping jacks. Objectif : élever la température et le flux sanguin avant toute charge (Hörst)." });
+    cue:"3 min : corde à sauter, montées de genoux ou jumping jacks. Objectif : élever la température et le flux sanguin avant toute charge (Hörst). Ton anneau de serrage YY (30 kg) a sa place ici : 15-20 pressions légères par main pendant le cardio pour irriguer les avant-bras." });
   steps.push({ dur:120, phase:"Mobilité", kind:"move",
     cue:"2 min : cercles d'épaules, flexions-extensions de coudes, rotations de poignets, ouverture-fermeture lente des doigts. Termine par un massage des fléchisseurs ET des extenseurs de l'avant-bras (López, Hörst)." });
 
