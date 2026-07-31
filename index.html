@@ -539,7 +539,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v82"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v83"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -4237,6 +4237,12 @@ const EX=[
   steps:['Respire normalement par le nez ~10 s.','Après une expiration normale, pince le nez et retiens 5 s (3 s seulement si la faim d’air monte trop).','Relâche, reprends une respiration normale et calme ~10 s.','Répète une dizaine de fois.'],
   safety:'Reste très doux : c’est un échauffement, pas une table.', player:'pacer',
   pacer:{kind:'teal',phases:[{l:'Respire normalement',d:10,k:'out'},{l:'Retiens (pince le nez)',d:5,k:'hold'}],cycles:10,note:'Petites apnées de 5 s. Aucune tension : baisse à 3 s si besoin.'}},
+ {id:'hastadv',cat:'co2',name:'Altitude avancée — sip of air',benefit:'Désaturation prolongée (SpO₂ 70-91 %) · 1-2 min continues · tolérance hypoxique profonde',
+  freq:'2×/sem max', dose:'1-2 min continues × 2-3 blocs', nowatch:'Compte tes pas ; oxymètre au doigt si tu en as un',
+  setup:'À jeun, terrain plat, nez uniquement. C’est la suite de la Simulation d’altitude : n’y viens que quand elle est devenue confortable.',
+  steps:['Expire, puis marche en apnée 10 pas.','Prends un « sip of air » : une micro-inspiration d’environ 10 % d’un souffle normal (inspir, expir, ou les deux) — le but est de détendre le diaphragme, pas de reprendre de l’air — puis retiens de nouveau 10 pas.','Enchaîne ainsi : un sip tous les 10 pas, ou tous les 5-10 pas si la faim d’air devient trop forte.','Maintiens l’effort 1 à 2 minutes en continu — la SpO₂ descend dans la zone 70-91 % ; avec un oxymètre, ne passe pas sous 70 %.','Si le manque d’air devient trop grand, prends un souffle un peu plus ample et continue en restant relâché.','Récupère en marchant en respiration normale, puis 1-2 blocs de plus si la qualité reste bonne.','Progression sur les semaines : allonge les tenues par paliers de 5 pas (10, 10, 15, 15, 20, 20…) et accélère la marche — jusqu’au petit jogging — quand la faim d’air monte.'],
+  safety:'Défi, jamais stress : tout doit rester relâché. Uniquement à sec.', player:'apnea',
+  apnea:{rounds:3,reduced:20,recover:45,walkPrep:true}},
  {id:'hast',cat:'co2',name:'Simulation d’altitude',benefit:'Fait chuter la SpO₂ (~altitude) · tolérance hypoxie/CO₂',
   freq:'2-3×/sem', dose:'~5 apnées en marchant', nowatch:'Compte les pas tenus ; reprise en respiration réduite',
   setup:'À jeun, terrain plat et dégagé, respiration nasale. Amorce par quelques petites apnées.',
