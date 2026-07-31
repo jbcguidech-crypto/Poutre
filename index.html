@@ -539,7 +539,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v77"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v78"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -3116,6 +3116,8 @@ const CD_TIMES=[20,30,45,60,75,90];
 const CD_LBL=Object.fromEntries(CD_DISCS);
 let cdState = store.get("cdState", { disc:"course", int:"facile", mins:45, brick:"nage" });
 if(!["course","ht"].includes(cdState.disc)) cdState.disc="course";
+if(!cdState.proto) cdState.proto="h3030";
+if(!cdState.protoE) cdState.protoE="ez2";
 function saveCd(){ store.set("cdState", cdState); }
 function pw(lo,hi){ const f=settings.ftp; if(!f) return "";
   const a=Math.round(f*lo/100), b=Math.round(f*hi/100); return ` (${lo===hi?a:a+"-"+b} W)`; }
@@ -3125,8 +3127,118 @@ const FXN={ z2:"respiration 3 temps confortable — au mur tu parles normalement
   ss:"le 2 temps devient nécessaire — au mur, phrases courtes (6-7/10)",
   vo2:"essoufflé en fin de série — au mur, quelques mots après 2-3 respirations (8/10)" };
 function tgt(k,lo,hi){ return settings.ftp ? `${FX[k]} · ${lo===hi?lo:lo+"-"+hi} % FTP${pw(lo,hi)}` : FX[k]; }
+/* ---------- Protocoles d'intervalles — sources : V. Billat (30/30, 3 min),
+   Helgerud 2007 (4×4 norvégien), Uphill Athlete (30/30, côtes), coachs trail
+   reconnus (pyramides de côtes, strides, tempo en côte). Paramètres réexprimés. */
+function cdVma(){ const t=lastTest("endurance"); return (t&&t.data&&t.data.c_dist)? t.data.c_dist/200 : null; }
+function pace(pct){ const v=cdVma(); return v? ` (~${(v*pct/100).toFixed(1)} km/h)` : ""; }
+const CD_HARD = [
+  { id:"h3030", n:"30/30 Billat", tag:"VO₂max · le classique",
+    why:"Accumule un maximum de temps à VO₂max sans exploser : 30 s vite, 30 s trot, la récupération courte garde le cœur haut (Billat · Uphill Athlete).",
+    mk:(m,d)=>{ const blocks=m>=60?3:2, reps=m>=45?10:8;
+      return { title:`30/30 Billat — ${d==="ht"?"home-trainer":"course"}`, blocks:[
+        "Échauffement 12 min progressif + 4 accélérations de 15 s",
+        `${blocks} blocs de ${reps} × (30 s vite${pace(100)} / 30 s ${d==="ht"?"pédalage souple":"trot lent"})`,
+        "3 min très faciles entre les blocs",
+        "L'allure vite = celle que tu tiendrais ~9 min à fond, PAS un sprint",
+        "Retour au calme 8 min"]}; } },
+  { id:"h4x4", n:"4×4 norvégien", tag:"VO₂max · volume cardiaque",
+    why:"4 min à 90-95 % FCmax × 4 : le protocole le plus étudié pour faire monter VO₂max (Helgerud 2007). En côte de 5-8 % c'est parfait pour le trail.",
+    mk:(m,d)=>({ title:`4×4 norvégien — ${d==="ht"?"home-trainer":"côte 5-8 %"}`, blocks:[
+      "Échauffement 12 min progressif",
+      `4 × 4 min à 90-95 % FCmax${pace(88)} — respiration très engagée, parler impossible`,
+      `3 min de récupération active ${d==="ht"?"en moulinant":"en redescendant au trot"}`,
+      "La 1re rep ne monte pas tout de suite à 90 % : normal, ça s'accumule",
+      "Retour au calme 6 min"]}) },
+  { id:"hcotes", n:"Côtes courtes", tag:"VO₂ + force · faible impact",
+    why:"60-90 s durs en côte 4-8 %, redescente en marchant : même stimulus VO₂ que sur plat avec moins d'impact et plus de recrutement musculaire — l'intervalle roi du traileur.",
+    run:true,
+    mk:(m)=>{ const reps=m>=60?12:m>=45?10:8;
+      return { title:"Côtes courtes — 60-90 s", blocks:[
+        "Échauffement 12 min dont la montée reconnue en trottinant",
+        `${reps} × 60-90 s de montée dure${pace(95)} — effort franc, posture haute, pas des sprints`,
+        "Récupération : redescente complète en marchant ou trot très lent",
+        "Si la qualité chute (allure qui s'effondre), arrête la série là",
+        "Retour au calme 8 min sur plat"]}; } },
+  { id:"hpyr", n:"Pyramide de côtes", tag:"Force + finition raide",
+    why:"5/4/3/2/1 min en côte modérément dur, puis 4 × 30 s raides : la séance qui demande tout aux jambes, dans l'esprit des séances de côtes des coachs trail.",
+    run:true,
+    mk:()=>({ title:"Pyramide 5-4-3-2-1 + 30 s raides", blocks:[
+      "Échauffement 12 min",
+      `Montées de 5, 4, 3, 2 puis 1 min modérément dures${pace(85)} — redescente facile entre chaque`,
+      "Puis 4 × 30 s en pente raide, dures — redescente en marchant",
+      "Les 30 s finales se font sur jambes cuites : c'est le but",
+      "Retour au calme 8 min"]}) },
+  { id:"htempo", n:"Tempo en côte", tag:"Seuil · spécifique montagne",
+    why:"15-30 min de montée continue modérément dure : le seuil version montagne, transfert direct aux longues ascensions d'approche.",
+    mk:(m,d)=>{ const t=Math.min(30,Math.max(15,Math.round(m*0.4)));
+      return { title:d==="ht"?"Seuil home-trainer":"Tempo en côte", blocks:[
+        "Échauffement 12 min",
+        d==="ht" ? `2 × ${Math.round(t/2)} min à 85-90 % FCmax, 4 min souples entre` :
+          `${t} min de montée continue, modéré à modérément dur${pace(82)} — phrases courtes possibles, pas plus`,
+        "Rythme régulier du début à la fin : si tu finis en survie, c'était trop vite",
+        "Retour au calme 8-10 min en descente facile"]}; } },
+  { id:"h3min", n:"Billat 3 min", tag:"VO₂max · version longue",
+    why:"3 min à vVO₂max / 3 min trot, ~5 répétitions : la version longue de Billat, dure mais très rentable sur 4 semaines.",
+    mk:(m,d)=>({ title:`Billat 3 min — ${d==="ht"?"home-trainer":"course"}`, blocks:[
+      "Échauffement 12 min + 4 accélérations",
+      `${m>=60?5:4} × 3 min à vVO₂max${pace(100)} — l'allure d'une course de ~9 min`,
+      "3 min de trot/moulinage entre les répétitions",
+      "5 répétitions est un maximum, même en forme",
+      "Retour au calme 8 min"]}) },
+  { id:"hforce", n:"Force basse cadence", tag:"Home-trainer · simulation montée",
+    why:"Gros braquet à 50-60 tr/min : la force spécifique de la montée sans dénivelé, standard de la préparation cycliste et ski-alpinisme.",
+    ht:true,
+    mk:(m)=>({ title:"Force basse cadence — HT", blocks:[
+      "Échauffement 10 min cadence normale",
+      `${m>=60?6:4} × 5 min gros braquet à 50-60 tr/min, intensité modérée (Z3) — les jambes travaillent, pas le souffle`,
+      "3 min de moulinage léger (90+ tr/min) entre les blocs",
+      "Dos stable, pas de balancier : la force vient des jambes",
+      "Retour au calme 5 min"]}) }
+];
+const CD_EASY = [
+  { id:"ez2", n:"Z2 continue", tag:"la base",
+    why:"Conversation possible du début à la fin : c'est le volume qui construit la montagne.",
+    mk:(m,d)=>({ title:`Z2 continue — ${d==="ht"?"home-trainer":"course"}`, blocks:[
+      `${m} min en aisance respiratoire complète — tu peux raconter ta journée`,
+      d==="ht"?"Cadence 85-95 tr/min, position détendue":"Cadence haute, foulée courte, relâché",
+      "Si tu doutes de l'allure : ralentis, c'est toujours la bonne réponse"]}) },
+  { id:"eprog", n:"Progressive", tag:"finition propre",
+    why:"Deux tiers très faciles, dernier tiers modéré : apprend à finir vite sur de la fatigue, sans entamer le budget d'intensité.",
+    mk:(m,d)=>({ title:"Sortie progressive", blocks:[
+      `${Math.round(m*2/3)} min très faciles — plus lent que ta Z2 habituelle`,
+      `${Math.round(m/3)} min en accélérant très progressivement jusqu'à modéré${pace(75)} — jamais dur`,
+      "La dernière minute doit rester contrôlée : phrases courtes possibles"]}) },
+  { id:"estrides", n:"Z2 + lignes", tag:"économie de course",
+    why:"Sortie facile terminée par 4-6 accélérations courtes en côte : améliore l'économie de course sans coût de récupération (standard des plans trail).",
+    run:true,
+    mk:(m)=>({ title:"Z2 + lignes en côte", blocks:[
+      `${m-8} min faciles en aisance respiratoire`,
+      `Puis 4-6 × 15-20 s d'accélération franche en côte douce — PAS des sprints, de la vitesse relâchée`,
+      "Récupération complète en marchant entre chaque (1-2 min)",
+      "Retour au calme 5 min"]}) },
+  { id:"erecup", n:"Récupération active", tag:"lendemain de dur",
+    why:"Très facile et court : accélère la récupération après une séance dure ou une grosse journée en montagne.",
+    mk:(m,d)=>({ title:"Récupération active", blocks:[
+      `${Math.min(40,m)} min TRÈS faciles — nettement sous ta Z2, presque gênant de lenteur`,
+      d==="ht"?"Moulinage léger, zéro force":"Foulée légère, terrain plat",
+      "Aucun objectif d'allure : le but est de bouger, pas de s'entraîner"]}) }
+];
+function cdProtoList(intn, disc){
+  const src = intn==="dur" ? CD_HARD : CD_EASY;
+  return src.filter(p => !(p.run && disc==="ht") && !(p.ht && disc!=="ht"));
+}
 function buildCardio(disc,intn,mins,brick){
   const name=CD_LBL[disc]||disc;
+  if(disc!=="brick"){
+    const list = cdProtoList(intn, disc);
+    const pid = intn==="dur" ? cdState.proto : cdState.protoE;
+    const p = list.find(x=>x.id===pid) || list[0];
+    const out = p.mk(mins, disc);
+    out.sub = `${mins} min · ${intn} · ${p.n}`;
+    out.proto = p.id;
+    return out;
+  }
   if(disc==="brick"){
     if(brick==="indoor"){
       const run=Math.min(20,Math.round(mins*0.35)), ht=Math.max(15,mins-run-4);
@@ -3242,6 +3354,14 @@ function openCardioSheet(forceInt){
     </div>
     ${locked?`<p class="hint" style="text-align:left;margin:6px 0 0">${budgetUsed?"Budget d'intensité déjà consommé cette semaine (1 séance dure).":"Séance dure hier : on ne fait jamais deux durs de suite."} Tes doigts ne sont pas concernés — filières indépendantes.</p>`:""}
     </div>
+    ${cdState.disc!=="brick"?(()=>{ const list=cdProtoList(cdState.int, cdState.disc);
+      const cur = cdState.int==="dur" ? cdState.proto : cdState.protoE;
+      const sel = list.find(x=>x.id===cur) || list[0];
+      return `<div class="field"><label>Protocole ${cdState.int==="dur"?"d'intervalles":"de séance"}</label>
+      <div class="pills" id="cdP">
+        ${list.map(p=>`<button data-k="${p.id}" class="${sel.id===p.id?"on":""}">${esc(p.n)}</button>`).join("")}
+      </div>
+      <p class="hint" style="text-align:left;margin:6px 0 0"><b>${esc(sel.tag)}.</b> ${esc(sel.why)}</p></div>`; })():""}
     <div class="field"><label>Durée</label><div class="pills" id="cdT">
       ${CD_TIMES.map(t=>`<button data-k="${t}" class="${cdState.mins===t?"on":""}">${t} min</button>`).join("")}
     </div></div>
@@ -3262,6 +3382,10 @@ function openCardioSheet(forceInt){
   document.querySelectorAll("#cdI button").forEach(b=>b.onclick=()=>{
     if(locked && b.dataset.k==="dur"){ toast("Budget d'intensité épuisé cette semaine"); return; }
     cdState.int=b.dataset.k; saveCd(); re(); });
+  document.querySelectorAll("#cdP button").forEach(b=>b.onclick=()=>{
+    if(cdState.int==="dur") cdState.proto=b.dataset.k; else cdState.protoE=b.dataset.k;
+    store.set("cdState",cdState); openCardioSheet();
+  });
   document.querySelectorAll("#cdT button").forEach(b=>b.onclick=()=>{ cdState.mins=+b.dataset.k; saveCd(); re(); });
   document.getElementById("cdClose").onclick=closeSheet;
   document.getElementById("cdDone").onclick=()=>{ closeSheet(); openCardioLog(s); };
