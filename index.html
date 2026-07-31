@@ -539,7 +539,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v78"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v80"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -725,7 +725,7 @@ const PRESETS = [
     gains:"Monte tendons et poulies en température et active le système nerveux. C'est l'assurance-blessure de toute la séance : ne le saute jamais." },
   { id:"maxhangs", name:"Force max — Max hangs", type:"Force maximale", cat:"poutre", color:"hot", grip:"Réglette semi-arquée", edgeMm:20, addedKg:0,
     prepSec:15, hangSec:10, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
-    desc:"Suspensions maximales courtes : 5 à 12 s par suspension (ici 10 s), 3 à 5 suspensions par prise, 2-3 min de repos entre chaque — ou plus, l'essentiel est de repartir à 100 %. Charge réglée pour que la durée soit ton maximum absolu ; inutile d'aller au-delà de 12 s, toutes les fibres sont déjà recrutées. Gains neuromusculaires rapides. D'après les max hangs courts de Beastmaking (N. Feehally).",
+    desc:"Suspensions maximales courtes : 10 s par suspension, 5 suspensions par prise, 3 min de repos entre chaque. Réglage de la charge : tu dois échouer vers 13 s — chaque suspension s'arrête à 10, intensité ressentie 9-9,5/10, jamais l'échec complet. Réglette idéale 14-20 mm : assez petite pour l'intensité, assez grande pour épargner peau et articulation distale. 1 série par type de prise (semi-arqué, puis tendu), 5 min minimum entre les prises, 2 à 5 séries au total. D'après le protocole 10 s de Hörst et les max hangs courts de Beastmaking.",
     technique:"Monte en charge progressivement sur 1–2 s, corps gainé et parfaitement immobile, bras tendus. Lâche immédiatement si la prise commence à s'ouvrir : jamais d'échec réel sur les doigts.",
     gains:"Force maximale des doigts avec le meilleur ratio gain/fatigue connu. Transfert direct sur les réglettes en voie et les mouvements durs en bloc." },
   { id:"rep73", name:"Répéteurs 7:3", type:"Force-endurance", cat:"poutre", color:"cool", grip:"Réglette semi-arquée", edgeMm:20, addedKg:0,
@@ -786,6 +786,18 @@ const PRESETS = [
     gains:"Flux sanguin et conditionnement des tendons sans fatigue — récupération active les jours de repos, échauffement des doigts avant une session, rééducation douce après une gêne." },
 
   /* ===== GAINAGE ===== */
+  { id:"ho-front", name:"Gainage antérieur — circuit Hörst", type:"Gainage", cat:"gainage", color:"amber", grip:"Sol", edgeMm:0, addedKg:0, effortLabel:"Circuit", repSet:true,
+    prepSec:10, hangSec:120, restRepSec:45, reps:3, restSetSec:180, sets:2, builtin:true,
+    desc:"Trois exercices du chapitre gainage de Hörst, une fenêtre chacun, 2 tours : 1) Crunchs pieds levés — jambes pliées à 90°, pieds en l'air, petite amplitude (décoller le haut du dos, pas monter aux genoux), cadence vive ~1 s/rep, un maximum de répétitions — objectif long terme 50-100. 2) Planche grimpeur — en planche haute, genou vers le coude du même côté, alterné, 20-50 répétitions à ~3 s/rep. 3) Planche coude + rotation — ouvre en planche latérale bras vertical, tiens 2 s, alterne, 10-25 répétitions.",
+    technique:"Crunchs : mains derrière la tête sans jamais tirer sur la nuque. Planches : bassin ni levé ni affaissé, ligne tête-pieds quasi droite du début à la fin — la série s'arrête quand la ligne casse." },
+  { id:"ho-post", name:"Gainage postérieur — circuit Hörst", type:"Gainage", cat:"gainage", color:"cool", grip:"Sol", edgeMm:0, addedKg:0, effortLabel:"Circuit", repSet:true,
+    prepSec:10, hangSec:120, restRepSec:45, reps:3, restSetSec:180, sets:2, builtin:true,
+    desc:"Le versant que les grimpeurs oublient — chaîne postérieure, d'après Hörst (raideur du tronc et extension de hanche = les moteurs des mouvements dynamiques). Une fenêtre par exercice, 2 tours : 1) Planche inversée — assis jambes tendues, bassin monté, épaules-hanches-genoux alignés, tenue 20-60 s en serrant fessiers et lombaires. 2) Grimpeur inversé — même position bras tendus, monte un genou vers l'extérieur comme sur une prise de pied haute, alterné, 8-15 répétitions. 3) Élévations de hanche latérales — planche latérale bras tendu, descends la hanche au sol et remonte, 10-20 répétitions par côté, lent et contrôlé.",
+    technique:"Contraction volontaire des ischio-jambiers, des fessiers et du bas du dos pendant les grimpeurs inversés. Arrête chaque exercice dès que la ligne du corps casse — la qualité fait le stimulus." },
+  { id:"ho-knees", name:"Relevés de genoux suspendu", type:"Gainage barre", cat:"gainage", color:"amber", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Séries", repSet:true,
+    prepSec:12, hangSec:60, restRepSec:0, reps:1, restSetSec:180, sets:2, builtin:true,
+    desc:"Suspendu à la barre paumes vers l'avant : monte vivement les genoux à la poitrine en contractant fort les abdominaux, marque un temps, redescends lentement, enchaîne à cadence régulière jusqu'à perdre l'amplitude complète. Objectif 15-20 répétitions par série, 2 séries, 3 min de repos. Le geste le plus proche de la montée de pieds en dévers (Hörst).",
+    technique:"La descente lente est la moitié du travail. Quand 20 reps deviennent propres, la progression naturelle est le relevé jambes tendues, puis les essuie-glaces." },
   { id:"core-sol", name:"Gainage au sol — 3 faces", type:"Gainage", cat:"gainage", color:"amber", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Gainage",
     prepSec:10, hangSec:40, restRepSec:20, reps:3, restSetSec:60, sets:3, builtin:true,
     desc:"Circuit planche : chaque série = planche face (rep 1), côté gauche (rep 2), côté droit (rep 3). 40 s d'effort, 20 s de transition.",
@@ -809,6 +821,14 @@ const PRESETS = [
     prepSec:15, hangSec:40, restRepSec:0, reps:1, restSetSec:300, sets:3, builtin:true,
     desc:"Suspensions très longues de 30 à 45 s, charge réglée pour échouer vers 45 s — chez toi : réglette large (35-45 mm) ou allégé à l'élastique. 3 suspensions par prise, 5 min de repos entre chaque, 3 séries au total maximum. Augmente la raideur tendineuse — donc la force de contact, la capacité à saisir vite — et entretient la santé du tissu conjonctif. D'après les tendon hangs de Beastmaking (N. Feehally).",
     technique:"Le protocole le plus adapté à une reprise : intensité basse, temps sous tension long, exactement ce qui remodèle le tendon. Épaules engagées du début à la fin. Progression : lest, puis prises plus petites." },
+  { id:"hx-minedge", name:"Réglette minimale — 12 s", type:"Force maximale", cat:"poutre", color:"hot", grip:"Réglette semi-arquée", edgeMm:16, addedKg:0,
+    prepSec:15, hangSec:12, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
+    desc:"Le versant sans lest de la force max (protocole d'entrée de Hörst, inspiré d'Eva López — le pendant exact de ton test MED) : choisis une prise que tu tiens à peine 15 s à effort maximal, suspends-toi 12 s exactement. 5 suspensions, 3 min de repos entre chaque, intensité 9-9,5/10 sans échec. 1 série semi-arqué + 1 série tendu, 5 min minimum entre les séries, 2 à 5 séries au total. Peu de pompe : c'est la filière alactique qui travaille.",
+    technique:"Épaules engagées du début à la fin, jamais haussées aux oreilles en fatiguant. Le repos entre suspensions peut accueillir du gainage ou des antagonistes. Poutre 2 jours/semaine maximum, toutes méthodes confondues." },
+  { id:"hx-753", name:"Protocole 7-53", type:"Force maximale", cat:"poutre", color:"hot", grip:"Réglette semi-arquée", edgeMm:20, addedKg:0,
+    prepSec:15, hangSec:7, restRepSec:53, reps:3, restSetSec:300, sets:3, builtin:true,
+    desc:"Le protocole avancé de Hörst : 7 s de suspension sur une prise que tu tiendrais à peine 10 s à fond, puis 53 s de repos — chaque couple dure exactement 1 min. 3 suspensions par série, 5 min minimum entre séries, 2 à 5 séries (semi-arqué et tendu d'abord). Travaille la force max ET la resynthèse rapide de l'énergie entre les efforts — très rentable en temps.",
+    technique:"Charge réglée pour un échec théorique à 10 s : chaque suspension s'arrête à 7, intensité 9-9,5/10. Note prise, charge et séries — c'est en comparant sur des mois que les gains se voient." },
   { id:"bm-endlong", name:"Endurance longue — répéteurs 7:3", type:"Endurance doigts", cat:"poutre", color:"cool", grip:"Réglette tendue", edgeMm:25, addedKg:0, effortLabel:"Suspension",
     prepSec:15, hangSec:7, restRepSec:3, reps:6, restSetSec:60, sets:10, builtin:true,
     desc:"Répéteurs 7:3 sur réglette confortable, 6 suspensions par série puis 1 min de repos, 10 séries — soit 10 min de suspension par bloc. 1 à 3 blocs selon le temps, 10 min de repos entre blocs. Charge réduite à 30-40 % de ton max sur cette réglette : chez toi ≈ 25-32 kg de charge TOTALE → pieds au sol sur les triangles ou gros élastique. But : rester longtemps à un niveau de pompe très bas (3/10 max). D'après le protocole d'endurance longue de Beastmaking (N. Feehally).",
@@ -822,7 +842,7 @@ const PRESETS = [
     desc:"Pars menton au-dessus de la barre (monte depuis une box), puis descends LE PLUS LENTEMENT possible. Règle la charge (lest ou allègement) pour ne pas pouvoir descendre beaucoup plus lentement que 8 secondes. 5 séries, 3 min de repos. À deux bras, ou à un bras pour casser un plateau. D'après Beastmaking (N. Feehally).",
     technique:"L'excentrique est plus fort que le concentrique : c'est le levier anti-plateau. Descente fluide, sans à-coup — les coudes n'aiment pas les saccades. Ne combine pas avec une grosse séance de doigts le même jour." },
   { id:"fl-wipers", name:"Essuie-glaces", type:"Gainage barre", cat:"gainage", color:"amber", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Essuie-glaces",
-    prepSec:12, hangSec:40, restRepSec:0, reps:1, restSetSec:120, sets:3, builtin:true, repSet:true,
+    prepSec:12, hangSec:40, restRepSec:0, reps:1, restSetSec:180, sets:3, builtin:true, repSet:true,
     desc:"Suspendu, dos parallèle au sol, jambes pliées à 90° pointant vers le haut. Descends d'un côté jusqu'à l'horizontale, remonte au centre, descends de l'autre. 6 à 10 passages par côté, jambes tendues si tu peux. D'après Beastmaking (N. Feehally).",
     technique:"Jambes tendues idéalement — si tu n'y arrives pas, travaille les ischio-jambiers. Le mouvement vient du tronc, pas d'un balancement des épaules." },
   { id:"fl-tuck", name:"Front lever groupé", type:"Gainage barre", cat:"gainage", color:"hot", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Maintien",
@@ -844,7 +864,7 @@ const PRESETS = [
   { id:"fl-raise", name:"Montées en front lever", type:"Gainage barre", cat:"gainage", color:"amber", grip:"Barre / bacs", edgeMm:0, addedKg:0, effortLabel:"Montées",
     prepSec:12, hangSec:45, restRepSec:0, reps:1, restSetSec:150, sets:4, builtin:true, repSet:true,
     desc:"Depuis la suspension, monte le corps en position de front lever puis redescends lentement et en contrôle. 3 à 6 répétitions par série, 2 min 30 de repos. Version dynamique du même geste.",
-    technique:"La descente est la partie utile : 3 s minimum, sans à-coup. Groupe les jambes autant que nécessaire pour garder le dos horizontal." },
+    technique:"La descente est la partie utile : 3 s minimum, sans à-coup. Groupe les jambes autant que nécessaire pour garder le dos horizontal. Variante Hörst : monte, tiens 2 s, redescends lentement, 1-2 s de suspension, repars — 2 à 5 répétitions, repos 3-5 min. Attention : ce geste charge fortement coudes et épaules — pas en période de douleur, et jamais en début de reprise." },
   { id:"core-lsit", name:"L-sit / Tuck lever", type:"Gainage", cat:"gainage", color:"hot", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Maintien",
     prepSec:12, hangSec:8, restRepSec:45, reps:5, restSetSec:120, sets:2, builtin:true,
     desc:"Suspendu, jambes tendues à l'horizontale (L-sit) ou genoux groupés remontés vers la poitrine, bassin basculé (tuck lever). 5 maintiens de 8 s.",
@@ -865,11 +885,15 @@ const PRESETS = [
 
   /* ===== MINI CRUX — SPÉCIAL PINCE ===== */
   { id:"mcx-pinch-max", name:"Pince max — soulevés", type:"Force maximale", cat:"mcxpince", color:"hot", grip:"Pince", edgeMm:50, addedKg:15, effortLabel:"Serrage",
-    prepSec:15, hangSec:7, restRepSec:0, reps:1, restSetSec:90, sets:6, builtin:true,
-    desc:"Le cœur du travail de pince : Mini Crux saisi par sa pince large (~50 mm), relié à une charge, soulevé d'un bras. 7 s de serrage max, alterne les mains.",
+    prepSec:15, hangSec:7, restRepSec:53, reps:3, restSetSec:240, sets:3, builtin:true,
+    desc:"Soulevés de pince au Mini Crux en structure 7-53 (Hörst) : 7 s de serrage maximal, 53 s de repos — chaque couple dure exactement 1 min. 3 soulevés par série, 3 à 5 min de repos entre séries, 2 séries au départ, jusqu'à 5 en progressant. La pince mobilise le pouce et les muscles intrinsèques de la main, presque jamais travaillés autrement : 2 séances/semaine produisent des gains nets. Progression : charge, puis pince plus large.",
     technique:"Le pouce s'oppose franchement aux doigts — c'est LUI le moteur. Poignet neutre, avant-bras vertical au-dessus de la charge. Serre AVANT de décoller, monte 2-3 cm, tiens. Si le bloc glisse ou pivote, la charge est trop lourde.",
     gains:"Force de pince pure (pouce, éminence thénar, fléchisseurs) — la préhension la moins entraînable sur poutre classique et pourtant décisive sur arêtes, colonnettes et blocs modernes." },
   /* ===== TRACTIONS ===== */
+  { id:"hx-scap", name:"Tractions d'omoplates", type:"Prévention", cat:"traction", color:"cool", grip:"Barre", edgeMm:0, addedKg:0, effortLabel:"Omoplates",
+    prepSec:12, hangSec:40, restRepSec:0, reps:1, restSetSec:120, sets:2, builtin:true, repSet:true,
+    desc:"L'« essentiel d'entraînement » selon Hörst — le geste qui garde les épaules saines. Suspendu bras tendus, abaisse et resserre les omoplates sans plier les bras : le corps monte de quelques centimètres, la poitrine s'ouvre, tenue 1 s, redescends. 6 à 12 répétitions, 1 série d'abord, 2-3 quand le geste est maîtrisé. Jamais de lest sur cet exercice.",
+    technique:"Pense « plier la barre » et « haussement d'épaules inversé ». Si c'est difficile au début, c'est le signe qu'une faiblesse critique vient d'être trouvée — apprends pieds au sol, genoux fléchis, avec moins de charge. Capital en reprise : c'est lui qui verrouille la position d'épaule de toutes tes suspensions." },
   { id:"pull-simple", name:"Tractions — séries simples", type:"Force générale", cat:"traction", color:"cool", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Tractions",
     prepSec:12, hangSec:30, restRepSec:0, reps:1, restSetSec:120, sets:5, builtin:true,
     desc:"5 séries de tractions au poids du corps, sur barre ou sur les bacs des triangles. Chaque fenêtre de 30 s : fais 60–80 % de ton maximum de reps, propres.",
@@ -877,15 +901,19 @@ const PRESETS = [
     gains:"Force de tirage générale, la base du grimpeur. Progression : quand le RPE de séance passe à 7 ou moins, ajoute 1 rep par série la fois suivante. Quand tu dépasses ~12 reps par série, passe aux tractions lestées." },
   { id:"pull-weight", name:"Tractions lestées", type:"Force maximale", cat:"traction", color:"hot", grip:"Bac / ouvert", edgeMm:0, addedKg:10, effortLabel:"Tractions",
     prepSec:15, hangSec:20, restRepSec:0, reps:1, restSetSec:180, sets:5, builtin:true,
-    desc:"5 séries de 3 à 5 tractions lourdes avec lest (ceinture, gilet ou sac). Fenêtre de 20 s par série, 3 min de repos complet.",
+    desc:"Le pilier de la force de tirage (Hörst : incontournable dès ~8 tractions strictes). Règle le lest pour qu'un maximum de 8 répétitions soit possible — et n'en fais que 6 : on s'arrête avant l'échec. Montée explosive, descente contrôlée, arrêt JUSTE AVANT les bras tendus complets (à éviter sous charge). 3 min de repos, 3 séries au moins, jusqu'à 6, en ajoutant ~2 kg par série. Ton test 3RM guide le départ : ~85 % de ton 3RM.",
     technique:"Échauffe-toi avec 2 séries au poids du corps d'abord. Lest accroché au baudrier ou en gilet, jamais tenu entre les jambes en séries lourdes. Amplitude complète stricte : bras tendus en bas, menton franchement au-dessus. 3-5 reps max par série — si tu en fais 6, monte la charge.",
     gains:"Force maximale de tirage — le transfert le plus direct vers les mouvements durs et les blocages. L'app suit ta progression : RPE ≤ 6 → +2 kg proposés, RPE 7 → +1 kg, RPE ≥ 9 → on redescend." },
   { id:"pull-frenchies", name:"Frenchies — blocages", type:"Force-endurance", cat:"traction", color:"amber", grip:"Bac / ouvert", edgeMm:0, addedKg:0, effortLabel:"Blocage",
     prepSec:15, hangSec:25, restRepSec:20, reps:3, restSetSec:180, sets:3, builtin:true,
     desc:"Le classique de l'escalade : 1 cycle = traction complète puis blocage 7 s en haut, descente à 90° blocage 7 s, descente à 120° blocage 7 s, puis bras tendus. 3 cycles par série (une fenêtre de 25 s = un cycle).",
-    technique:"Chaque blocage est TENU immobile — pas de tremblement toléré, sinon écourte. Les angles comptent : bras cassés en haut, coudes à l'équerre à 90°, presque tendus à 120°. Épaules basses en permanence. Si 3 cycles passent facilement, ajoute un blocage ou du lest léger.",
+    technique:"Chaque blocage est TENU immobile — pas de tremblement toléré, sinon écourte. Les angles comptent : bras cassés en haut, coudes à l'équerre à 90°, presque tendus à 120°. Épaules basses en permanence. Si 3 cycles passent facilement, ajoute un blocage ou du lest léger. Variantes de blocage du chapitre 7 de Hörst, à glisser quand tu stagnes : blocage large en déplacement latéral (type machine à écrire, 1 s de chaque côté, 2 séries de 3-6, 3 min) ou tractions à prises décalées avec une sangle.",
     gains:"Force de blocage à tous les angles — exactement ce qui te tient sur une prise pendant que l'autre main avance. Le meilleur exercice de tirage spécifique escalade, et le plus redoutablement fatigant." },
   /* ===== ANTAGONISTES ===== */
+  { id:"hx-widepinch", name:"Pince large — poignet étendu", type:"Prévention", cat:"mcxpince", color:"cool", grip:"Pince large", edgeMm:0, addedKg:8, effortLabel:"Tenues", repSet:true,
+    prepSec:10, hangSec:90, restRepSec:0, reps:1, restSetSec:120, sets:3, builtin:true,
+    desc:"L'exercice « à faire absolument » du chapitre 7 de Hörst : debout, bras tendu le long du corps, poignet en extension, pince un objet large (kettlebell par le corps, planche épaisse, disque) et tiens 10 à 30 s de chaque côté. 2 à 5 séries, 2 min de repos minimum. Double intérêt : le pouce en pince large ET les extenseurs de doigts complètement allongés — la stabilité du poignet et la prévention des blessures.",
+    technique:"Commence léger en tenues de 30 s (force-endurance), puis plus lourd en tenues de 10 s. Posture droite, épaules au même niveau. Complète parfaitement tes extensions à l'élastique." },
   { id:"anta-ext", name:"Extenseurs de doigts — élastique", type:"Prévention", cat:"poutre", color:"cool", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Extensions",
     prepSec:5, hangSec:30, restRepSec:15, reps:2, restSetSec:45, sets:3, builtin:true,
     desc:"Élastique (ou gros élastique de bureau) autour du bout des doigts : ouvre la main en grand contre la résistance, en rythme lent. Chaque série = 30 s main gauche (rep 1) puis main droite (rep 2).",
@@ -911,7 +939,7 @@ const PRESETS = [
     technique:"Hanches le plus haut possible, regard vers les pieds, mains largeur d'épaules. La tête descend ENTRE les mains (pas devant), coudes à ~45°. Vise 5-10 reps propres par fenêtre. Progression : pieds surélevés sur une chaise, puis pompes en équilibre contre un mur. Régression : réduis l'amplitude, pas la position.",
     gains:"Deltoïdes, trapèzes et dentelé en poussée verticale : la force du rétablissement (mantle), la stabilité de l'épaule au-dessus de la tête et l'équilibre parfait du haut du corps face au tirage permanent de la grimpe." },
   { id:"core-dorsal", name:"Chaîne postérieure — circuit", type:"Gainage", cat:"gainage", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Gainage",
-    prepSec:10, hangSec:35, restRepSec:20, reps:3, restSetSec:60, sets:3, builtin:true,
+    prepSec:10, hangSec:35, restRepSec:20, reps:3, restSetSec:180, sets:3, builtin:true,
     desc:"Le miroir de la planche : chaque série = planche inversée (rep 1, face au plafond, appui talons-mains), pont fessier tenu haut (rep 2), superman bras-jambes décollés (rep 3). 35 s d'effort, 20 s de transition.",
     technique:"Planche inversée : corps aligné épaules-chevilles, hanches POUSSÉES vers le haut, épaules basses. Pont : serre les fessiers au sommet, ne creuse pas les lombaires — version dure sur une jambe. Superman : décolle bras et cuisses ensemble, nuque longue, regard au sol.",
     gains:"Fessiers, ischios et érecteurs du rachis : la chaîne qui verrouille les talons (heel hooks), plaque les hanches au mur en dévers et tient la tension du corps pieds-mains. Le complément indispensable de la planche — la plupart des grimpeurs ne travaillent que la face avant." },
@@ -926,9 +954,9 @@ const PRESETS = [
     desc:"5 fenêtres de 30 s de swings à deux mains. Commence à 16 kg, passe à 24 kg quand la technique est acquise. ~12-15 swings par fenêtre, hanches explosives.",
     technique:"C'est une CHARNIÈRE de hanche, pas un squat : le buste plonge, les hanches reculent, puis claquent vers l'avant — les bras ne font que suivre, la kettlebell monte à hauteur de poitrine max. Dos plat verrouillé, fessiers serrés au sommet.",
     gains:"Puissance des fessiers et des ischios — la chaîne qui verrouille les talons et propulse les jetés — plus un vrai travail de grip d'endurance en prime. L'exercice chargé le plus rentable pour un grimpeur." },
-  { id:"kb-sdt", name:"KB Soulevé de terre lourd", type:"Renfo", cat:"renfo", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:32, effortLabel:"Soulevés",
-    prepSec:15, hangSec:20, restRepSec:0, reps:1, restSetSec:120, sets:5, builtin:true,
-    desc:"5 séries de 5 soulevés de terre à la kettlebell de 32 kg (ou 24+8 en valise, une dans chaque main). Fenêtre de 20 s, 2 min de repos.",
+  { id:"kb-sdt", name:"KB Soulevé de terre lourd", type:"Renfo", cat:"renfo", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:32, effortLabel:"Soulevés", repSet:true,
+    prepSec:15, hangSec:45, restRepSec:0, reps:1, restSetSec:180, sets:3, builtin:true,
+    desc:"Soulevé de terre sumo au kettlebell, la porte d'entrée de la chaîne postérieure selon Hörst — érecteurs, fessiers, ischios, trapèzes, coiffe. Pieds larges, pointes ouvertes ~20°, dos plat, tire en étendant d'abord les genoux puis les hanches, finis grand et droit sans hausser les épaules. 10 à 15 répétitions, 3 séries, 3 min de repos. À faire 2×/semaine : petit investissement, bénéfices multiples. Charge légère au départ, technique avant tout — double-la sur une année.",
     technique:"KB entre les pieds, hanches basses, dos plat, bras tendus. Pousse le sol avec les jambes, la barre... la kettlebell reste collée près du corps. Verrouille debout — fessiers serrés — sans cambrer. Descente contrôlée.",
     gains:"Force brute de la chaîne postérieure et du grip. Version valise (une KB par main) : ajoute le gainage anti-inclinaison et double le travail de préhension." },
   { id:"me-gym", name:"ME jambes — circuit montée", type:"Endurance musculaire", cat:"jambes", color:"amber", grip:"Corps + box", edgeMm:0, addedKg:0, effortLabel:"Circuit", repSet:true,
@@ -947,14 +975,18 @@ const PRESETS = [
     prepSec:12, hangSec:120, restRepSec:45, reps:3, restSetSec:120, sets:3, builtin:true,
     desc:"Sur le dos, talons sur les plaquettes de glissement : monte le bassin en pont, puis étends et ramène les jambes en gardant les hanches hautes — le leg curl glissé, l'un des meilleurs exercices d'ischios sans machine. 3 séries de 3 fenêtres : leg curls glissés ×8-12, hip thrust épaules surélevées ×12 (lestable kettlebell sur le bassin), pont une jambe ×8/jambe. Ischios et fessiers propulsent la montée et protègent les genoux en descente.",
     technique:"Le bassin ne descend JAMAIS pendant le curl — s'il coule, réduis l'amplitude ou passe en excentrique seul (ramène à deux jambes, étends sur une). Progression : excentrique 5 s, puis une jambe. Chaussettes sur parquet en dépannage." },
+  { id:"kb-snatch", name:"Snatch kettlebell — explosivité", type:"Chaîne postérieure", cat:"jambes", color:"hot", grip:"Kettlebell", edgeMm:0, addedKg:8, effortLabel:"Séries", repSet:true,
+    prepSec:15, hangSec:60, restRepSec:0, reps:1, restSetSec:150, sets:4, builtin:true,
+    desc:"Un seul mouvement explosif : triple extension chevilles-genoux-hanches, la charge monte bras tendu au-dessus de la tête, gainage verrouillé une seconde en haut. 5 à 8 répétitions par bras, 4 séries alternées. Lift technique : commence modéré (8 kg) et n'augmente que quand 8 répétitions passent explosives ET propres (Hörst). Entraîne le recrutement éclair du tronc — le jeté qui se colle, le pas dynamique qui tient.",
+    technique:"Le bras reste un câble : c'est la hanche qui projette, jamais l'épaule qui tire. Pause de quelques secondes entre les répétitions, repos complet entre les séries. Dos plat au départ, regard loin devant." },
   { id:"kb-jambes", name:"KB Jambes — goblet & box", type:"Renfo", cat:"renfo", color:"amber", grip:"Corps entier", edgeMm:0, addedKg:16, effortLabel:"Squats",
     prepSec:12, hangSec:30, restRepSec:20, reps:2, restSetSec:75, sets:3, builtin:true,
     desc:"Chaque série : rep 1 = goblet squats (KB 16-24 kg tenue contre la poitrine), rep 2 = montées sur la box en alternant les jambes (KB 8-16 kg). 30 s par exercice.",
     technique:"Goblet : coudes entre les genoux en bas, talons au sol, buste droit. Box : pousse UNIQUEMENT sur la jambe du haut (l'autre ne donne pas d'élan), genou aligné avec le pied, descente freinée.",
     gains:"Force des jambes et stabilité unilatérale : les pieds qui poussent fort et précis, la base des placements hauts et des rétablissements. La grimpe se gagne aussi par le bas." },
   { id:"trx-core", name:"TRX Gainage — fallouts & pikes", type:"Gainage", cat:"gainage", color:"hot", grip:"Corps entier", edgeMm:0, addedKg:0, effortLabel:"Gainage",
-    prepSec:10, hangSec:30, restRepSec:20, reps:2, restSetSec:75, sets:3, builtin:true,
-    desc:"Chaque série au TRX : rep 1 = fallouts (en planche mains dans les poignées, laisse glisser les bras vers l'avant puis reviens), rep 2 = pikes (pieds dans les sangles, monte les fesses en V inversé). 30 s par exercice.",
+    prepSec:10, hangSec:45, restRepSec:0, reps:1, restSetSec:180, sets:3, builtin:true,
+    desc:"Le « Marine Core » de Hörst — selon lui, rien ne bat cet exercice pour l'anti-extension. À genoux face au TRX réglé hauteur de hanches, bras tendus : pousse les mains vers l'avant jusqu'à l'alignement bras-tronc, tiens 2 s, reviens. 5 à 12 répétitions, 3 séries, 3 min de repos. Ajoute une fenêtre de pike (bassin vers le plafond, pieds dans les sangles) si tu veux compléter.",
     technique:"Fallouts : bassin rétroversé verrouillé, avance les bras SEULEMENT tant que le dos ne creuse pas — c'est l'anti-extension pure. Pikes : jambes tendues, monte les hanches au-dessus des épaules par les abdos, redescends en planche parfaite.",
     gains:"Le gainage instable le plus transférable à la grimpe : maintenir la tension du tronc pendant que les points d'appui bougent — exactement ce qui se passe à chaque mouvement en dévers." },
 ];
@@ -1152,6 +1184,8 @@ const GAINAGE_IDS = ["core-sol","core-dorsal","core-hollow","core-susp","core-ls
 const ANTAGO_IDS = ["anta-ext","anta-pompes","anta-pike","anta-poignets","anta-coiffe"];
 /* Matériel requis par programme (tout est requis ; les alternatives sont d'autres programmes) */
 const PROG_NEED = {
+  "hx-minedge":["poutre"], "hx-753":["poutre"], "hx-scap":["barre"],
+  "ho-knees":["barre"], "kb-snatch":["kb"],
   "me-gym":["box"], "me-heavy":["box"], "me-ecc":["box"], "me-ischio":["sliders"],
   "bm-longmax":["poutre"], "bm-tendon":["poutre"],
   "bm-endlong":["poutre"], "bm-endshort":["poutre","elastique"],
@@ -1231,11 +1265,11 @@ function shouldAntago(p){ return p && p.id!=="cardio" && p.id!=="wod" && p.id!==
 
 /* ---- Pools du programme général & des séances ciblées ---- */
 const GENERAL_POOLS = {
-  doigts:  ["maxhangs","rep73","bm-longmax","bm-tendon","bm-endlong","bm-endshort","mcx-pinch-max","anta-ext"],
-  tirage:  ["pull-simple","pull-weight","pull-frenchies","bm-negatives"],
+  doigts:  ["maxhangs","hx-minedge","hx-753","rep73","bm-longmax","bm-tendon","bm-endlong","bm-endshort","mcx-pinch-max","hx-widepinch","anta-ext"],
+  tirage:  ["pull-simple","pull-weight","pull-frenchies","bm-negatives","hx-scap"],
   poussee: ["anta-pompes","anta-lest","anta-pike"],
-  jambes:  ["me-gym","me-heavy","me-ecc","me-ischio","kb-jambes","kb-sdt","kb-swing"],
-  gainage: ["fl-tuck","fl-adv","fl-wipers","fl-raise","fl-oneleg","fl-full","core-lsit","core-susp","core-sol","core-hollow","core-dorsal","trx-core"]
+  jambes:  ["me-gym","me-heavy","me-ecc","me-ischio","kb-snatch","kb-jambes","kb-sdt","kb-swing"],
+  gainage: ["fl-tuck","fl-adv","fl-wipers","fl-raise","fl-oneleg","fl-full","ho-knees","ho-front","ho-post","core-lsit","core-susp","core-sol","core-hollow","core-dorsal","trx-core"]
 };
 const MUSCLE_KEYS = ["tirage","poussee","jambes"];
 const POOL_TXT = { doigts:"Doigts", tirage:"Tirage", poussee:"Poussée", jambes:"Jambes", gainage:"Gainage", endurance:"Endurance", wod:"WOD", yoga:"Yoga", oa:"Respiration" };
