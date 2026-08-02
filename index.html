@@ -137,6 +137,9 @@ h2:first-of-type{margin-top:8px}
   transform:translateY(100%);animation:up .34s cubic-bezier(.2,.85,.2,1) forwards;
   box-shadow:0 -12px 40px rgba(20,25,32,.18)}
 @keyframes up{to{transform:none}}
+.sheet-back{display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--muted);font-weight:800;font-size:13px;padding:2px 0 10px;margin:0;cursor:pointer;letter-spacing:.01em}
+.sheet-back svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.sheet-back:active{opacity:.6}
 .grab{width:38px;height:4px;border-radius:3px;background:var(--line-strong);margin:6px auto 14px}
 .sheet h3{font-size:20px;font-weight:800;letter-spacing:-.01em;margin-bottom:4px}
 .sheet .sub{color:var(--muted);font-size:13.5px;margin-bottom:16px}
@@ -539,7 +542,7 @@ html.dark .sheet-bg{background:rgba(3,5,8,.6)}
    avec repli mémoire (fonctionne aussi en aperçu sandbox).
    ============================================================ */
 
-const APP_VERSION = "v83"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
+const APP_VERSION = "v86"; // incrémentée à chaque mise à jour — doit correspondre au cache du service worker
 
 /* ---------- Persistance ---------- */
 /* ---------- Persistance : localStorage en lecture rapide, IndexedDB en coffre durable ----------
@@ -1270,7 +1273,7 @@ function shouldAntago(p){ return p && p.id!=="cardio" && p.id!=="wod" && p.id!==
 
 /* ---- Pools du programme général & des séances ciblées ---- */
 const GENERAL_POOLS = {
-  doigts:  ["maxhangs","hx-minedge","hx-753","rep73","bm-longmax","bm-tendon","bm-endlong","bm-endshort","mcx-pinch-max","hx-widepinch","duo-poches","anta-ext"],
+  doigts:  ["maxhangs","hx-753","hx-minedge","rep73","bm-endshort","bm-endlong","bm-tendon","mcx-pinch-max","hx-widepinch","anta-ext"],
   tirage:  ["pull-simple","pull-weight","pull-frenchies","bm-negatives","hx-scap"],
   poussee: ["anta-pompes","anta-lest","anta-pike"],
   jambes:  ["me-gym","me-heavy","me-ecc","me-ischio","kb-snatch","kb-jambes","kb-sdt","kb-swing"],
@@ -2324,7 +2327,24 @@ function renderTrain(){
       <p class="rec-txt" style="margin-top:2px">Le plan du jour est adapté : ${todayEquip.list.length?esc(todayEquip.list.map(equipLabel).join(", ")):"aucun matériel"}. Ça se réinitialise demain.</p>
       <button class="btn btn-ghost btn-sm" id="eqEdit" style="margin-top:10px">Modifier</button>
     </div>`:""}
-    <h2>Mes 5 programmes</h2>
+    <h2>Séances</h2>
+    <div class="row2" style="margin-bottom:8px">
+      <button class="btn btn-primary" id="tFing" style="padding:16px 12px">🤏 Doigts</button>
+      <button class="btn btn-primary" id="tCore" style="padding:16px 12px">🎯 Gainage</button>
+    </div>
+    <div class="row2" style="margin-bottom:8px">
+      <button class="btn btn-ghost" id="tPull">💪 Tractions</button>
+      <button class="btn btn-ghost" id="tLegs">🦵 Jambes ME</button>
+    </div>
+    <div class="row2" style="margin-bottom:8px">
+      <button class="btn btn-ghost" id="tAnta">🙌 Antagonistes</button>
+      <button class="btn btn-ghost" id="tEndu">🏃 Endurance</button>
+    </div>
+    <div class="row2" style="margin-bottom:14px">
+      <button class="btn btn-ghost" id="tOa">🌬️ Apnée</button>
+    </div>
+    <details id="trkFold" ${store.get("trkFold",false)?"open":""} style="margin-bottom:6px">
+      <summary style="cursor:pointer;font-weight:800;font-size:13px;color:var(--muted);padding:6px 0;letter-spacing:.04em">Suivi des 4 programmes 16 semaines</summary>
     ${TRACK5.map(([k,name,desc])=>{
       const on = trackOn(k), c = on ? trackCyc(k) : null;
       const cyc = c && c.mode==="cycle";
@@ -2354,6 +2374,7 @@ function renderTrain(){
           <div style="height:100%;width:${pct}%;background:${showDl?"var(--amber)":"var(--cool)"}"></div></div>`:""}
       </div>`;
     }).join("")}
+    </details>
     <p class="hint" style="margin:2px 0 10px;text-align:left">« Ouvrir » donne accès à toutes les séances du domaine, quel que soit le plan du jour.</p>
     <h2>Matériel</h2>
     <button class="btn btn-ghost btn-block" id="fwBtn" style="margin-bottom:8px">🔥 Échauffement doigts guidé</button>
@@ -2378,6 +2399,11 @@ function renderTrain(){
   document.querySelectorAll(".trk-set").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); openTrackPlan(b.dataset.k); });
   document.querySelectorAll(".trk-test").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); openTrackTest(b.dataset.k); });
   document.querySelectorAll(".trkcard").forEach(c=>c.onclick=()=>{ const f=TRACK_OPEN[c.dataset.k]; if(f) f(); });
+  const fold=document.getElementById("trkFold");
+  if(fold) fold.ontoggle=()=>store.set("trkFold", fold.open);
+  [["tFing",()=>openFingerHub()],["tCore",openCoreList],["tPull",openPullList],
+   ["tLegs",openLegsList],["tAnta",openAntagoList],["tEndu",()=>openCardioSheet()],["tOa",openOaHome]]
+   .forEach(([id,fn])=>{ const b=document.getElementById(id); if(b) b.onclick=fn; });
   setupInstall();
 }
 function colorOf(pid){ const p=programs.find(x=>x.id===pid); return p?p.color:"muted"; }
@@ -2421,14 +2447,14 @@ function bindCard(p){
 let accOpen = store.get("accOpen", null);
 if(!accOpen){ accOpen={poutre:true}; store.set("accOpen",accOpen); }
 function renderPrograms(){
-  const CATS = [["poutre","Poutre & hangboard"],["triangle","Triangle YY Vertical"],["minicrux","Mini Crux"],["mcxpince","Mini Crux — Spécial pince"],["traction","Tractions"],["renfo","Renfo — kettlebells & co"],["gainage","Gainage"],["antago","Antagonistes"]];
+  const CATS = [["poutre","Doigts"],["mcxpince","Pince"],["traction","Tractions"],["antago","Antagonistes"],["gainage","Gainage"],["jambes","Jambes"],["renfo","Renfo"]];
   view.innerHTML = `
     <div class="topbar"><div><div class="eyebrow">Bibliothèque <span class="ver">${APP_VERSION}</span></div><h1>Programmes</h1></div>
       <button class="icon-btn" id="addProg" aria-label="Nouveau"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
     <h2>Accès rapides</h2>
     <div class="row2" style="margin-bottom:8px">
-      <button class="btn btn-ghost" id="qFing">🤏 Doigts & tractions</button>
+      <button class="btn btn-ghost" id="qFing">🤏 Doigts</button>
       <button class="btn btn-ghost" id="qEndu">🏃 Endurance</button>
     </div>
     <div class="row2" style="margin-bottom:8px">
@@ -3138,13 +3164,31 @@ function importBackupFile(file, done){
 /* ============================================================
    SHEET (modal)
    ============================================================ */
+let sheetDepth = 0;          // le bouton Précédent du téléphone ferme la feuille, pas l'app
 function sheet(html){
   const root=$("#sheet-root");
-  root.innerHTML=`<div class="sheet-bg"><div class="sheet"><div class="grab"></div>${html}</div></div>`;
+  root.innerHTML=`<div class="sheet-bg"><div class="sheet">
+    <div class="grab"></div>
+    <button class="sheet-back" id="shBack" aria-label="Retour">
+      <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg> Retour
+    </button>
+    ${html}</div></div>`;
   const bg=root.querySelector(".sheet-bg");
   bg.addEventListener("click",e=>{ if(e.target===bg) closeSheet(); });
+  const back=document.getElementById("shBack");
+  if(back) back.onclick=()=>closeSheet();
+  if(!sheetDepth){ sheetDepth=1; try{ history.pushState({sheet:true},""); }catch(e){} }
 }
-function closeSheet(){ $("#sheet-root").innerHTML=""; }
+function closeSheet(fromPop){
+  $("#sheet-root").innerHTML="";
+  if(sheetDepth && !fromPop){ sheetDepth=0; try{ history.back(); }catch(e){} }
+  else sheetDepth=0;
+}
+window.addEventListener("popstate",()=>{
+  if($("#sheet-root").innerHTML) closeSheet(true);          // 1er retour : ferme la feuille
+  else if(warmupState){ finishWarmup(false); }              // 2e : quitte l'échauffement
+  else if(typeof SESS!=="undefined" && SESS && !SESS.ended){ try{ history.pushState({},""); }catch(e){} toast("Termine ou abandonne la séance d'abord"); }
+});
 
 
 /* ============================================================
@@ -5860,18 +5904,63 @@ function pickBenchByTime(mins){
   const src = pool.length ? pool : BENCH.filter(benchAvail);
   return src[Math.floor(Math.random()*src.length)] || null;
 }
+function openPoolSheet(title, sub, ids){
+  const list = (ids||[]).map(id=>programs.find(x=>x.id===id)).filter(p=>p&&progAvail(p));
+  sheet(`<h3>${esc(title)}</h3><div class="sub">${esc(sub)}</div>
+    <div style="max-height:60vh;overflow:auto;margin-bottom:12px">
+    ${list.length?list.map(x=>`<div class="prow fh-row" data-id="${x.id}" style="cursor:pointer">
+      <div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14px">${esc(x.name)}</div>
+      <div class="mono" style="font-size:11px;color:var(--muted)">${esc(x.type)}${x.sets?` · ${x.sets}×${x.hangSec}s`:""}</div></div>
+      <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;opacity:.4"><path d="M9 6l6 6-6 6"/></svg>
+      </div>`).join(""):`<p class="hint" style="text-align:left">Rien de faisable avec le matériel du jour.</p>`}
+    </div>
+    <button class="btn btn-ghost" id="poolClose">Fermer</button>`);
+  document.querySelectorAll(".fh-row").forEach(r=>r.onclick=()=>{ const pr=programs.find(x=>x.id===r.dataset.id); closeSheet(); if(pr) startSession(pr); });
+  const c=document.getElementById("poolClose"); if(c) c.onclick=closeSheet;
+}
+function openCoreList(){ openPoolSheet("Gainage","Front levers à la barre, circuits Hörst, sol en repli.", GENERAL_POOLS.gainage); }
+function openLegsList(){ openPoolSheet("Jambes — endurance musculaire","3 séances par semaine dans la piste Condition alpinisme.", GENERAL_POOLS.jambes); }
+function openPullList(){
+  const t = lastTest("escalade");
+  const cible = t ? (t.data.e_pullkg>0
+      ? `Charge de travail : <b style="color:var(--chalk)">+${Math.round(t.data.e_pullkg*0.85)} kg</b> en séries de 3 — 85 % de ton 3RM de ${t.data.e_pullkg} kg.`
+      : `Charge de travail : <b style="color:var(--chalk)">${Math.max(0,Math.round((t.data.e_pull||0)*0.65))} reps</b> par série — 65 % de ton max de ${t.data.e_pull}.`)
+    : "Fais le test doigts & tractions pour caler tes charges.";
+  openPoolSheet("Tractions", "Force de tirage. "+cible.replace(/<[^>]+>/g,""), GENERAL_POOLS.tirage);
+}
+function openAntagoList(){ openPoolSheet("Antagonistes","Poussée et épaules — l'équilibre de ton volume de tirage.", GENERAL_POOLS.poussee.concat(["anta-coiffe","anta-poignets"])); }
 function openFingerHub(){
-  const CATS = [["poutre","Doigts — support au choix"],["mcxpince","Pince"],
-    ["traction","Tractions"],["antago","Antagonistes — pompes"]];
+  // Doigts : 2-3 protocoles par qualité, tous issus de Beastmaking (Feehally) et Hörst
+  const FING = [
+    ["Force max", ["maxhangs","hx-753","hx-minedge"]],
+    ["Force-endurance", ["rep73","bm-endshort"]],
+    ["Endurance", ["bm-endlong","bm-tendon"]],
+    ["Pince & prévention", ["mcx-pinch-max","hx-widepinch","anta-ext"]]
+  ];
+  const CATS = [];   // tractions et antagonistes ont leurs propres écrans
   const warm = recentlyWarm();
   sheet(`
-    <h3>Doigts & tractions</h3>
-    <div class="sub">Le protocole fait la séance, pas l'outil : poutre, triangles ou Mini Crux au choix pour les doigts. ${warm?"Tu es chaud — lancement direct.":"L'échauffement guidé se lance avant toute séance chargée."}</div>
+    <h3>Doigts</h3>
+    <div class="sub">Le protocole fait la séance, pas l'outil : poutre, triangles ou Mini Crux au choix. ${warm?"Tu es chaud — lancement direct.":"L'échauffement guidé se lance avant toute séance chargée."}</div>
     ${(()=>{ const r=store.get("fingerRef",null), t=lastTest("escalade"); if(!r&&!t) return "";
       const cible = r ? (r.med||r.kg===0 ? `<b style="color:var(--chalk)">${r.edge} mm au poids du corps</b>` : `<b style="color:var(--chalk)">${r.edge} mm à +${r.kg} kg</b>`) : "—";
-      const tir = t && t.data.e_pullkg>0 ? `tractions +${Math.round(t.data.e_pullkg*0.85)} kg × 3` : (t?`tractions ${Math.max(0,Math.round((t.data.e_pull||0)*0.65))} reps/série`:"");
-      return `<div class="card" style="margin-bottom:10px"><div class="mono" style="font-size:11.5px;color:var(--muted)">${t?`Niveau <b style="color:var(--chalk)">${t.level}/5</b> · `:""}max hangs : ${cible}${tir?` · ${tir}`:""}</div></div>`; })()}
+      return `<div class="card" style="margin-bottom:10px"><div class="mono" style="font-size:11.5px;color:var(--muted)">${t?`Niveau <b style="color:var(--chalk)">${t.level}/5</b> · `:""}max hangs : ${cible}</div></div>`; })()}
     <div style="max-height:58vh;overflow:auto;margin-bottom:12px">
+      ${FING.map(([label,ids])=>{
+        const list = ids.map(id=>programs.find(p=>p.id===id)).filter(p=>p&&progAvail(p));
+        if(!list.length) return "";
+        return `<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800;margin:12px 0 4px">${esc(label)}</div>
+        ${list.map(p=>{
+          const prep = PREP_IDS.has(p.id);
+          return `<div class="prow fh-row" data-id="${p.id}" style="cursor:pointer">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:800;font-size:14px">${esc(p.name)}</div>
+              <div class="mono" style="font-size:11px;color:var(--muted)">${p.sets}×${p.reps>1?`${p.reps}×`:""}${p.hangSec}s · repos ${p.restSetSec}s</div>
+            </div>
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;opacity:.4"><path d="M9 6l6 6-6 6"/></svg>
+          </div>`;
+        }).join("")}`;
+      }).join("")}
       ${CATS.map(([c,label])=>{
         const list = programs.filter(p=>p.cat===c && progAvail(p));
         if(!list.length) return "";
